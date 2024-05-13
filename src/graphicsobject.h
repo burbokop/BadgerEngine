@@ -1,8 +1,8 @@
 #ifndef GRAPHICSINSTANCE_H
 #define GRAPHICSINSTANCE_H
 
+#include "Tools/hardware.h"
 #include "graphicsobjectcreateinfo.h"
-#include "tools/hardware.h"
 
 #include <vulkan/vulkan.hpp>
 #include <queue>

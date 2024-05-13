@@ -1,4 +1,4 @@
-function(add_shader_target target)
+function(badger_engine_add_shader_target target)
   cmake_parse_arguments(PARSE_ARGV 1 arg "" "OUTPUT_DIR" "SOURCES")
 
   if(NOT DEFINED arg_OUTPUT_DIR)

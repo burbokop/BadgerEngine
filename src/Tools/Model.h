@@ -1,13 +1,13 @@
 #pragma once
 
-#include "../geometry/Mesh.h"
+#include "../Geometry/Mesh.h"
 
-namespace e172vp {
+namespace BadgerEngine {
 
 class Model {
 public:
     Model(
-        Mesh mesh,
+        Geometry::Mesh mesh,
         std::vector<std::uint8_t> vert,
         std::vector<std::uint8_t> frag)
         : m_mesh(std::move(mesh))
@@ -21,7 +21,7 @@ public:
     const auto& frag() const { return m_frag; }
 
 private:
-    Mesh m_mesh;
+    Geometry::Mesh m_mesh;
     std::vector<std::uint8_t> m_vert;
     std::vector<std::uint8_t> m_frag;
 };

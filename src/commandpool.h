@@ -1,8 +1,7 @@
-#ifndef COMMANDPOOL_H
-#define COMMANDPOOL_H
+#pragma once
 
+#include "Tools/hardware.h"
 #include <vulkan/vulkan.hpp>
-#include "tools/hardware.h"
 
 namespace e172vp {
 
@@ -27,4 +26,3 @@ public:
 };
 
 }
-#endif // COMMANDPOOL_H

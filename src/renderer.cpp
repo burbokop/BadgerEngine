@@ -1,16 +1,13 @@
 #include "renderer.h"
 
-#include "tools/Model.h"
-#include "tools/buffer.h"
-#include "tools/stringvector.h"
+#include "Tools/Model.h"
+#include "Tools/buffer.h"
+#include "Tools/stringvector.h"
 #include <chrono>
 #include <fstream>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 #include <math.h>
-
-#define STB_IMAGE_IMPLEMENTATION
-#include "../../image/stb_image.h"
 
 e172vp::Renderer::Renderer() {
     glfwInit();
@@ -89,8 +86,6 @@ e172vp::Renderer::Renderer() {
         m_graphicsObject.graphicsQueue(),
         "fonts/ZCOOL.ttf",
         128);
-
-    m_elapsedFromStart.reset();
 }
 
 std::shared_ptr<e172vp::Pipeline> e172vp::Renderer::createPipeline(const std::vector<std::uint8_t>& vertShaderCode, const std::vector<std::uint8_t>& fragShaderCode)
@@ -284,7 +279,7 @@ void e172vp::Renderer::resetCommandBuffers(const std::vector<vk::CommandBuffer> 
     }
 }
 
-e172vp::VertexObject* e172vp::Renderer::addObject(const e172vp::Mesh& mesh, Shared<Pipeline> pipeline)
+e172vp::VertexObject* e172vp::Renderer::addObject(const BadgerEngine::Geometry::Mesh& mesh, Shared<Pipeline> pipeline)
 {
     const auto r = new VertexObject(
         &m_graphicsObject,
@@ -300,7 +295,7 @@ e172vp::VertexObject* e172vp::Renderer::addObject(const e172vp::Mesh& mesh, Shar
 
 e172vp::VertexObject* e172vp::Renderer::addCharacter(char c, std::shared_ptr<Pipeline> pipeline)
 {
-    const static std::vector<e172vp::Vertex> v = {
+    const static std::vector<BadgerEngine::Geometry::Vertex> v = {
         { { -0.1f, -0.1f, 0 }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
         { { 0.1f, -0.1f, 0 }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 0.0f } },
         { { 0.1f, 0.1f, 0 }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f } },
@@ -316,13 +311,13 @@ e172vp::VertexObject* e172vp::Renderer::addCharacter(char c, std::shared_ptr<Pip
         m_graphicsObject.swapChain().imageCount(),
         &m_objectDescriptorSetLayout,
         &m_samplerDescriptorSetLayout,
-        Mesh(v, i),
+        BadgerEngine::Geometry::Mesh(v, i),
         m_font->character(c).imageView(), pipeline);
     m_vertexObjects.push_back(r);
     return r;
 }
 
-e172vp::VertexObject* e172vp::Renderer::addObject(const Model& model)
+e172vp::VertexObject* e172vp::Renderer::addObject(const BadgerEngine::Model& model)
 {
     return addObject(model.mesh(), createPipeline(model.vert(), model.frag()));
 }

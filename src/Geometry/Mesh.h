@@ -3,7 +3,7 @@
 #include "Vertex.h"
 #include <vector>
 
-namespace e172vp {
+namespace BadgerEngine::Geometry {
 
 class ObjMesh;
 

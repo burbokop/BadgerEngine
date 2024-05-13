@@ -1,14 +1,13 @@
 #include "graphicsobject.h"
 
-#include "tools/hardware.h"
-#include "tools/validation.h"
-#include "tools/stringvector.h"
-#include "tools/extensiontools.h"
-#include "tools/vulkaninstancefactory.h"
-#include "tools/logicdevicefactory.h"
-
-#include <set>
+#include "Tools/extensiontools.h"
+#include "Tools/hardware.h"
+#include "Tools/logicdevicefactory.h"
+#include "Tools/stringvector.h"
+#include "Tools/validation.h"
+#include "Tools/vulkaninstancefactory.h"
 #include <iostream>
+#include <set>
 
 vk::Instance e172vp::GraphicsObject::vulkanInstance() const { return m_vulkanInstance; }
 vk::PhysicalDevice e172vp::GraphicsObject::physicalDevice() const { return m_physicalDevice; }

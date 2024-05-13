@@ -1,13 +1,11 @@
 #include "font.h"
 #include "swapchain.h"
 
-#include <iostream>
-#include "tools/buffer.h"
-#include <thread>
-#include <ft2build.h>
+#include "Tools/buffer.h"
 #include <freetype/freetype.h>
-
-
+#include <ft2build.h>
+#include <iostream>
+#include <thread>
 
 bool e172vp::Font::createTextureImage32(const vk::Device &logicalDevice, const vk::PhysicalDevice &physicalDevice, const vk::CommandPool &commandPool, const vk::Queue &copyQueue, void* pixels, size_t w, size_t h, vk::Format format, vk::Image *image, vk::DeviceMemory *imageMemory) {
     int channelCount = 0;

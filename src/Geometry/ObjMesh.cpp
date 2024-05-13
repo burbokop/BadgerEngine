@@ -1,7 +1,8 @@
 #include "ObjMesh.h"
+
 #include <cstring>
 
-namespace e172vp {
+namespace BadgerEngine::Geometry {
 
 ObjMesh ObjMesh::load(const std::filesystem::path& path)
 {

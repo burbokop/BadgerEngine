@@ -1,10 +1,9 @@
 #include "Mesh.h"
 
 #include "ObjMesh.h"
-
 #include <string.h>
 
-namespace e172vp {
+namespace BadgerEngine::Geometry {
 
 Mesh Mesh::fromObjMesh(const ObjMesh& mesh, glm::vec3 color)
 {

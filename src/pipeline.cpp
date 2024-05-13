@@ -1,6 +1,6 @@
 #include "pipeline.h"
 
-#include "geometry/Vertex.h"
+#include "Geometry/Vertex.h"
 #include <fstream>
 
 vk::Pipeline e172vp::Pipeline::handle() const {
@@ -66,8 +66,8 @@ e172vp::Pipeline::Pipeline(const vk::Device& logicalDevice,
 
     //vertex input
     vk::PipelineVertexInputStateCreateInfo vertexInputInfo {};
-    const auto bindingDescription = Vertex::bindingDescription();
-    const auto attributeDescriptions = Vertex::attributeDescriptions();
+    const auto bindingDescription = BadgerEngine::Geometry::Vertex::bindingDescription();
+    const auto attributeDescriptions = BadgerEngine::Geometry::Vertex::attributeDescriptions();
     vertexInputInfo.vertexBindingDescriptionCount = 1;
     vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
     vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());

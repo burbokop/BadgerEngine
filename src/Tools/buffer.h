@@ -1,8 +1,8 @@
 #ifndef BUFFER_H
 #define BUFFER_H
 
+#include "../Geometry/Vertex.h"
 #include "../descriptorsetlayout.h"
-#include "../geometry/Vertex.h"
 #include <vulkan/vulkan.hpp>
 
 namespace e172vp {
@@ -17,13 +17,27 @@ public:
     static uint32_t findMemoryType(const vk::PhysicalDevice &physicalDevice, uint32_t typeFilter, vk::MemoryPropertyFlags properties);
     static bool createAbstractBuffer(const vk::Device &logicalDevice, const vk::PhysicalDevice &physicalDevice, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer *buffer, vk::DeviceMemory *bufferMemory);
     static void copyBuffer(const vk::Device &logicalDevice, const vk::CommandPool &commandPool, const vk::Queue &graphicsQueue, const vk::Buffer &srcBuffer, const vk::Buffer &dstBuffer, const vk::DeviceSize &size);
-    static void createVertexBuffer(const vk::Device &logicalDevice, const vk::PhysicalDevice &physicalDevice, const vk::CommandPool &commandPool, const vk::Queue &graphicsQueue, const std::vector<Vertex> &vertices, vk::Buffer *vertexBuffer, vk::DeviceMemory *vertexBufferMemory);
+
+    static void createVertexBuffer(
+        const vk::Device& logicalDevice,
+        const vk::PhysicalDevice& physicalDevice,
+        const vk::CommandPool& commandPool,
+        const vk::Queue& graphicsQueue,
+        const std::vector<BadgerEngine::Geometry::Vertex>& vertices,
+        vk::Buffer* vertexBuffer,
+        vk::DeviceMemory* vertexBufferMemory);
+
     static void createIndexBuffer(const vk::Device &logicalDevice, const vk::PhysicalDevice &physicalDevice, const vk::CommandPool &commandPool, const vk::Queue &graphicsQueue, const std::vector<uint32_t> &indices, vk::Buffer *indexBuffer, vk::DeviceMemory *indexBufferMemory);
 
     static void createAbstractBuffer(const GraphicsObject *graphicsObject, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer *buffer, vk::DeviceMemory *bufferMemory);
     static void copyBuffer(const GraphicsObject *graphicsObject, const vk::Buffer &srcBuffer, const vk::Buffer &dstBuffer, const vk::DeviceSize &size);
-    static void createVertexBuffer(const GraphicsObject *graphicsObject, const std::vector<Vertex> &vertices, vk::Buffer *vertexBuffer, vk::DeviceMemory *vertexBufferMemory);
-    static void createIndexBuffer(const GraphicsObject *graphicsObject, const std::vector<uint32_t> &indices, vk::Buffer *indexBuffer, vk::DeviceMemory *indexBufferMemory);
+    static void createVertexBuffer(
+        const GraphicsObject* graphicsObject,
+        const std::vector<BadgerEngine::Geometry::Vertex>& vertices,
+        vk::Buffer* vertexBuffer,
+        vk::DeviceMemory* vertexBufferMemory);
+
+    static void createIndexBuffer(const GraphicsObject* graphicsObject, const std::vector<uint32_t>& indices, vk::Buffer* indexBuffer, vk::DeviceMemory* indexBufferMemory);
 
     template<typename T>
     static void createUniformBuffer(const vk::Device &logicalDevice, const vk::PhysicalDevice &physicalDevice, vk::Buffer *uniformBuffers, vk::DeviceMemory *uniformBuffersMemory) {

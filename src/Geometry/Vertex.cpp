@@ -1,6 +1,6 @@
 #include "Vertex.h"
 
-namespace e172vp {
+namespace BadgerEngine::Geometry {
 
 std::array<vk::VertexInputAttributeDescription, 3> Vertex::attributeDescriptions()
 {
@@ -19,7 +19,7 @@ std::array<vk::VertexInputAttributeDescription, 3> Vertex::attributeDescriptions
     attributeDescriptions[2].binding = 0;
     attributeDescriptions[2].location = 2;
     attributeDescriptions[2].format = vk::Format::eR32G32Sfloat;
-    attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
+    attributeDescriptions[2].offset = offsetof(Vertex, uv);
 
     return attributeDescriptions;
 }
@@ -30,7 +30,6 @@ vk::VertexInputBindingDescription Vertex::bindingDescription()
     bindingDescription.binding = 0;
     bindingDescription.stride = sizeof(Vertex);
     bindingDescription.inputRate = vk::VertexInputRate::eVertex;
-
     return bindingDescription;
 }
 

@@ -1,8 +1,8 @@
 #ifndef SWAPCHAIN_H
 #define SWAPCHAIN_H
 
+#include "Tools/hardware.h"
 #include <vulkan/vulkan.hpp>
-#include "tools/hardware.h"
 
 namespace e172vp {
 

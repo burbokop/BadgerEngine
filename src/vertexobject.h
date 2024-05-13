@@ -1,16 +1,19 @@
 #pragma once
 
+#include "Utils/NoNull.h"
 #include "descriptorsetlayout.h"
-#include "utils/NoNull.h"
 #include <glm/glm.hpp>
 #include <memory>
+
+namespace BadgerEngine::Geometry {
+class Mesh;
+}
 
 namespace e172vp {
 
 class GraphicsObject;
 class Renderer;
 class Pipeline;
-class Mesh;
 
 class VertexObject {
     friend Renderer;
@@ -28,7 +31,7 @@ class VertexObject {
         size_t imageCount,
         const DescriptorSetLayout* descriptorSetLayout,
         const DescriptorSetLayout* samplerDescriptorSetLayout,
-        const Mesh& mesh,
+        const BadgerEngine::Geometry::Mesh& mesh,
         const vk::ImageView& imageView,
         Shared<Pipeline> pipeline);
 

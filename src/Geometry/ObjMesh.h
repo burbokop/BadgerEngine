@@ -4,7 +4,7 @@
 #include <glm/glm.hpp>
 #include <vector>
 
-namespace e172vp {
+namespace BadgerEngine::Geometry {
 
 /// .obj format
 class ObjMesh {

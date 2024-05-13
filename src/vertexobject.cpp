@@ -1,8 +1,8 @@
 #include "vertexobject.h"
 
-#include "geometry/Mesh.h"
+#include "Geometry/Mesh.h"
+#include "Tools/buffer.h"
 #include "graphicsobject.h"
-#include "tools/buffer.h"
 
 std::vector<vk::DescriptorSet> e172vp::VertexObject::descriptorSets() const {
     return m_descriptorSets;
@@ -12,7 +12,7 @@ e172vp::VertexObject::VertexObject(const e172vp::GraphicsObject* graphicsObject,
     size_t imageCount,
     const DescriptorSetLayout* descriptorSetLayout,
     const DescriptorSetLayout* samplerDescriptorSetLayout,
-    const Mesh& mesh,
+    const BadgerEngine::Geometry::Mesh& mesh,
     const vk::ImageView& imageView,
     Shared<Pipeline> pipeline)
     : m_pipeline(std::move(pipeline))

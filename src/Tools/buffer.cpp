@@ -88,7 +88,15 @@ void e172vp::Buffer::copyBuffer(const vk::Device &logicalDevice, const vk::Comma
     logicalDevice.freeCommandBuffers(commandPool, 1, &commandBuffer);
 }
 
-void e172vp::Buffer::createVertexBuffer(const vk::Device &logicalDevice, const vk::PhysicalDevice &physicalDevice, const vk::CommandPool &commandPool, const vk::Queue &graphicsQueue, const std::vector<Vertex> &vertices, vk::Buffer *vertexBuffer, vk::DeviceMemory *vertexBufferMemory) {
+void e172vp::Buffer::createVertexBuffer(
+    const vk::Device& logicalDevice,
+    const vk::PhysicalDevice& physicalDevice,
+    const vk::CommandPool& commandPool,
+    const vk::Queue& graphicsQueue,
+    const std::vector<BadgerEngine::Geometry::Vertex>& vertices,
+    vk::Buffer* vertexBuffer,
+    vk::DeviceMemory* vertexBufferMemory)
+{
     VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
 
     vk::Buffer stagingBuffer;
@@ -134,7 +142,12 @@ void e172vp::Buffer::copyBuffer(const e172vp::GraphicsObject *graphicsObject, co
     copyBuffer(graphicsObject->logicalDevice(), graphicsObject->commandPool(), graphicsObject->graphicsQueue(), srcBuffer, dstBuffer, size);
 }
 
-void e172vp::Buffer::createVertexBuffer(const e172vp::GraphicsObject *graphicsObject, const std::vector<e172vp::Vertex> &vertices, vk::Buffer *vertexBuffer, vk::DeviceMemory *vertexBufferMemory) {
+void e172vp::Buffer::createVertexBuffer(
+    const e172vp::GraphicsObject* graphicsObject,
+    const std::vector<BadgerEngine::Geometry::Vertex>& vertices,
+    vk::Buffer* vertexBuffer,
+    vk::DeviceMemory* vertexBufferMemory)
+{
     createVertexBuffer(graphicsObject->logicalDevice(), graphicsObject->physicalDevice(), graphicsObject->commandPool(), graphicsObject->graphicsQueue(), vertices, vertexBuffer, vertexBufferMemory);
 }
 
