@@ -1,58 +1,67 @@
 #include "renderer.h"
 
+#include "Camera.h"
 #include "Tools/Model.h"
 #include "Tools/buffer.h"
 #include "Tools/stringvector.h"
+#include "Window.h"
 #include <chrono>
 #include <fstream>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 #include <math.h>
 
-e172vp::Renderer::Renderer() {
-    glfwInit();
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-    m_window = glfwCreateWindow(WIDTH, HEIGHT, "test-app", nullptr, nullptr);
+namespace BadgerEngine {
 
-    GraphicsObjectCreateInfo createInfo;
-    createInfo.setRequiredExtensions(glfwExtensions());
+namespace {
+
+struct GlobalUniformBufferObject {
+    glm::mat4 transformation;
+    float time;
+    glm::vec2 mouse;
+};
+}
+
+Renderer::Renderer(Shared<Window> window)
+    : m_window(std::move(window))
+    , m_camera(std::make_shared<PerspectiveCamera>())
+{
+    e172vp::GraphicsObjectCreateInfo createInfo;
+    createInfo.setRequiredExtensions(m_window->requiredVulkanExtensions());
     createInfo.setApplicationName("test-app");
     createInfo.setApplicationVersion(1);
+#ifndef NDEBUG
     createInfo.setDebugEnabled(true);
+#endif
     createInfo.setRequiredDeviceExtensions({ VK_KHR_SWAPCHAIN_EXTENSION_NAME, "VK_EXT_memory_budget" });
-    createInfo.setSurfaceCreator([this](vk::Instance i, vk::SurfaceKHR *s) {
-        VkSurfaceKHR ss;
-        if(glfwCreateWindowSurface(i, m_window, NULL, &ss) != VK_SUCCESS) {
-            throw std::runtime_error("surface creating error");
-        }
-        *s = ss;
+    createInfo.setSurfaceCreator([window = m_window](vk::Instance i, vk::SurfaceKHR* s) {
+        *s = window->createVulkanSurface(i).value();
     });
 
-    m_graphicsObject = GraphicsObject(createInfo);
+    m_graphicsObject = e172vp::GraphicsObject(createInfo);
 
     if(m_graphicsObject.debugEnabled())
-        std::cout << "Used validation layers: " << StringVector::toString(m_graphicsObject.enabledValidationLayers()) << "\n";
+        std::cout << "Used validation layers: " << e172vp::StringVector::toString(m_graphicsObject.enabledValidationLayers()) << "\n";
 
     if(!m_graphicsObject.isValid())
         std::cout << "GRAPHICS OBJECT IS NOT CREATED BECAUSE OF FOLOWING ERRORS:\n\n";
 
     const auto errors = m_graphicsObject.pullErrors();
     if (errors.size() > 0) {
-        std::cerr << StringVector::toString(errors) << "\n";
+        std::cerr << e172vp::StringVector::toString(errors) << "\n";
     }
 
-    m_globalDescriptorSetLayout = DescriptorSetLayout::createUniformDSL(m_graphicsObject.logicalDevice(), 0);
-    m_objectDescriptorSetLayout = DescriptorSetLayout::createUniformDSL(m_graphicsObject.logicalDevice(), 1);
-    m_samplerDescriptorSetLayout = DescriptorSetLayout::createSamplerDSL(m_graphicsObject.logicalDevice(), 2);
+    m_globalDescriptorSetLayout = e172vp::DescriptorSetLayout::createUniformDSL(m_graphicsObject.logicalDevice(), 0);
+    m_objectDescriptorSetLayout = e172vp::DescriptorSetLayout::createUniformDSL(m_graphicsObject.logicalDevice(), 1);
+    m_samplerDescriptorSetLayout = e172vp::DescriptorSetLayout::createSamplerDSL(m_graphicsObject.logicalDevice(), 2);
 
-    Buffer::createUniformBuffers<GlobalUniformBufferObject>(
+    e172vp::Buffer::createUniformBuffers<GlobalUniformBufferObject>(
         &m_graphicsObject,
         m_graphicsObject.swapChain().imageCount(),
         &m_uniformBuffers,
         &m_uniformBuffersMemory);
 
-    Buffer::createUniformDescriptorSets<GlobalUniformBufferObject>(
+    e172vp::Buffer::createUniformDescriptorSets<GlobalUniformBufferObject>(
         m_graphicsObject.logicalDevice(),
         m_graphicsObject.descriptorPool(),
         m_uniformBuffers,
@@ -80,7 +89,7 @@ e172vp::Renderer::Renderer() {
 
     createSyncObjects(m_graphicsObject.logicalDevice(), &m_imageAvailableSemaphore, &m_renderFinishedSemaphore);
 
-    m_font = new Font(m_graphicsObject.logicalDevice(),
+    m_font = new e172vp::Font(m_graphicsObject.logicalDevice(),
         m_graphicsObject.physicalDevice(),
         m_graphicsObject.commandPool(),
         m_graphicsObject.graphicsQueue(),
@@ -88,9 +97,9 @@ e172vp::Renderer::Renderer() {
         128);
 }
 
-std::shared_ptr<e172vp::Pipeline> e172vp::Renderer::createPipeline(const std::vector<std::uint8_t>& vertShaderCode, const std::vector<std::uint8_t>& fragShaderCode)
+std::shared_ptr<e172vp::Pipeline> Renderer::createPipeline(const std::vector<std::uint8_t>& vertShaderCode, const std::vector<std::uint8_t>& fragShaderCode)
 {
-    return std::make_shared<Pipeline>(m_graphicsObject.logicalDevice(),
+    return std::make_shared<e172vp::Pipeline>(m_graphicsObject.logicalDevice(),
         m_graphicsObject.swapChainSettings().extent,
         m_graphicsObject.renderPass(),
         std::vector { m_globalDescriptorSetLayout.descriptorSetLayoutHandle(),
@@ -101,12 +110,8 @@ std::shared_ptr<e172vp::Pipeline> e172vp::Renderer::createPipeline(const std::ve
         vk::PrimitiveTopology::eTriangleList);
 }
 
-bool e172vp::Renderer::isAlive() const {
-    glfwPollEvents();
-    return !glfwWindowShouldClose(m_window);
-}
-
-void e172vp::Renderer::applyPresentation() {
+void Renderer::applyPresentation()
+{
     resetCommandBuffers(m_graphicsObject.commandPool().commandBufferVector(), m_graphicsObject.graphicsQueue(), m_graphicsObject.presentQueue());
     proceedCommandBuffers(m_graphicsObject.renderPass(),
         m_graphicsObject.swapChainSettings().extent,
@@ -159,55 +164,34 @@ void e172vp::Renderer::applyPresentation() {
     returnCode = m_graphicsObject.presentQueue().presentKHR(&presentInfo);
     if(returnCode != vk::Result::eSuccess)
         throw std::runtime_error("present failed. code: " + vk::to_string(returnCode));
-
 }
 
-void e172vp::Renderer::updateUniformBuffer(uint32_t currentImage) {
-    static auto startTime = std::chrono::high_resolution_clock::now();
-    auto currentTime = std::chrono::high_resolution_clock::now();
-    float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-    GlobalUniformBufferObject ubo;
-    // ubo.offset = { std::cos(time * 0.2) * 0.2, std::sin(time * 0.2) * 0.2 };
-    ubo.offset = { 0, 0 };
-    ubo.currentTime = time;
+void Renderer::updateUniformBuffer(uint32_t currentImage)
+{
+    static const auto begin = std::chrono::high_resolution_clock::now();
+    const float time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - begin).count() / 1000.f;
 
-    double xpos, ypos;
-    // getting cursor position
-    glfwGetCursorPos(m_window, &xpos, &ypos);
+    const auto size = m_window->size();
 
-    int w, h;
-    glfwGetWindowSize(m_window, &w, &h);
+    const auto ubo = GlobalUniformBufferObject {
+        .transformation = m_camera->transformation(size.x / size.y),
+        .time = time,
+        .mouse = { 0, 0 }
+    };
 
-    std::cout << "Cursor Position at (" << xpos << " : " << ypos << std::endl;
-
-    ubo.mousePosition = { xpos / w, ypos / h };
     void* data;
-    vkMapMemory(m_graphicsObject.logicalDevice(), m_uniformBuffersMemory[currentImage], 0, sizeof(ubo), 0, &data);
+    ::vkMapMemory(m_graphicsObject.logicalDevice(), m_uniformBuffersMemory[currentImage], 0, sizeof(ubo), 0, &data);
     memcpy(data, &ubo, sizeof(ubo));
-    vkUnmapMemory(m_graphicsObject.logicalDevice(), m_uniformBuffersMemory[currentImage]);
+    ::vkUnmapMemory(m_graphicsObject.logicalDevice(), m_uniformBuffersMemory[currentImage]);
 }
 
-
-std::vector<std::string> e172vp::Renderer::glfwExtensions() {
-    uint32_t extensionCount = 0;
-    const char** extensions = glfwGetRequiredInstanceExtensions(&extensionCount);
-    if(extensions == nullptr)
-        throw std::runtime_error("glfwGetRequiredInstanceExtensions result is NULL");
-
-    std::vector<std::string> result(extensionCount);
-    for(uint32_t i = 0; i < extensionCount; ++i) {
-        result[i] = extensions[i];
-    }
-    return result;
-}
-
-void e172vp::Renderer::proceedCommandBuffers(
+void Renderer::proceedCommandBuffers(
     const vk::RenderPass& renderPass,
     const vk::Extent2D& extent,
     const std::vector<vk::Framebuffer>& swapChainFramebuffers,
     const std::vector<vk::CommandBuffer>& commandBuffers,
     const std::vector<vk::DescriptorSet>& uniformDescriptorSets,
-    const std::list<VertexObject*>& vertexObjects)
+    const std::list<e172vp::VertexObject*>& vertexObjects)
 {
     for (size_t i = 0; i < commandBuffers.size(); i++) {
         vk::CommandBufferBeginInfo beginInfo{};
@@ -237,7 +221,7 @@ void e172vp::Renderer::proceedCommandBuffers(
         viewport.setY(0);
         viewport.setHeight(extent.height);
         viewport.setMinDepth(0.0f);
-        viewport.setMaxDepth(1.0f);
+        viewport.setMaxDepth(Depth);
 
         commandBuffers[i].beginRenderPass(&renderPassInfo, vk::SubpassContents::eInline);
         commandBuffers[i].setViewport(0, 1, &viewport);
@@ -270,7 +254,8 @@ void e172vp::Renderer::proceedCommandBuffers(
     }
 }
 
-void e172vp::Renderer::resetCommandBuffers(const std::vector<vk::CommandBuffer> &commandBuffers, const vk::Queue &graphicsQueue, const vk::Queue &presentQueue) {
+void Renderer::resetCommandBuffers(const std::vector<vk::CommandBuffer>& commandBuffers, const vk::Queue& graphicsQueue, const vk::Queue& presentQueue)
+{
     graphicsQueue.waitIdle();
     presentQueue.waitIdle();
 
@@ -279,9 +264,9 @@ void e172vp::Renderer::resetCommandBuffers(const std::vector<vk::CommandBuffer> 
     }
 }
 
-e172vp::VertexObject* e172vp::Renderer::addObject(const BadgerEngine::Geometry::Mesh& mesh, Shared<Pipeline> pipeline)
+e172vp::VertexObject* Renderer::addObject(const BadgerEngine::Geometry::Mesh& mesh, Shared<e172vp::Pipeline> pipeline)
 {
-    const auto r = new VertexObject(
+    const auto r = new e172vp::VertexObject(
         &m_graphicsObject,
         m_graphicsObject.swapChain().imageCount(),
         &m_objectDescriptorSetLayout,
@@ -293,7 +278,7 @@ e172vp::VertexObject* e172vp::Renderer::addObject(const BadgerEngine::Geometry::
     return r;
 }
 
-e172vp::VertexObject* e172vp::Renderer::addCharacter(char c, std::shared_ptr<Pipeline> pipeline)
+e172vp::VertexObject* Renderer::addCharacter(char c, std::shared_ptr<e172vp::Pipeline> pipeline)
 {
     const static std::vector<BadgerEngine::Geometry::Vertex> v = {
         { { -0.1f, -0.1f, 0 }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
@@ -306,7 +291,7 @@ e172vp::VertexObject* e172vp::Renderer::addCharacter(char c, std::shared_ptr<Pip
         2, 3, 0
     };
 
-    const auto r = new VertexObject(
+    const auto r = new e172vp::VertexObject(
         &m_graphicsObject,
         m_graphicsObject.swapChain().imageCount(),
         &m_objectDescriptorSetLayout,
@@ -317,12 +302,13 @@ e172vp::VertexObject* e172vp::Renderer::addCharacter(char c, std::shared_ptr<Pip
     return r;
 }
 
-e172vp::VertexObject* e172vp::Renderer::addObject(const BadgerEngine::Model& model)
+e172vp::VertexObject* Renderer::addObject(const BadgerEngine::Model& model)
 {
     return addObject(model.mesh(), createPipeline(model.vert(), model.frag()));
 }
 
-bool e172vp::Renderer::removeVertexObject(e172vp::VertexObject *vertexObject) {
+bool Renderer::removeVertexObject(e172vp::VertexObject* vertexObject)
+{
     const auto it = std::find(m_vertexObjects.begin(), m_vertexObjects.end(), vertexObject);
     if (it != m_vertexObjects.end()) {
         delete vertexObject;
@@ -332,7 +318,8 @@ bool e172vp::Renderer::removeVertexObject(e172vp::VertexObject *vertexObject) {
     return true;
 }
 
-void e172vp::Renderer::createSyncObjects(const vk::Device &logicDevice, vk::Semaphore *imageAvailableSemaphore, vk::Semaphore *renderFinishedSemaphore) {
+void Renderer::createSyncObjects(const vk::Device& logicDevice, vk::Semaphore* imageAvailableSemaphore, vk::Semaphore* renderFinishedSemaphore)
+{
     vk::SemaphoreCreateInfo semaphoreInfo;
     if (
             logicDevice.createSemaphore(&semaphoreInfo, nullptr, imageAvailableSemaphore) != vk::Result::eSuccess ||
@@ -341,4 +328,6 @@ void e172vp::Renderer::createSyncObjects(const vk::Device &logicDevice, vk::Sema
         throw std::runtime_error("failed to create synchronization objects for a frame!");
 }
 
-e172vp::GraphicsObject e172vp::Renderer::graphicsObject() const { return m_graphicsObject; }
+e172vp::GraphicsObject Renderer::graphicsObject() const { return m_graphicsObject; }
+
+}

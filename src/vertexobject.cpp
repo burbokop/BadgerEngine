@@ -14,7 +14,7 @@ e172vp::VertexObject::VertexObject(const e172vp::GraphicsObject* graphicsObject,
     const DescriptorSetLayout* samplerDescriptorSetLayout,
     const BadgerEngine::Geometry::Mesh& mesh,
     const vk::ImageView& imageView,
-    Shared<Pipeline> pipeline)
+    BadgerEngine::Shared<Pipeline> pipeline)
     : m_pipeline(std::move(pipeline))
 {
     m_graphicsObject = const_cast<GraphicsObject*>(graphicsObject);

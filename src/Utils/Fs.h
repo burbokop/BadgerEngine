@@ -2,14 +2,17 @@
 
 #include "Error.h"
 #include <cstdint>
-#include <expected>
 #include <filesystem>
 #include <vector>
 
-namespace e172vp::Fs {
+namespace BadgerEngine {
 
 using Bytes = std::vector<std::uint8_t>;
 
+namespace Fs {
+
 Expected<Bytes> readBinary(const std::filesystem::path& path) noexcept;
+
+}
 
 }

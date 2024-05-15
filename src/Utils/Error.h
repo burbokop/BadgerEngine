@@ -6,7 +6,7 @@
 #include <source_location>
 #include <string>
 
-namespace e172vp {
+namespace BadgerEngine {
 
 struct Unit {};
 

@@ -28,6 +28,10 @@ target_sources(
          $<INSTALL_INTERFACE:${INSTALLDIR}/pipeline.h>
          $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/font.h>
          $<INSTALL_INTERFACE:${INSTALLDIR}/font.h>
+         $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/Camera.h>
+         $<INSTALL_INTERFACE:${INSTALLDIR}/Camera.h>
+         $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/Window.h>
+         $<INSTALL_INTERFACE:${INSTALLDIR}/Window.h>
   PRIVATE graphicsobject.cpp
           graphicsobjectcreateinfo.cpp
           renderer.cpp
@@ -37,4 +41,6 @@ target_sources(
           vertexobject.cpp
           descriptorsetlayout.cpp
           pipeline.cpp
-          font.cpp)
+          font.cpp
+          Camera.cpp
+          Window.cpp)

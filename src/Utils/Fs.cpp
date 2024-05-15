@@ -3,7 +3,7 @@
 #include <cstring>
 #include <fstream>
 
-namespace e172vp::Fs {
+namespace BadgerEngine::Fs {
 
 std::vector<std::uint8_t> charToUInt8(std::vector<char> d)
 {

@@ -5,18 +5,22 @@
 #include <glm/glm.hpp>
 #include <memory>
 
-namespace BadgerEngine::Geometry {
+namespace BadgerEngine {
+
+class Renderer;
+namespace Geometry {
 class Mesh;
+}
+
 }
 
 namespace e172vp {
 
 class GraphicsObject;
-class Renderer;
 class Pipeline;
 
 class VertexObject {
-    friend Renderer;
+    friend BadgerEngine::Renderer;
 
     static constexpr glm::mat4 sm = {
         { 1, 0, 0, 0 },
@@ -33,7 +37,7 @@ class VertexObject {
         const DescriptorSetLayout* samplerDescriptorSetLayout,
         const BadgerEngine::Geometry::Mesh& mesh,
         const vk::ImageView& imageView,
-        Shared<Pipeline> pipeline);
+        BadgerEngine::Shared<Pipeline> pipeline);
 
 private:
     struct UniformBufferObject {
@@ -74,7 +78,7 @@ private:
     std::vector<vk::DescriptorSet> m_descriptorSets;
     std::vector<vk::DescriptorSet> m_textureDescriptorSets;
     std::uint32_t m_indexCount;
-    Shared<Pipeline> m_pipeline;
+    BadgerEngine::Shared<Pipeline> m_pipeline;
 };
 
 }
