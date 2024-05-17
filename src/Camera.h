@@ -54,6 +54,10 @@ public:
         m_rotation = newRotation;
     }
 
+    float fovy() const { return m_fovy; }
+    float near() const { return m_near; }
+    float far() const { return m_far; }
+
 private:
     glm::vec3 m_translation;
     glm::quat m_rotation;

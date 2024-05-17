@@ -32,6 +32,8 @@ target_sources(
          $<INSTALL_INTERFACE:${INSTALLDIR}/Camera.h>
          $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/Window.h>
          $<INSTALL_INTERFACE:${INSTALLDIR}/Window.h>
+         $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/PointLight.h>
+         $<INSTALL_INTERFACE:${INSTALLDIR}/PointLight.h>
   PRIVATE graphicsobject.cpp
           graphicsobjectcreateinfo.cpp
           renderer.cpp

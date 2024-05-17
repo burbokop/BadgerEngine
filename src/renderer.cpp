@@ -15,6 +15,15 @@ namespace BadgerEngine {
 
 namespace {
 
+struct PointLightUniformBufferObject {
+    glm::vec4 position;
+    glm::vec4 color;
+};
+
+struct LightingUniformBufferObject {
+    PointLightUniformBufferObject lights[64];
+};
+
 struct GlobalUniformBufferObject {
     glm::mat4 transformation;
     float time;
@@ -52,21 +61,23 @@ Renderer::Renderer(Shared<Window> window)
     }
 
     m_globalDescriptorSetLayout = e172vp::DescriptorSetLayout::createUniformDSL(m_graphicsObject.logicalDevice(), 0);
-    m_objectDescriptorSetLayout = e172vp::DescriptorSetLayout::createUniformDSL(m_graphicsObject.logicalDevice(), 1);
-    m_samplerDescriptorSetLayout = e172vp::DescriptorSetLayout::createSamplerDSL(m_graphicsObject.logicalDevice(), 2);
+    m_lightingDescriptorSetLayout = e172vp::DescriptorSetLayout::createUniformDSL(m_graphicsObject.logicalDevice(), 0);
+    m_objectDescriptorSetLayout = e172vp::DescriptorSetLayout::createUniformDSL(m_graphicsObject.logicalDevice(), 0);
+    m_samplerDescriptorSetLayout = e172vp::DescriptorSetLayout::createSamplerDSL(m_graphicsObject.logicalDevice(), 0);
 
-    e172vp::Buffer::createUniformBuffers<GlobalUniformBufferObject>(
-        &m_graphicsObject,
+    m_commonGlobalUniformBufferBundles = Buffer::createUniformBufferBundle<GlobalUniformBufferObject>(
+        m_graphicsObject,
         m_graphicsObject.swapChain().imageCount(),
-        &m_uniformBuffers,
-        &m_uniformBuffersMemory);
-
-    e172vp::Buffer::createUniformDescriptorSets<GlobalUniformBufferObject>(
         m_graphicsObject.logicalDevice(),
         m_graphicsObject.descriptorPool(),
-        m_uniformBuffers,
-        &m_globalDescriptorSetLayout,
-        &m_uniformDescriptorSets);
+        m_globalDescriptorSetLayout);
+
+    m_lightingUniformBufferBundles = Buffer::createUniformBufferBundle<GlobalUniformBufferObject>(
+        m_graphicsObject,
+        m_graphicsObject.swapChain().imageCount(),
+        m_graphicsObject.logicalDevice(),
+        m_graphicsObject.descriptorPool(),
+        m_lightingDescriptorSetLayout);
 
     //    bool useUniformBuffer = true;
     //    std::vector<char> vertShaderCode;
@@ -102,7 +113,9 @@ std::shared_ptr<e172vp::Pipeline> Renderer::createPipeline(const std::vector<std
     return std::make_shared<e172vp::Pipeline>(m_graphicsObject.logicalDevice(),
         m_graphicsObject.swapChainSettings().extent,
         m_graphicsObject.renderPass(),
-        std::vector { m_globalDescriptorSetLayout.descriptorSetLayoutHandle(),
+        std::vector {
+            m_globalDescriptorSetLayout.descriptorSetLayoutHandle(),
+            m_lightingDescriptorSetLayout.descriptorSetLayoutHandle(),
             m_objectDescriptorSetLayout.descriptorSetLayoutHandle(),
             m_samplerDescriptorSetLayout.descriptorSetLayoutHandle() },
         vertShaderCode,
@@ -112,12 +125,19 @@ std::shared_ptr<e172vp::Pipeline> Renderer::createPipeline(const std::vector<std
 
 void Renderer::applyPresentation()
 {
-    resetCommandBuffers(m_graphicsObject.commandPool().commandBufferVector(), m_graphicsObject.graphicsQueue(), m_graphicsObject.presentQueue());
-    proceedCommandBuffers(m_graphicsObject.renderPass(),
+    resetCommandBuffers(
+        m_graphicsObject.commandPool().commandBufferVector(),
+        m_graphicsObject.graphicsQueue(),
+        m_graphicsObject.presentQueue());
+
+    proceedCommandBuffers(
+        m_graphicsObject.renderPass(),
         m_graphicsObject.swapChainSettings().extent,
+        *m_camera,
         m_graphicsObject.renderPass().frameBufferVector(),
         m_graphicsObject.commandPool().commandBufferVector(),
-        m_uniformDescriptorSets,
+        m_commonGlobalUniformBufferBundles,
+        m_lightingUniformBufferBundles,
         m_vertexObjects);
 
     std::uint32_t imageIndex = 0;
@@ -180,17 +200,20 @@ void Renderer::updateUniformBuffer(uint32_t currentImage)
     };
 
     void* data;
-    ::vkMapMemory(m_graphicsObject.logicalDevice(), m_uniformBuffersMemory[currentImage], 0, sizeof(ubo), 0, &data);
-    memcpy(data, &ubo, sizeof(ubo));
-    ::vkUnmapMemory(m_graphicsObject.logicalDevice(), m_uniformBuffersMemory[currentImage]);
+
+    ::vkMapMemory(m_graphicsObject.logicalDevice(), m_commonGlobalUniformBufferBundles[currentImage].memory, 0, sizeof(ubo), 0, &data);
+    std::memcpy(data, &ubo, sizeof(ubo));
+    ::vkUnmapMemory(m_graphicsObject.logicalDevice(), m_commonGlobalUniformBufferBundles[currentImage].memory);
 }
 
 void Renderer::proceedCommandBuffers(
     const vk::RenderPass& renderPass,
     const vk::Extent2D& extent,
+    const PerspectiveCamera& camera,
     const std::vector<vk::Framebuffer>& swapChainFramebuffers,
     const std::vector<vk::CommandBuffer>& commandBuffers,
-    const std::vector<vk::DescriptorSet>& uniformDescriptorSets,
+    const std::vector<BufferBundle>& commonGlobalUniformBufferBundles,
+    const std::vector<BufferBundle>& lightingUniformBufferBundles,
     const std::list<e172vp::VertexObject*>& vertexObjects)
 {
     for (size_t i = 0; i < commandBuffers.size(); i++) {
@@ -220,8 +243,8 @@ void Renderer::proceedCommandBuffers(
         viewport.setWidth(extent.width);
         viewport.setY(0);
         viewport.setHeight(extent.height);
-        viewport.setMinDepth(0.0f);
-        viewport.setMaxDepth(Depth);
+        viewport.setMinDepth(camera.near());
+        viewport.setMaxDepth(camera.far());
 
         commandBuffers[i].beginRenderPass(&renderPassInfo, vk::SubpassContents::eInline);
         commandBuffers[i].setViewport(0, 1, &viewport);
@@ -239,8 +262,9 @@ void Renderer::proceedCommandBuffers(
                 vk::PipelineBindPoint::eGraphics,
                 object->pipeline()->pipelineLayout(),
                 0,
-                { uniformDescriptorSets[i],
-                    object->descriptorSets()[i],
+                { commonGlobalUniformBufferBundles[i].descriptorSet,
+                    lightingUniformBufferBundles[i].descriptorSet,
+                    object->bufferBundles()[i].descriptorSet,
                     object->textureDescriptorSets()[i] },
                 {});
             commandBuffers[i].drawIndexed(object->indexCount(), 1, 0, 0, 0);

@@ -1,6 +1,6 @@
-#ifndef RENDERER_H
-#define RENDERER_H
+#pragma once
 
+#include "Tools/buffer.h"
 #include "descriptorsetlayout.h"
 #include "graphicsobject.h"
 #include "pipeline.h"
@@ -18,11 +18,14 @@ class Window;
 class Renderer {
 
 public:
-    static void proceedCommandBuffers(const vk::RenderPass& renderPass,
+    static void proceedCommandBuffers(
+        const vk::RenderPass& renderPass,
         const vk::Extent2D& extent,
+        const PerspectiveCamera& camera,
         const std::vector<vk::Framebuffer>& swapChainFramebuffers,
         const std::vector<vk::CommandBuffer>& commandBuffers,
-        const std::vector<vk::DescriptorSet>& uniformDescriptorSets,
+        const std::vector<BufferBundle>& commonGlobalUniformBufferBundles,
+        const std::vector<BufferBundle>& lightingUniformBufferBundles,
         const std::list<e172vp::VertexObject*>& vertexObjects);
 
     static void resetCommandBuffers(const std::vector<vk::CommandBuffer> &commandBuffers, const vk::Queue &graphicsQueue, const vk::Queue &presentQueue);
@@ -54,10 +57,6 @@ private:
     e172vp::VertexObject* addObject(const BadgerEngine::Geometry::Mesh& mesh, Shared<e172vp::Pipeline> pipeline);
 
 private:
-    static constexpr std::uint32_t WIDTH = 800;
-    static constexpr std::uint32_t HEIGHT = 600;
-    static constexpr float Depth = 100;
-
     e172vp::GraphicsObject m_graphicsObject;
 
     vk::Semaphore m_imageAvailableSemaphore;
@@ -69,12 +68,12 @@ private:
     vk::DeviceMemory m_indexBufferMemory;
 
     e172vp::DescriptorSetLayout m_globalDescriptorSetLayout;
+    e172vp::DescriptorSetLayout m_lightingDescriptorSetLayout;
     e172vp::DescriptorSetLayout m_objectDescriptorSetLayout;
     e172vp::DescriptorSetLayout m_samplerDescriptorSetLayout;
 
-    std::vector<vk::Buffer> m_uniformBuffers;
-    std::vector<vk::DeviceMemory> m_uniformBuffersMemory;
-    std::vector<vk::DescriptorSet> m_uniformDescriptorSets;
+    std::vector<BufferBundle> m_commonGlobalUniformBufferBundles;
+    std::vector<BufferBundle> m_lightingUniformBufferBundles;
 
     e172vp::Font* m_font = nullptr;
 
@@ -84,5 +83,3 @@ private:
     Shared<PerspectiveCamera> m_camera;
 };
 }
-
-#endif // RENDERER_H

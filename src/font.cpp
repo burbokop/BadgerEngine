@@ -23,7 +23,7 @@ bool e172vp::Font::createTextureImage32(const vk::Device &logicalDevice, const v
 
     vk::Buffer stagingBuffer;
     vk::DeviceMemory stagingBufferMemory;
-    if(!Buffer::createAbstractBuffer(logicalDevice, physicalDevice, imageSize, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, &stagingBuffer, &stagingBufferMemory))
+    if (!BadgerEngine::Buffer::createAbstractBuffer(logicalDevice, physicalDevice, imageSize, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, &stagingBuffer, &stagingBufferMemory))
         return false;
 
     void* data;
@@ -66,7 +66,7 @@ void e172vp::Font::createImage(const vk::Device &logicalDevice, const vk::Physic
 
     vk::MemoryAllocateInfo allocInfo{};
     allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = Buffer::findMemoryType(physicalDevice, memRequirements.memoryTypeBits, properties);
+    allocInfo.memoryTypeIndex = BadgerEngine::Buffer::findMemoryType(physicalDevice, memRequirements.memoryTypeBits, properties);
 
     const auto code = logicalDevice.allocateMemory(&allocInfo, nullptr, imageMemory);
     if (code != vk::Result::eSuccess) {

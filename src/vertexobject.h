@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Tools/buffer.h"
 #include "Utils/NoNull.h"
 #include "descriptorsetlayout.h"
 #include <glm/glm.hpp>
@@ -39,14 +40,14 @@ class VertexObject {
         const vk::ImageView& imageView,
         BadgerEngine::Shared<Pipeline> pipeline);
 
-private:
-    struct UniformBufferObject {
-        glm::mat4 model;
-    };
-
 public:
     GraphicsObject *graphicsObject() const;
-    std::vector<vk::DescriptorSet> descriptorSets() const;
+
+    std::vector<BadgerEngine::BufferBundle> bufferBundles() const
+    {
+        return m_uniformBufferBundles;
+    }
+
     vk::Buffer vertexBuffer() const;
     vk::Buffer indexBuffer() const;
     uint32_t indexCount() const;
@@ -72,10 +73,9 @@ private:
     vk::DeviceMemory m_vertexBufferMemory;
     vk::Buffer m_indexBuffer;
     vk::DeviceMemory m_indexBufferMemory;
-    std::vector<vk::Buffer> m_uniformBuffers;
-    std::vector<vk::DeviceMemory> m_uniformBufferMemories;
 
-    std::vector<vk::DescriptorSet> m_descriptorSets;
+    std::vector<BadgerEngine::BufferBundle> m_uniformBufferBundles;
+
     std::vector<vk::DescriptorSet> m_textureDescriptorSets;
     std::uint32_t m_indexCount;
     BadgerEngine::Shared<Pipeline> m_pipeline;

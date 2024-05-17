@@ -4,8 +4,12 @@
 #include "Tools/buffer.h"
 #include "graphicsobject.h"
 
-std::vector<vk::DescriptorSet> e172vp::VertexObject::descriptorSets() const {
-    return m_descriptorSets;
+namespace {
+
+struct UniformBufferObject {
+    glm::mat4 model;
+};
+
 }
 
 e172vp::VertexObject::VertexObject(const e172vp::GraphicsObject* graphicsObject,
@@ -18,17 +22,26 @@ e172vp::VertexObject::VertexObject(const e172vp::GraphicsObject* graphicsObject,
     : m_pipeline(std::move(pipeline))
 {
     m_graphicsObject = const_cast<GraphicsObject*>(graphicsObject);
-    Buffer::createVertexBuffer(graphicsObject, mesh.vertices(), &m_vertexBuffer, &m_vertexBufferMemory);
-    Buffer::createIndexBuffer(graphicsObject, mesh.indices(), &m_indexBuffer, &m_indexBufferMemory);
-    Buffer::createUniformBuffers<UniformBufferObject>(graphicsObject, imageCount, &m_uniformBuffers, &m_uniformBufferMemories);
-    Buffer::createUniformDescriptorSets<UniformBufferObject>(graphicsObject->logicalDevice(), graphicsObject->descriptorPool(), m_uniformBuffers, descriptorSetLayout, &m_descriptorSets);
-    Buffer::createSamplerDescriptorSets(graphicsObject->logicalDevice(),
-                                        graphicsObject->descriptorPool(),
-                                        imageView,
-                                        graphicsObject->sampler(),
-                                        imageCount,
-                                        samplerDescriptorSetLayout,
-                                        &m_textureDescriptorSets);
+    BadgerEngine::Buffer::createVertexBuffer(graphicsObject, mesh.vertices(), &m_vertexBuffer, &m_vertexBufferMemory);
+    BadgerEngine::Buffer::createIndexBuffer(graphicsObject, mesh.indices(), &m_indexBuffer, &m_indexBufferMemory);
+
+    // Buffer::createUniformBuffers<UniformBufferObject>(graphicsObject, imageCount, &m_uniformBuffers, &m_uniformBufferMemories);
+    // Buffer::createUniformDescriptorSets<UniformBufferObject>(graphicsObject->logicalDevice(), graphicsObject->descriptorPool(), m_uniformBuffers, descriptorSetLayout, &m_descriptorSets);
+
+    m_uniformBufferBundles = BadgerEngine::Buffer::createUniformBufferBundle<UniformBufferObject>(
+        *m_graphicsObject,
+        m_graphicsObject->swapChain().imageCount(),
+        m_graphicsObject->logicalDevice(),
+        m_graphicsObject->descriptorPool(),
+        *descriptorSetLayout);
+
+    BadgerEngine::Buffer::createSamplerDescriptorSets(graphicsObject->logicalDevice(),
+        graphicsObject->descriptorPool(),
+        imageView,
+        graphicsObject->sampler(),
+        imageCount,
+        samplerDescriptorSetLayout,
+        &m_textureDescriptorSets);
     m_indexCount = mesh.indices().size();
 }
 
@@ -54,10 +67,10 @@ void e172vp::VertexObject::updateUbo(int imageIndex) {
     __ubo.model = m_translation * m_rotation * m_scale;
 
     void* data;
-    vkMapMemory(m_graphicsObject->logicalDevice(), m_uniformBufferMemories[imageIndex], 0, sizeof(UniformBufferObject), 0, &data);
+    vkMapMemory(m_graphicsObject->logicalDevice(), m_uniformBufferBundles[imageIndex].memory, 0, sizeof(UniformBufferObject), 0, &data);
     assert(data);
     memcpy(data, &__ubo, sizeof(UniformBufferObject));
-    vkUnmapMemory(m_graphicsObject->logicalDevice(), m_uniformBufferMemories[imageIndex]);
+    vkUnmapMemory(m_graphicsObject->logicalDevice(), m_uniformBufferBundles[imageIndex].memory);
 }
 
 glm::mat4 e172vp::VertexObject::rotation() const
@@ -100,9 +113,9 @@ e172vp::VertexObject::~VertexObject() {
     m_graphicsObject->logicalDevice().freeMemory(m_vertexBufferMemory);
     m_graphicsObject->logicalDevice().destroyBuffer(m_indexBuffer);
     m_graphicsObject->logicalDevice().freeMemory(m_indexBufferMemory);
-    for(size_t i = 0; i < m_uniformBuffers.size(); ++i) {
-        m_graphicsObject->logicalDevice().destroyBuffer(m_uniformBuffers[i]);
-        m_graphicsObject->logicalDevice().freeMemory(m_uniformBufferMemories[i]);
+    for (size_t i = 0; i < m_uniformBufferBundles.size(); ++i) {
+        m_graphicsObject->logicalDevice().destroyBuffer(m_uniformBufferBundles[i].buffer);
+        m_graphicsObject->logicalDevice().freeMemory(m_uniformBufferBundles[i].memory);
+        m_graphicsObject->logicalDevice().freeDescriptorSets(m_graphicsObject->descriptorPool(), m_uniformBufferBundles[i].descriptorSet);
     }
-    m_graphicsObject->logicalDevice().freeDescriptorSets(m_graphicsObject->descriptorPool(), m_descriptorSets);
 }

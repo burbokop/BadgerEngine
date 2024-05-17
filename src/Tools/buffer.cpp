@@ -4,15 +4,20 @@
 
 #include <iostream>
 
-vk::Device e172vp::Buffer::logicalDevice(const e172vp::GraphicsObject *graphicsObject) {
+namespace BadgerEngine {
+
+vk::Device Buffer::logicalDevice(const e172vp::GraphicsObject* graphicsObject)
+{
     return graphicsObject->logicalDevice();
 }
 
-vk::PhysicalDevice e172vp::Buffer::physicalDevice(const e172vp::GraphicsObject *graphicsObject) {
+vk::PhysicalDevice Buffer::physicalDevice(const e172vp::GraphicsObject* graphicsObject)
+{
     return graphicsObject->physicalDevice();
 }
 
-uint32_t e172vp::Buffer::findMemoryType(const vk::PhysicalDevice &physicalDevice, uint32_t typeFilter, vk::MemoryPropertyFlags properties) {
+uint32_t Buffer::findMemoryType(const vk::PhysicalDevice& physicalDevice, uint32_t typeFilter, vk::MemoryPropertyFlags properties)
+{
     const auto memProperties = physicalDevice.getMemoryProperties();
     for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
         if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
@@ -23,7 +28,15 @@ uint32_t e172vp::Buffer::findMemoryType(const vk::PhysicalDevice &physicalDevice
     throw std::runtime_error("failed to find suitable memory type!");
 }
 
-bool e172vp::Buffer::createAbstractBuffer(const vk::Device &logicalDevice, const vk::PhysicalDevice &physicalDevice, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer *buffer, vk::DeviceMemory *bufferMemory) {
+bool Buffer::createAbstractBuffer(
+    const vk::Device& logicalDevice,
+    const vk::PhysicalDevice& physicalDevice,
+    vk::DeviceSize size,
+    vk::BufferUsageFlags usage,
+    vk::MemoryPropertyFlags properties,
+    vk::Buffer* buffer,
+    vk::DeviceMemory* bufferMemory)
+{
     if(size <= 0) {
         std::cerr << "e172vp::Buffer::createAbstractBuffer: failed to create buffer with size 0.\n";
         return false;
@@ -58,7 +71,14 @@ bool e172vp::Buffer::createAbstractBuffer(const vk::Device &logicalDevice, const
     return true;
 }
 
-void e172vp::Buffer::copyBuffer(const vk::Device &logicalDevice, const vk::CommandPool &commandPool, const vk::Queue &graphicsQueue, const vk::Buffer &srcBuffer, const vk::Buffer &dstBuffer, const vk::DeviceSize &size) {
+void Buffer::copyBuffer(
+    const vk::Device& logicalDevice,
+    const vk::CommandPool& commandPool,
+    const vk::Queue& graphicsQueue,
+    const vk::Buffer& srcBuffer,
+    const vk::Buffer& dstBuffer,
+    const vk::DeviceSize& size)
+{
     vk::CommandBufferAllocateInfo allocInfo{};
     allocInfo.level = vk::CommandBufferLevel::ePrimary;
     allocInfo.commandPool = commandPool;
@@ -88,7 +108,7 @@ void e172vp::Buffer::copyBuffer(const vk::Device &logicalDevice, const vk::Comma
     logicalDevice.freeCommandBuffers(commandPool, 1, &commandBuffer);
 }
 
-void e172vp::Buffer::createVertexBuffer(
+void Buffer::createVertexBuffer(
     const vk::Device& logicalDevice,
     const vk::PhysicalDevice& physicalDevice,
     const vk::CommandPool& commandPool,
@@ -115,7 +135,15 @@ void e172vp::Buffer::createVertexBuffer(
     vkFreeMemory(logicalDevice, stagingBufferMemory, nullptr);
 }
 
-void e172vp::Buffer::createIndexBuffer(const vk::Device &logicalDevice, const vk::PhysicalDevice &physicalDevice, const vk::CommandPool &commandPool, const vk::Queue &graphicsQueue, const std::vector<uint32_t> &indices, vk::Buffer *indexBuffer, vk::DeviceMemory *indexBufferMemory) {
+void Buffer::createIndexBuffer(
+    const vk::Device& logicalDevice,
+    const vk::PhysicalDevice& physicalDevice,
+    const vk::CommandPool& commandPool,
+    const vk::Queue& graphicsQueue,
+    const std::vector<uint32_t>& indices,
+    vk::Buffer* indexBuffer,
+    vk::DeviceMemory* indexBufferMemory)
+{
     VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
 
     vk::Buffer stagingBuffer;
@@ -134,15 +162,23 @@ void e172vp::Buffer::createIndexBuffer(const vk::Device &logicalDevice, const vk
     vkFreeMemory(logicalDevice, stagingBufferMemory, nullptr);
 }
 
-void e172vp::Buffer::createAbstractBuffer(const e172vp::GraphicsObject *graphicsObject, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer *buffer, vk::DeviceMemory *bufferMemory) {
+void Buffer::createAbstractBuffer(
+    const e172vp::GraphicsObject* graphicsObject,
+    vk::DeviceSize size,
+    vk::BufferUsageFlags usage,
+    vk::MemoryPropertyFlags properties,
+    vk::Buffer* buffer,
+    vk::DeviceMemory* bufferMemory)
+{
     createAbstractBuffer(graphicsObject->logicalDevice(), graphicsObject->physicalDevice(), size, usage, properties, buffer, bufferMemory);
 }
 
-void e172vp::Buffer::copyBuffer(const e172vp::GraphicsObject *graphicsObject, const vk::Buffer &srcBuffer, const vk::Buffer &dstBuffer, const vk::DeviceSize &size) {
+void Buffer::copyBuffer(const e172vp::GraphicsObject* graphicsObject, const vk::Buffer& srcBuffer, const vk::Buffer& dstBuffer, const vk::DeviceSize& size)
+{
     copyBuffer(graphicsObject->logicalDevice(), graphicsObject->commandPool(), graphicsObject->graphicsQueue(), srcBuffer, dstBuffer, size);
 }
 
-void e172vp::Buffer::createVertexBuffer(
+void Buffer::createVertexBuffer(
     const e172vp::GraphicsObject* graphicsObject,
     const std::vector<BadgerEngine::Geometry::Vertex>& vertices,
     vk::Buffer* vertexBuffer,
@@ -151,12 +187,23 @@ void e172vp::Buffer::createVertexBuffer(
     createVertexBuffer(graphicsObject->logicalDevice(), graphicsObject->physicalDevice(), graphicsObject->commandPool(), graphicsObject->graphicsQueue(), vertices, vertexBuffer, vertexBufferMemory);
 }
 
-void e172vp::Buffer::createIndexBuffer(const e172vp::GraphicsObject *graphicsObject, const std::vector<uint32_t> &indices, vk::Buffer *indexBuffer, vk::DeviceMemory *indexBufferMemory) {
+void Buffer::createIndexBuffer(
+    const e172vp::GraphicsObject* graphicsObject,
+    const std::vector<uint32_t>& indices,
+    vk::Buffer* indexBuffer,
+    vk::DeviceMemory* indexBufferMemory)
+{
     createIndexBuffer(graphicsObject->logicalDevice(), graphicsObject->physicalDevice(), graphicsObject->commandPool(), graphicsObject->graphicsQueue(), indices, indexBuffer, indexBufferMemory);
 }
 
-
-void e172vp::Buffer::createUniformDescriptorSets(const vk::Device &logicalDevice, const vk::DescriptorPool &descriptorPool, size_t structSize, const std::vector<vk::Buffer> &uniformBuffers, const e172vp::DescriptorSetLayout *descriptorSetLayout, std::vector<vk::DescriptorSet> *descriptorSets) {
+void Buffer::createUniformDescriptorSets(
+    const vk::Device& logicalDevice,
+    const vk::DescriptorPool& descriptorPool,
+    size_t structSize,
+    const std::vector<vk::Buffer>& uniformBuffers,
+    const e172vp::DescriptorSetLayout* descriptorSetLayout,
+    std::vector<vk::DescriptorSet>* descriptorSets)
+{
     std::vector<vk::DescriptorSetLayout> layouts(uniformBuffers.size(), descriptorSetLayout->descriptorSetLayoutHandle());
     vk::DescriptorSetAllocateInfo allocInfo;
     allocInfo.descriptorPool = descriptorPool;
@@ -188,7 +235,15 @@ void e172vp::Buffer::createUniformDescriptorSets(const vk::Device &logicalDevice
     }
 }
 
-void e172vp::Buffer::createSamplerDescriptorSets(const vk::Device &logicalDevice, const vk::DescriptorPool &descriptorPool, const vk::ImageView &imageView, const vk::Sampler &sampler, size_t count, const e172vp::DescriptorSetLayout *descriptorSetLayout, std::vector<vk::DescriptorSet> *descriptorSets) {
+void Buffer::createSamplerDescriptorSets(
+    const vk::Device& logicalDevice,
+    const vk::DescriptorPool& descriptorPool,
+    const vk::ImageView& imageView,
+    const vk::Sampler& sampler,
+    size_t count,
+    const e172vp::DescriptorSetLayout* descriptorSetLayout,
+    std::vector<vk::DescriptorSet>* descriptorSets)
+{
     std::vector<vk::DescriptorSetLayout> layouts(count, descriptorSetLayout->descriptorSetLayoutHandle());
     vk::DescriptorSetAllocateInfo allocInfo;
     allocInfo.descriptorPool = descriptorPool;
@@ -220,3 +275,4 @@ void e172vp::Buffer::createSamplerDescriptorSets(const vk::Device &logicalDevice
     }
 }
 
+}
