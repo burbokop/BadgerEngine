@@ -304,11 +304,11 @@ e172vp::VertexObject* Renderer::addObject(const BadgerEngine::Geometry::Mesh& me
 
 e172vp::VertexObject* Renderer::addCharacter(char c, std::shared_ptr<e172vp::Pipeline> pipeline)
 {
-    const static std::vector<BadgerEngine::Geometry::Vertex> v = {
-        { { -0.1f, -0.1f, 0 }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
-        { { 0.1f, -0.1f, 0 }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 0.0f } },
-        { { 0.1f, 0.1f, 0 }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f } },
-        { { -0.1f, 0.1f, 0 }, { 1.0f, 1.0f, 1.0f }, { 0.0f, 1.0f } }
+    const static std::vector<Geometry::Vertex> v = {
+        { { -0.1f, -0.1f, 0 }, { 0, 0, 0 }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
+        { { 0.1f, -0.1f, 0 }, { 0, 0, 0 }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 0.0f } },
+        { { 0.1f, 0.1f, 0 }, { 0, 0, 0 }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f } },
+        { { -0.1f, 0.1f, 0 }, { 0, 0, 0 }, { 1.0f, 1.0f, 1.0f }, { 0.0f, 1.0f } }
     };
     const static std::vector<uint32_t> i = {
         0, 1, 2,
@@ -320,7 +320,7 @@ e172vp::VertexObject* Renderer::addCharacter(char c, std::shared_ptr<e172vp::Pip
         m_graphicsObject.swapChain().imageCount(),
         &m_objectDescriptorSetLayout,
         &m_samplerDescriptorSetLayout,
-        BadgerEngine::Geometry::Mesh(v, i),
+        Geometry::Mesh(Geometry::Mesh::Topology::TriangleList, v, i),
         m_font->character(c).imageView(), pipeline);
     m_vertexObjects.push_back(r);
     return r;

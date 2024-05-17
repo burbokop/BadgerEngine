@@ -26,12 +26,11 @@ public:
     static bool createAbstractBuffer(const vk::Device &logicalDevice, const vk::PhysicalDevice &physicalDevice, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer *buffer, vk::DeviceMemory *bufferMemory);
     static void copyBuffer(const vk::Device &logicalDevice, const vk::CommandPool &commandPool, const vk::Queue &graphicsQueue, const vk::Buffer &srcBuffer, const vk::Buffer &dstBuffer, const vk::DeviceSize &size);
 
-    static void createVertexBuffer(
-        const vk::Device& logicalDevice,
+    static void createVertexBuffer(const vk::Device& logicalDevice,
         const vk::PhysicalDevice& physicalDevice,
         const vk::CommandPool& commandPool,
         const vk::Queue& graphicsQueue,
-        const std::vector<BadgerEngine::Geometry::Vertex>& vertices,
+        const std::vector<Geometry::Vertex>& vertices,
         vk::Buffer* vertexBuffer,
         vk::DeviceMemory* vertexBufferMemory);
 

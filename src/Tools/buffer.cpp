@@ -113,7 +113,7 @@ void Buffer::createVertexBuffer(
     const vk::PhysicalDevice& physicalDevice,
     const vk::CommandPool& commandPool,
     const vk::Queue& graphicsQueue,
-    const std::vector<BadgerEngine::Geometry::Vertex>& vertices,
+    const std::vector<Geometry::Vertex>& vertices,
     vk::Buffer* vertexBuffer,
     vk::DeviceMemory* vertexBufferMemory)
 {
@@ -121,14 +121,29 @@ void Buffer::createVertexBuffer(
 
     vk::Buffer stagingBuffer;
     vk::DeviceMemory stagingBufferMemory;
-    Buffer::createAbstractBuffer(logicalDevice, physicalDevice, bufferSize, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, &stagingBuffer, &stagingBufferMemory);
+    Buffer::createAbstractBuffer(
+        logicalDevice,
+        physicalDevice,
+        bufferSize,
+        vk::BufferUsageFlagBits::eTransferSrc,
+        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
+        &stagingBuffer,
+        &stagingBufferMemory);
 
     void* data;
     vkMapMemory(logicalDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, vertices.data(), (size_t) bufferSize);
+    std::memcpy(data, vertices.data(), static_cast<size_t>(bufferSize));
     vkUnmapMemory(logicalDevice, stagingBufferMemory);
 
-    Buffer::createAbstractBuffer(logicalDevice, physicalDevice, bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal, vertexBuffer, vertexBufferMemory);
+    Buffer::createAbstractBuffer(
+        logicalDevice,
+        physicalDevice,
+        bufferSize,
+        vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer,
+        vk::MemoryPropertyFlagBits::eDeviceLocal,
+        vertexBuffer,
+        vertexBufferMemory);
+
     Buffer::copyBuffer(logicalDevice, commandPool, graphicsQueue, stagingBuffer, *vertexBuffer, bufferSize);
 
     vkDestroyBuffer(logicalDevice, stagingBuffer, nullptr);

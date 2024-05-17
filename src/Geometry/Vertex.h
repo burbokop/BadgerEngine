@@ -7,11 +7,12 @@ namespace BadgerEngine::Geometry {
 
 struct Vertex {
     glm::vec3 position;
+    glm::vec3 normal;
     glm::vec3 color;
     glm::vec2 uv;
 
     static vk::VertexInputBindingDescription bindingDescription();
-    static std::array<vk::VertexInputAttributeDescription, 3> attributeDescriptions();
+    static std::array<vk::VertexInputAttributeDescription, 4> attributeDescriptions();
 };
 
 }

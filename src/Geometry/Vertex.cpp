@@ -2,9 +2,9 @@
 
 namespace BadgerEngine::Geometry {
 
-std::array<vk::VertexInputAttributeDescription, 3> Vertex::attributeDescriptions()
+std::array<vk::VertexInputAttributeDescription, 4> Vertex::attributeDescriptions()
 {
-    std::array<vk::VertexInputAttributeDescription, 3> attributeDescriptions{};
+    std::array<vk::VertexInputAttributeDescription, 4> attributeDescriptions;
 
     attributeDescriptions[0].binding = 0;
     attributeDescriptions[0].location = 0;
@@ -14,12 +14,17 @@ std::array<vk::VertexInputAttributeDescription, 3> Vertex::attributeDescriptions
     attributeDescriptions[1].binding = 0;
     attributeDescriptions[1].location = 1;
     attributeDescriptions[1].format = vk::Format::eR32G32B32Sfloat;
-    attributeDescriptions[1].offset = offsetof(Vertex, color);
+    attributeDescriptions[1].offset = offsetof(Vertex, normal);
 
     attributeDescriptions[2].binding = 0;
     attributeDescriptions[2].location = 2;
-    attributeDescriptions[2].format = vk::Format::eR32G32Sfloat;
-    attributeDescriptions[2].offset = offsetof(Vertex, uv);
+    attributeDescriptions[2].format = vk::Format::eR32G32B32Sfloat;
+    attributeDescriptions[2].offset = offsetof(Vertex, color);
+
+    attributeDescriptions[3].binding = 0;
+    attributeDescriptions[3].location = 3;
+    attributeDescriptions[3].format = vk::Format::eR32G32Sfloat;
+    attributeDescriptions[3].offset = offsetof(Vertex, uv);
 
     return attributeDescriptions;
 }
