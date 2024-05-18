@@ -3,7 +3,7 @@
 namespace BadgerEngine::Geometry::Primitives {
 
 const Mesh plane = Mesh(
-    Mesh::Topology::TriangleList,
+    Topology::TriangleList,
     { { { -0.5f, -0.5f, 0 }, { 0, 0, 0 }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
         { { 0.5f, -0.5f, 0 }, { 0, 0, 0 }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 0.0f } },
         { { 0.5f, 0.5f, 0 }, { 0, 0, 0 }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f } },
@@ -12,7 +12,7 @@ const Mesh plane = Mesh(
         2, 3, 0 });
 
 const Mesh ufo = Mesh(
-    Mesh::Topology::TriangleList,
+    Topology::TriangleList,
     { { { 4.5f, -0.5f, 0 }, { 0, 0, 0 }, { 1.0f, 0.0f, 0.0f }, {} },
         { { 4.5f, 0.5f, 0 }, { 0, 0, 0 }, { 1.0f, 0.0f, 0.0f }, {} },
         { { 0.5f, 1.5f, 0 }, { 0, 0, 0 }, { 1.0f, 0.0f, 0.0f }, {} },

@@ -56,4 +56,9 @@ auto unexpected(std::string message, std::optional<Error<Unit>> reason = std::nu
     return std::unexpected(Error<T>(std::move(message), std::move(reason), std::move(loc)));
 }
 
+template<typename T = Unit>
+auto unexpected(Error<T> err)
+{
+    return std::unexpected(err);
+}
 }

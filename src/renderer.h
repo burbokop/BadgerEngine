@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Tools/buffer.h"
+#include "Buffers/BufferUtils.h"
 #include "descriptorsetlayout.h"
 #include "graphicsobject.h"
 #include "pipeline.h"
@@ -26,20 +26,20 @@ public:
         const std::vector<vk::CommandBuffer>& commandBuffers,
         const std::vector<BufferBundle>& commonGlobalUniformBufferBundles,
         const std::vector<BufferBundle>& lightingUniformBufferBundles,
-        const std::list<e172vp::VertexObject*>& vertexObjects);
+        const std::list<VertexObject*>& vertexObjects);
 
     static void resetCommandBuffers(const std::vector<vk::CommandBuffer> &commandBuffers, const vk::Queue &graphicsQueue, const vk::Queue &presentQueue);
     static void createSyncObjects(const vk::Device& logicDevice, vk::Semaphore* imageAvailableSemaphore, vk::Semaphore* renderFinishedSemaphore);
 
-    e172vp::VertexObject* addObject(const BadgerEngine::Model& model);
+    VertexObject* addObject(const BadgerEngine::Model& model);
 
-    bool removeVertexObject(e172vp::VertexObject* vertexObject);
+    bool removeVertexObject(VertexObject* vertexObject);
     Renderer(Shared<Window> window);
 
     void applyPresentation();
     void updateUniformBuffer(uint32_t currentImage);
 
-    e172vp::GraphicsObject graphicsObject() const;
+    const auto& graphicsObject() const { return m_graphicsObject; }
 
     Shared<const PerspectiveCamera> camera() const
     {
@@ -52,12 +52,15 @@ public:
     }
 
 private:
-    e172vp::VertexObject* addCharacter(char c, std::shared_ptr<e172vp::Pipeline> pipeline);
-    std::shared_ptr<e172vp::Pipeline> createPipeline(const std::vector<std::uint8_t>& vertShaderCode, const std::vector<std::uint8_t>& fragShaderCode);
-    e172vp::VertexObject* addObject(const BadgerEngine::Geometry::Mesh& mesh, Shared<e172vp::Pipeline> pipeline);
+    VertexObject* addCharacter(char c, std::shared_ptr<e172vp::Pipeline> pipeline);
+    std::shared_ptr<e172vp::Pipeline> createPipeline(
+        const std::vector<std::uint8_t>& vertShaderCode,
+        const std::vector<std::uint8_t>& fragShaderCode,
+        Geometry::Topology topology);
+    VertexObject* addObject(const BadgerEngine::Geometry::Mesh& mesh, Shared<e172vp::Pipeline> pipeline);
 
 private:
-    e172vp::GraphicsObject m_graphicsObject;
+    Shared<e172vp::GraphicsObject> m_graphicsObject;
 
     vk::Semaphore m_imageAvailableSemaphore;
     vk::Semaphore m_renderFinishedSemaphore;
@@ -77,7 +80,9 @@ private:
 
     e172vp::Font* m_font = nullptr;
 
-    std::list<e172vp::VertexObject*> m_vertexObjects;
+    std::list<VertexObject*> m_vertexObjects;
+
+    std::shared_ptr<e172vp::Pipeline> m_normalDebugPipeline;
 
     Shared<Window> m_window;
     Shared<PerspectiveCamera> m_camera;

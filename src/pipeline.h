@@ -1,6 +1,6 @@
-#ifndef PIPELINE_H
-#define PIPELINE_H
+#pragma once
 
+#include "./Geometry/Topology.h"
 #include <vulkan/vulkan.hpp>
 
 namespace e172vp {
@@ -14,7 +14,7 @@ public:
         const std::vector<vk::DescriptorSetLayout>& descriptorSetLayouts,
         const std::vector<std::uint8_t>& vertexShader,
         const std::vector<std::uint8_t>& fragmentShader,
-        vk::PrimitiveTopology topology);
+        BadgerEngine::Geometry::Topology topology);
 
     Pipeline() = delete;
     Pipeline(const Pipeline&) = delete;
@@ -26,6 +26,16 @@ public:
     vk::PipelineLayout pipelineLayout() const;
     vk::Device logicalDevice() const;
 
+    BadgerEngine::Geometry::Topology topology()
+    {
+        return m_topology;
+    }
+
+    void bindTo(const vk::CommandBuffer& commandBuffer) const
+    {
+        commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, m_handle);
+    }
+
     ~Pipeline();
 
 private:
@@ -35,7 +45,6 @@ private:
     vk::Pipeline m_handle;
     vk::PipelineLayout m_pipelineLayout;
     vk::Device m_logicalDevice;
+    BadgerEngine::Geometry::Topology m_topology;
 };
 }
-
-#endif // PIPELINE_H

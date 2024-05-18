@@ -24,7 +24,19 @@ badger_engine_install_public_headers(
   BadgerEngine ${CMAKE_CURRENT_LIST_DIR}/src
   ${CMAKE_CURRENT_BINARY_DIR}/install_prefix/include/BadgerEngine)
 
+badger_engine_add_embedded_shader_target(
+  BadgerEngineEmbeddedShaders
+  OUTPUT_DIR
+  ${CMAKE_CURRENT_BINARY_DIR}/install_prefix/include/BadgerEngine/Shaders
+  SOURCES
+  ${CMAKE_CURRENT_LIST_DIR}/shaders/normal_debug.frag
+  ${CMAKE_CURRENT_LIST_DIR}/shaders/normal_debug.vert)
+
+add_dependencies(BadgerEngine BadgerEngineEmbeddedShaders)
+
 target_include_directories(
   BadgerEngine
   INTERFACE ${CMAKE_CURRENT_BINARY_DIR}/install_prefix/include
-  PRIVATE /usr/include/freetype2)
+  PRIVATE
+    /usr/include/freetype2
+    ${CMAKE_CURRENT_BINARY_DIR}/install_prefix/include/BadgerEngine/Shaders)

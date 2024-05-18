@@ -1,10 +1,17 @@
 #pragma once
 
-#include "Tools/buffer.h"
+#include "Buffers/BufferUtils.h"
+#include "Buffers/MeshBuffer.h"
+#include "Tools/UploadedModel.h"
 #include "Utils/NoNull.h"
 #include "descriptorsetlayout.h"
 #include <glm/glm.hpp>
-#include <memory>
+#include <span>
+
+namespace e172vp {
+class GraphicsObject;
+class Pipeline;
+};
 
 namespace BadgerEngine {
 
@@ -12,13 +19,6 @@ class Renderer;
 namespace Geometry {
 class Mesh;
 }
-
-}
-
-namespace e172vp {
-
-class GraphicsObject;
-class Pipeline;
 
 class VertexObject {
     friend BadgerEngine::Renderer;
@@ -32,26 +32,25 @@ class VertexObject {
 
     ~VertexObject();
     VertexObject(
-        const e172vp::GraphicsObject* graphicsObject,
+        Shared<e172vp::GraphicsObject> graphicsObject,
         size_t imageCount,
-        const DescriptorSetLayout* descriptorSetLayout,
-        const DescriptorSetLayout* samplerDescriptorSetLayout,
+        const e172vp::DescriptorSetLayout* descriptorSetLayout,
+        const e172vp::DescriptorSetLayout* samplerDescriptorSetLayout,
         const BadgerEngine::Geometry::Mesh& mesh,
         const vk::ImageView& imageView,
-        BadgerEngine::Shared<Pipeline> pipeline);
+        Shared<e172vp::Pipeline> pipeline,
+        Shared<e172vp::Pipeline> nPipeline);
 
 public:
-    GraphicsObject *graphicsObject() const;
+    const auto& graphicsObject() const
+    {
+        return m_graphicsObject;
+    }
 
     std::vector<BadgerEngine::BufferBundle> bufferBundles() const
     {
         return m_uniformBufferBundles;
     }
-
-    vk::Buffer vertexBuffer() const;
-    vk::Buffer indexBuffer() const;
-    uint32_t indexCount() const;
-    const auto& pipeline() const { return m_pipeline; }
 
     void updateUbo(int imageIndex);
     glm::mat4 rotation() const;
@@ -62,23 +61,21 @@ public:
     void setScale(const glm::mat4 &scale);
     std::vector<vk::DescriptorSet> textureDescriptorSets() const;
 
+    void draw(std::size_t imageIndex,
+        std::span<const vk::CommandBuffer> commandBuffers,
+        std::span<const BufferBundle> commonGlobalUniformBufferBundles,
+        std::span<const BufferBundle> lightingUniformBufferBundles) const;
+
 private:
     glm::mat4 m_rotation = sm;
     glm::mat4 m_translation = sm;
     glm::mat4 m_scale = sm;
 
-    GraphicsObject* m_graphicsObject = nullptr;
-
-    vk::Buffer m_vertexBuffer;
-    vk::DeviceMemory m_vertexBufferMemory;
-    vk::Buffer m_indexBuffer;
-    vk::DeviceMemory m_indexBufferMemory;
+    Shared<e172vp::GraphicsObject> m_graphicsObject;
+    std::vector<UploadedModel> m_models;
 
     std::vector<BadgerEngine::BufferBundle> m_uniformBufferBundles;
-
     std::vector<vk::DescriptorSet> m_textureDescriptorSets;
-    std::uint32_t m_indexCount;
-    BadgerEngine::Shared<Pipeline> m_pipeline;
 };
 
 }

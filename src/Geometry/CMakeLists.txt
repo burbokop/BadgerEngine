@@ -12,4 +12,6 @@ target_sources(
          $<INSTALL_INTERFACE:${INSTALLDIR}/ObjMesh.h>
          $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/Primitives.h>
          $<INSTALL_INTERFACE:${INSTALLDIR}/Primitives.h>
+         $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/Topology.h>
+         $<INSTALL_INTERFACE:${INSTALLDIR}/Topology.h>
   PRIVATE Vertex.cpp Mesh.cpp ObjMesh.cpp Primitives.cpp)

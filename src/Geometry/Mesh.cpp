@@ -10,7 +10,7 @@ Mesh Mesh::fromObjMesh(const ObjMesh& mesh, glm::vec3 color)
 {
     // TODO pass normales
     return Mesh(
-        Mesh::Topology::TriangleList,
+        Topology::TriangleList,
         mesh.indices()
             | std::views::transform([&mesh, &color](auto i) {
                   return Vertex {
@@ -35,7 +35,7 @@ std::optional<Mesh> Mesh::polygonNormalsMesh(float len) const
         std::vector<Vertex> vertices;
         vertices.reserve((m_indices.size() + 1) * 2 / 3);
 
-        for (std::size_t i = 0; i < m_indices.size() - 2; ++i) {
+        for (std::size_t i = 0; i < m_indices.size() - 2; i += 3) {
             const std::array v = {
                 m_vertices[m_indices[i + 0]],
                 m_vertices[m_indices[i + 1]],

@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.27.2)
 add_subdirectory(Utils)
 add_subdirectory(Tools)
 add_subdirectory(Geometry)
+add_subdirectory(Buffers)
 
 set(INSTALLDIR ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME})
 

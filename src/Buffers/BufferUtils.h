@@ -16,11 +16,7 @@ struct BufferBundle {
     vk::DescriptorSet descriptorSet;
 };
 
-class Buffer {
-    static vk::Device logicalDevice(const e172vp::GraphicsObject* graphicsObject);
-    static vk::PhysicalDevice physicalDevice(const e172vp::GraphicsObject* graphicsObject);
-    static inline const auto uniformBufferType = vk::BufferUsageFlagBits::eUniformBuffer;
-    static inline const auto descriptorType = vk::DescriptorType::eUniformBufferDynamic;
+class BufferUtils {
 public:
     static uint32_t findMemoryType(const vk::PhysicalDevice &physicalDevice, uint32_t typeFilter, vk::MemoryPropertyFlags properties);
     static bool createAbstractBuffer(const vk::Device &logicalDevice, const vk::PhysicalDevice &physicalDevice, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer *buffer, vk::DeviceMemory *bufferMemory);
@@ -64,12 +60,11 @@ public:
         uniformBuffersMemory->resize(count);
 
         for(size_t i = 0; i < count; ++i) {
-            Buffer::createUniformBuffer<T>(
-                        logicalDevice(graphicsObject),
-                        physicalDevice(graphicsObject),
-                        &uniformBuffers->operator[](i),
-                        &uniformBuffersMemory->operator[](i)
-                        );
+            createUniformBuffer<T>(
+                logicalDevice(graphicsObject),
+                physicalDevice(graphicsObject),
+                &uniformBuffers->operator[](i),
+                &uniformBuffersMemory->operator[](i));
         }
     }
 
@@ -79,12 +74,11 @@ public:
         uniformBuffersMemory->resize(count);
 
         for(size_t i = 0; i < count; ++i) {
-            Buffer::createUniformBuffer<T>(
-                        logicalDevice,
-                        physicalDevice,
-                        &uniformBuffers->operator[](i),
-                        &uniformBuffersMemory->operator[](i)
-                        );
+            createUniformBuffer<T>(
+                logicalDevice,
+                physicalDevice,
+                &uniformBuffers->operator[](i),
+                &uniformBuffersMemory->operator[](i));
         }
     }
 
@@ -100,7 +94,6 @@ public:
     static std::vector<BufferBundle> createUniformBufferBundle(
         const e172vp::GraphicsObject& graphicsObject,
         std::size_t count,
-        const vk::Device& logicalDevice,
         const vk::DescriptorPool& descriptorPool,
         const e172vp::DescriptorSetLayout& descriptorSetLayout)
     {
@@ -115,7 +108,7 @@ public:
             &bufferMemories);
 
         createUniformDescriptorSets<T>(
-            logicalDevice,
+            logicalDevice(&graphicsObject),
             descriptorPool,
             buffers,
             &descriptorSetLayout,
@@ -140,6 +133,11 @@ public:
     static void createUniformDescriptorSets(const vk::Device &logicalDevice, const vk::DescriptorPool &descriptorPool, const std::vector<vk::Buffer> &uniformBuffers, const e172vp::DescriptorSetLayout *descriptorSetLayout, std::vector<vk::DescriptorSet> *descriptorSets) {
         createUniformDescriptorSets(logicalDevice, descriptorPool, sizeof (T), uniformBuffers, descriptorSetLayout, descriptorSets);
     }
-};
 
+private:
+    static vk::Device logicalDevice(const e172vp::GraphicsObject* graphicsObject);
+    static vk::PhysicalDevice physicalDevice(const e172vp::GraphicsObject* graphicsObject);
+    static inline const auto uniformBufferType = vk::BufferUsageFlagBits::eUniformBuffer;
+    static inline const auto descriptorType = vk::DescriptorType::eUniformBufferDynamic;
+};
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Topology.h"
 #include "Vertex.h"
 #include <optional>
 #include <vector>
@@ -11,11 +12,6 @@ class ObjMesh;
 /// Internal engine mesh format
 class Mesh {
 public:
-    enum class Topology {
-        LineList,
-        TriangleList
-    };
-
     Mesh(
         Topology topology,
         std::vector<Vertex> vertices,

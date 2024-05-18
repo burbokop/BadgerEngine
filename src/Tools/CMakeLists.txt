@@ -16,15 +16,15 @@ target_sources(
          $<INSTALL_INTERFACE:${INSTALLDIR}/vulkaninstancefactory.h>
          $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/logicdevicefactory.h>
          $<INSTALL_INTERFACE:${INSTALLDIR}/logicdevicefactory.h>
-         $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/buffer.h>
-         $<INSTALL_INTERFACE:${INSTALLDIR}/buffer.h>
          $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/Model.h>
          $<INSTALL_INTERFACE:${INSTALLDIR}/Model.h>
+         $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/UploadedModel.h>
+         $<INSTALL_INTERFACE:${INSTALLDIR}/UploadedModel.h>
   PRIVATE hardware.cpp
           extensiontools.cpp
           validation.cpp
           stringvector.cpp
           vulkaninstancefactory.cpp
           logicdevicefactory.cpp
-          buffer.cpp
-          Model.cpp)
+          Model.cpp
+          UploadedModel.cpp)

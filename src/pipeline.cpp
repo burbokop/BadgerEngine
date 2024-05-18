@@ -3,6 +3,21 @@
 #include "Geometry/Vertex.h"
 #include <fstream>
 
+namespace {
+
+vk::PrimitiveTopology vulkanPrimitiveTopologyFromTopology(BadgerEngine::Geometry::Topology topology)
+{
+    switch (topology) {
+    case BadgerEngine::Geometry::Topology::LineList:
+        return vk::PrimitiveTopology::eLineList;
+    case BadgerEngine::Geometry::Topology::TriangleList:
+        return vk::PrimitiveTopology::eTriangleList;
+    }
+    std::abort();
+}
+
+}
+
 vk::Pipeline e172vp::Pipeline::handle() const {
     return m_handle;
 }
@@ -46,7 +61,8 @@ e172vp::Pipeline::Pipeline(const vk::Device& logicalDevice,
     const std::vector<vk::DescriptorSetLayout>& descriptorSetLayouts,
     const std::vector<std::uint8_t>& vertexShader,
     const std::vector<std::uint8_t>& fragmentShader,
-    vk::PrimitiveTopology topology)
+    BadgerEngine::Geometry::Topology topology)
+    : m_topology(topology)
 {
     vk::ShaderModule vertShaderModule = createShaderModule(logicalDevice, vertexShader);
     vk::ShaderModule fragShaderModule = createShaderModule(logicalDevice, fragmentShader);
@@ -74,14 +90,14 @@ e172vp::Pipeline::Pipeline(const vk::Device& logicalDevice,
     vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
     vk::PipelineInputAssemblyStateCreateInfo inputAssembly {};
-    inputAssembly.topology = topology;
+    inputAssembly.topology = vulkanPrimitiveTopologyFromTopology(topology);
     inputAssembly.primitiveRestartEnable = false;
 
     vk::Viewport viewport;
     viewport.x = 0.0f;
     viewport.y = 0.0f;
-    viewport.width = (float) extent.width;
-    viewport.height = (float) extent.height;
+    viewport.width = static_cast<float>(extent.width);
+    viewport.height = static_cast<float>(extent.height);
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 
