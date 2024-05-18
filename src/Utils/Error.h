@@ -61,4 +61,13 @@ auto unexpected(Error<T> err)
 {
     return std::unexpected(err);
 }
+
+void printErr(const std::string& err);
+
+template<typename T = Unit>
+[[noreturn]] Error<T> handleAsCritical(Error<T> err)
+{
+    printErr("err: " + err.message());
+    std::abort();
+}
 }

@@ -14,6 +14,7 @@ namespace BadgerEngine {
 class Model;
 class PerspectiveCamera;
 class Window;
+class PointLight;
 
 class Renderer {
 
@@ -32,6 +33,10 @@ public:
     static void createSyncObjects(const vk::Device& logicDevice, vk::Semaphore* imageAvailableSemaphore, vk::Semaphore* renderFinishedSemaphore);
 
     VertexObject* addObject(const BadgerEngine::Model& model);
+    Shared<PointLight> addPointLight(
+        glm::vec3 position,
+        glm::vec3 color,
+        float intensity);
 
     bool removeVertexObject(VertexObject* vertexObject);
     Renderer(Shared<Window> window);
@@ -83,6 +88,8 @@ private:
     std::list<VertexObject*> m_vertexObjects;
 
     std::shared_ptr<e172vp::Pipeline> m_normalDebugPipeline;
+
+    std::vector<Shared<PointLight>> m_pointLights;
 
     Shared<Window> m_window;
     Shared<PerspectiveCamera> m_camera;

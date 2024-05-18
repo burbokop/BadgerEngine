@@ -2,6 +2,7 @@
 
 #include "Buffers/BufferUtils.h"
 #include "Camera.h"
+#include "PointLight.h"
 #include "Tools/Model.h"
 #include "Tools/stringvector.h"
 #include "Window.h"
@@ -24,6 +25,7 @@ struct PointLightUniformBufferObject {
 
 struct LightingUniformBufferObject {
     PointLightUniformBufferObject lights[64];
+    std::uint32_t lightsCount;
 };
 
 struct GlobalUniformBufferObject {
@@ -74,7 +76,7 @@ Renderer::Renderer(Shared<Window> window)
         m_graphicsObject->descriptorPool(),
         m_globalDescriptorSetLayout);
 
-    m_lightingUniformBufferBundles = BufferUtils::createUniformBufferBundle<GlobalUniformBufferObject>(
+    m_lightingUniformBufferBundles = BufferUtils::createUniformBufferBundle<LightingUniformBufferObject>(
         *m_graphicsObject,
         m_graphicsObject->swapChain().imageCount(),
         m_graphicsObject->descriptorPool(),
@@ -186,22 +188,41 @@ void Renderer::applyPresentation()
 
 void Renderer::updateUniformBuffer(uint32_t currentImage)
 {
-    static const auto begin = std::chrono::high_resolution_clock::now();
-    const float time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - begin).count() / 1000.f;
+    {
+        static const auto begin = std::chrono::high_resolution_clock::now();
+        const float time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - begin).count() / 1000.f;
 
-    const auto size = m_window->size();
+        const auto size = m_window->size();
 
-    const auto ubo = GlobalUniformBufferObject {
-        .transformation = m_camera->transformation(size.x / size.y),
-        .time = time,
-        .mouse = { 0, 0 }
-    };
+        const auto ubo = GlobalUniformBufferObject {
+            .transformation = m_camera->transformation(size.x / size.y),
+            .time = time,
+            .mouse = { 0, 0 }
+        };
 
-    void* data;
+        void* data;
+        ::vkMapMemory(m_graphicsObject->logicalDevice(), m_commonGlobalUniformBufferBundles[currentImage].memory, 0, sizeof(ubo), 0, &data);
+        std::memcpy(data, &ubo, sizeof(ubo));
+        ::vkUnmapMemory(m_graphicsObject->logicalDevice(), m_commonGlobalUniformBufferBundles[currentImage].memory);
+    }
 
-    ::vkMapMemory(m_graphicsObject->logicalDevice(), m_commonGlobalUniformBufferBundles[currentImage].memory, 0, sizeof(ubo), 0, &data);
-    std::memcpy(data, &ubo, sizeof(ubo));
-    ::vkUnmapMemory(m_graphicsObject->logicalDevice(), m_commonGlobalUniformBufferBundles[currentImage].memory);
+    {
+        LightingUniformBufferObject ubo;
+        constexpr auto capacity = sizeof(ubo.lights) / sizeof(ubo.lights[0]);
+        assert(m_pointLights.size() <= capacity);
+        ubo.lightsCount = std::min(capacity, m_pointLights.size());
+
+        std::size_t i = 0;
+        for (std::size_t i = 0; i < ubo.lightsCount; ++i) {
+            ubo.lights[i].position = glm::vec4(m_pointLights[i]->position, 0.f);
+            ubo.lights[i].color = glm::vec4(m_pointLights[i]->color, m_pointLights[i]->intensity);
+        }
+
+        void* data;
+        ::vkMapMemory(m_graphicsObject->logicalDevice(), m_lightingUniformBufferBundles[currentImage].memory, 0, sizeof(ubo), 0, &data);
+        std::memcpy(data, &ubo, sizeof(ubo));
+        ::vkUnmapMemory(m_graphicsObject->logicalDevice(), m_lightingUniformBufferBundles[currentImage].memory);
+    }
 }
 
 void Renderer::proceedCommandBuffers(const vk::RenderPass& renderPass,
@@ -320,6 +341,12 @@ VertexObject* Renderer::addCharacter(char c, std::shared_ptr<e172vp::Pipeline> p
 VertexObject* Renderer::addObject(const BadgerEngine::Model& model)
 {
     return addObject(model.mesh(), createPipeline(model.vert(), model.frag(), Geometry::Topology::TriangleList));
+}
+
+Shared<PointLight> Renderer::addPointLight(glm::vec3 position, glm::vec3 color, float intensity)
+{
+    m_pointLights.push_back(std::make_shared<PointLight>(position, color, intensity));
+    return m_pointLights.back();
 }
 
 bool Renderer::removeVertexObject(VertexObject* vertexObject)

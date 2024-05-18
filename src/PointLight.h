@@ -5,8 +5,8 @@
 namespace BadgerEngine {
 
 struct PointLight {
-    glm::vec4 position;
-    glm::vec4 color;
+    glm::vec3 position;
+    glm::vec3 color;
     float intensity;
 };
 
