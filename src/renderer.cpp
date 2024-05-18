@@ -133,7 +133,7 @@ void Renderer::applyPresentation()
         m_graphicsObject->renderPass(),
         m_graphicsObject->swapChainSettings().extent,
         *m_camera,
-        m_graphicsObject->renderPass().frameBufferVector(),
+        m_graphicsObject->swapChain().frameBufferVector(),
         m_graphicsObject->commandPool().commandBufferVector(),
         m_commonGlobalUniformBufferBundles,
         m_lightingUniformBufferBundles,
@@ -227,13 +227,21 @@ void Renderer::proceedCommandBuffers(const vk::RenderPass& renderPass,
                                                                   0.4f
                                                               });
 
+        vk::ClearValue depthClear;
+        depthClear.depthStencil = vk::ClearDepthStencilValue(1.0f, 0.f);
+
+        std::array clearValues = {
+            clearColor,
+            depthClear,
+        };
+
         vk::RenderPassBeginInfo renderPassInfo;
         renderPassInfo.renderPass = renderPass;
         renderPassInfo.framebuffer = swapChainFramebuffers[i];
         renderPassInfo.renderArea.offset = vk::Offset2D();
         renderPassInfo.renderArea.extent = extent;
-        renderPassInfo.clearValueCount = 1;
-        renderPassInfo.pClearValues = &clearColor;
+        renderPassInfo.clearValueCount = clearValues.size();
+        renderPassInfo.pClearValues = clearValues.data();
 
         vk::Viewport viewport;
         viewport.setX(0);

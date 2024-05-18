@@ -18,7 +18,7 @@ e172vp::Hardware::QueueFamilies e172vp::GraphicsObject::queueFamilies() const { 
 std::vector<std::string> e172vp::GraphicsObject::enabledValidationLayers() const { return m_enabledValidationLayers; }
 vk::Queue e172vp::GraphicsObject::graphicsQueue() const { return m_graphicsQueue; }
 vk::Queue e172vp::GraphicsObject::presentQueue() const { return m_presentQueue; }
-e172vp::SwapChain e172vp::GraphicsObject::swapChain() const { return m_swapChain; }
+
 e172vp::CommandPool e172vp::GraphicsObject::commandPool() const { return m_commandPool; }
 e172vp::RenderPass e172vp::GraphicsObject::renderPass() const { return m_renderPass; }
 bool e172vp::GraphicsObject::debugEnabled() const { return m_debugEnabled; }
@@ -116,9 +116,15 @@ e172vp::GraphicsObject::GraphicsObject(const GraphicsObjectCreateInfo &createInf
     m_logicalDevice.getQueue(m_queueFamilies.presentFamily(), 0, &m_presentQueue);
 
     const auto swapChainSupportDetails = e172vp::Hardware::querySwapChainSupport(m_physicalDevice, m_surface);
-    m_swapChainSettings = e172vp::SwapChain::createSettings(swapChainSupportDetails);
-    m_swapChain = e172vp::SwapChain(m_logicalDevice, m_surface, m_queueFamilies, m_swapChainSettings);
-    m_renderPass = e172vp::RenderPass(m_logicalDevice, m_swapChain);
+    m_swapChainSettings = e172vp::SwapChain::createSettings(m_physicalDevice, swapChainSupportDetails);
+    m_renderPass = e172vp::RenderPass(m_logicalDevice, m_swapChainSettings);
+    m_swapChain = e172vp::SwapChain(
+        m_logicalDevice,
+        m_physicalDevice,
+        m_surface,
+        m_renderPass.renderPathHandle(),
+        m_queueFamilies,
+        m_swapChainSettings);
     m_commandPool = e172vp::CommandPool(m_logicalDevice, m_queueFamilies, m_swapChain.imageCount());
 
     createDescriptorPool(m_logicalDevice, createInfo.descriptorPoolSize(), &m_descriptorPool, &m_errors);

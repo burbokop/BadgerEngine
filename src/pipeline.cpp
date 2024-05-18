@@ -120,6 +120,14 @@ e172vp::Pipeline::Pipeline(const vk::Device& logicalDevice,
     rasterizer.frontFace = vk::FrontFace::eClockwise;
     rasterizer.depthBiasEnable = false;
 
+    vk::PipelineDepthStencilStateCreateInfo depthStencilState;
+    depthStencilState.flags = vk::PipelineDepthStencilStateCreateFlags();
+    depthStencilState.depthTestEnable = true;
+    depthStencilState.depthWriteEnable = true;
+    depthStencilState.depthCompareOp = vk::CompareOp::eLess;
+    depthStencilState.depthBoundsTestEnable = false;
+    depthStencilState.stencilTestEnable = false;
+
     vk::PipelineMultisampleStateCreateInfo multisampling;
     multisampling.sampleShadingEnable = false;
     multisampling.rasterizationSamples = vk::SampleCountFlagBits::e1;
@@ -165,6 +173,7 @@ e172vp::Pipeline::Pipeline(const vk::Device& logicalDevice,
     pipelineInfo.layout = m_pipelineLayout;
     pipelineInfo.renderPass = renderPass;
     pipelineInfo.subpass = 0;
+    pipelineInfo.pDepthStencilState = &depthStencilState;
 
     if (logicalDevice.createGraphicsPipelines(vk::PipelineCache(), 1, &pipelineInfo, nullptr, &m_handle) != vk::Result::eSuccess) {
         throw std::runtime_error("failed to create graphics pipeline!");

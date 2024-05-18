@@ -44,7 +44,7 @@ public:
 
     static void createDescriptorPool(const vk::Device &logicalDevice, size_t size, vk::DescriptorPool *uniformDescriptorPool, std::vector<std::string> *m_errors);
     GraphicsObject() {}
-    GraphicsObject(const GraphicsObjectCreateInfo &createInfo);
+    GraphicsObject(const GraphicsObjectCreateInfo& createInfo);
 
     vk::Instance vulkanInstance() const;
     vk::PhysicalDevice physicalDevice() const;
@@ -55,7 +55,7 @@ public:
     std::vector<std::string> enabledValidationLayers() const;
     vk::Queue graphicsQueue() const;
     vk::Queue presentQueue() const;
-    e172vp::SwapChain swapChain() const;
+    const auto& swapChain() const { return m_swapChain; }
     e172vp::CommandPool commandPool() const;
     e172vp::RenderPass renderPass() const;
 

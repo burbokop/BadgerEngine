@@ -1,4 +1,5 @@
 #include "renderpass.h"
+#include <iostream>
 
 vk::RenderPass e172vp::RenderPass::renderPathHandle() const { return m_renderPathHandle; }
 
@@ -8,87 +9,77 @@ e172vp::RenderPass::operator VkRenderPass() const {
 
 bool e172vp::RenderPass::isValid() const { return m_isValid; }
 
-std::vector<vk::Framebuffer> e172vp::RenderPass::frameBufferVector() const {
-    return m_frameBuffers;
-}
+e172vp::RenderPass::RenderPass(const vk::Device& logicalDevice, const SwapChain::Settings& swapchainSettings)
+{
+    const auto colorAttachment = [&] {
+        vk::AttachmentDescription attachment;
+        attachment.format = swapchainSettings.surfaceFormat.format;
+        attachment.samples = vk::SampleCountFlagBits::e1;
+        attachment.loadOp = vk::AttachmentLoadOp::eClear;
+        attachment.storeOp = vk::AttachmentStoreOp::eStore;
+        attachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+        attachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+        attachment.initialLayout = vk::ImageLayout::eUndefined;
+        attachment.finalLayout = vk::ImageLayout::ePresentSrcKHR;
+        return attachment;
+    }();
 
-vk::Framebuffer e172vp::RenderPass::frameBuffer(size_t index) const {
-    if(index < m_frameBuffers.size())
-        return m_frameBuffers[index];
-    return vk::Framebuffer();
-}
+    const auto colorAttachmentRef = [&] {
+        vk::AttachmentReference ref;
+        ref.attachment = 0;
+        ref.layout = vk::ImageLayout::eColorAttachmentOptimal;
+        return ref;
+    }();
 
-size_t e172vp::RenderPass::frameBufferCount() const {
-    return m_frameBuffers.size();
-}
+    const auto depthStencilAttachment = [&] {
+        vk::AttachmentDescription attachment;
+        attachment.format = swapchainSettings.depthFormat;
+        attachment.samples = vk::SampleCountFlagBits::e1;
+        attachment.loadOp = vk::AttachmentLoadOp::eClear;
+        attachment.storeOp = vk::AttachmentStoreOp::eStore;
+        attachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+        attachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+        attachment.initialLayout = vk::ImageLayout::eUndefined;
+        attachment.finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+        return attachment;
+    }();
 
-bool e172vp::RenderPass::createFrameBuffers(const vk::Device &logicalDevice, const vk::Extent2D &extent, const vk::RenderPass &renderPass, const std::vector<vk::ImageView> &swapChainImageViews, std::vector<vk::Framebuffer> *swapChainFramebuffers, std::vector<std::string> *error_queue) {
-    swapChainFramebuffers->resize(swapChainImageViews.size());
+    const auto depthStencilAttachmentRef = [&] {
+        vk::AttachmentReference ref;
+        ref.attachment = 1;
+        ref.layout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+        return ref;
+    }();
 
-    for (size_t i = 0; i < swapChainImageViews.size(); i++) {
-        vk::ImageView attachments[] = {
-            swapChainImageViews[i]
-        };
+    const auto subpass = [&] {
+        vk::SubpassDescription subpass;
+        subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
+        subpass.colorAttachmentCount = 1;
+        subpass.pColorAttachments = &colorAttachmentRef;
+        subpass.pDepthStencilAttachment = &depthStencilAttachmentRef;
+        return subpass;
+    }();
 
-        vk::FramebufferCreateInfo framebufferInfo;
-        framebufferInfo.renderPass = renderPass;
-        framebufferInfo.attachmentCount = 1;
-        framebufferInfo.pAttachments = attachments;
-        framebufferInfo.width = extent.width;
-        framebufferInfo.height = extent.height;
-        framebufferInfo.layers = 1;
+    const std::array attachments = {
+        colorAttachment,
+        depthStencilAttachment
+    };
 
-        const auto code = logicalDevice.createFramebuffer(&framebufferInfo, nullptr, &swapChainFramebuffers->operator[](i));
-        if (code != vk::Result::eSuccess) {
-            error_queue->push_back("[error] Failed to create framebuffer: " + vk::to_string(code));
-            return false;
-        }
-    }
-    return true;
-}
+    const auto renderPassCreateInfo = [&] {
+        vk::RenderPassCreateInfo info;
+        info.attachmentCount = attachments.size();
+        info.pAttachments = attachments.data();
+        info.subpassCount = 1;
+        info.pSubpasses = &subpass;
+        return info;
+    }();
 
-e172vp::RenderPass::RenderPass(const vk::Device &logicalDevice, const SwapChain &swapchain) {
-    vk::AttachmentDescription colorAttachment;
-    colorAttachment.format = swapchain.settings().surfaceFormat.format;
-    colorAttachment.samples = vk::SampleCountFlagBits::e1;
-    colorAttachment.loadOp = vk::AttachmentLoadOp::eClear;
-    colorAttachment.storeOp = vk::AttachmentStoreOp::eStore;
-    colorAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
-    colorAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-    colorAttachment.initialLayout = vk::ImageLayout::eUndefined;
-    colorAttachment.finalLayout = vk::ImageLayout::ePresentSrcKHR;
-
-    vk::AttachmentReference colorAttachmentRef;
-    colorAttachmentRef.attachment = 0;
-    colorAttachmentRef.layout = vk::ImageLayout::eColorAttachmentOptimal;
-
-    vk::SubpassDescription subpass{};
-    subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
-    subpass.colorAttachmentCount = 1;
-    subpass.pColorAttachments = &colorAttachmentRef;
-
-    vk::RenderPassCreateInfo renderPassInfo;
-    renderPassInfo.attachmentCount = 1;
-    renderPassInfo.pAttachments = &colorAttachment;
-    renderPassInfo.subpassCount = 1;
-    renderPassInfo.pSubpasses = &subpass;
-
-    const auto code = logicalDevice.createRenderPass(&renderPassInfo, nullptr, &m_renderPathHandle);
+    const auto code = logicalDevice.createRenderPass(&renderPassCreateInfo, nullptr, &m_renderPathHandle);
     if (code != vk::Result::eSuccess) {
         m_errors.push_back("[error] Failed to create render pass: " + vk::to_string(code));
         return;
     }
-
-    if(!createFrameBuffers(
-                logicalDevice,
-                swapchain.settings().extent,
-                m_renderPathHandle,
-                swapchain.imageViewVector(),
-                &m_frameBuffers,
-                &m_errors
-                )) {
-        return;
-    }
+    assert(m_renderPathHandle);
 
     m_isValid = true;
 }
