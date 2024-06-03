@@ -38,14 +38,21 @@ function(badger_engine_add_shader_target target)
 endfunction()
 
 function(badger_engine_add_embedded_shader_target target)
-  cmake_parse_arguments(PARSE_ARGV 1 arg "" "OUTPUT_DIR" "SOURCES")
+  cmake_parse_arguments(PARSE_ARGV 1 arg "" "OUTPUT_DIR;SUBDIR" "SOURCES")
 
   if(NOT DEFINED arg_OUTPUT_DIR)
-    message("error" FATAL_ERROR)
+    set(arg_OUTPUT_DIR
+        "${CMAKE_CURRENT_BINARY_DIR}/badger_engine_add_embedded_shader_target_output/${target}"
+    )
   endif()
 
-  get_filename_component(intermediate_dir ${arg_OUTPUT_DIR}/intermediate
-                         ABSOLUTE)
+  if(DEFINED arg_SUBDIR)
+    get_filename_component(output_dir ${arg_OUTPUT_DIR}/${arg_SUBDIR} ABSOLUTE)
+  else()
+    set(output_dir ${arg_OUTPUT_DIR})
+  endif()
+
+  get_filename_component(intermediate_dir ${output_dir}/intermediate ABSOLUTE)
 
   file(MAKE_DIRECTORY ${intermediate_dir})
   set(ext spv)
@@ -58,8 +65,8 @@ function(badger_engine_add_embedded_shader_target target)
       intermediate_file_path ${intermediate_dir}/${source_file_name}.${ext}
       ABSOLUTE)
 
-    get_filename_component(
-      output_file_path ${arg_OUTPUT_DIR}/${source_file_name}.${ext}.h ABSOLUTE)
+    get_filename_component(output_file_path
+                           ${output_dir}/${source_file_name}.${ext}.h ABSOLUTE)
 
     string(REPLACE "." "_" variable_file_name ${source_file_name})
 
@@ -84,9 +91,12 @@ function(badger_engine_add_embedded_shader_target target)
 
   message("output_file_paths: ${output_file_paths}")
 
-  add_custom_target(
-    ${target}
-    SOURCES ${arg_SOURCES}
-    DEPENDS ${output_file_paths})
+  add_custom_target(${target}_impl DEPENDS ${output_file_paths})
+
+  add_library(${target} INTERFACE)
+  target_sources(${target} PRIVATE ${arg_SOURCES})
+
+  add_dependencies(${target} ${target}_impl)
+  target_include_directories(${target} INTERFACE ${arg_OUTPUT_DIR})
 
 endfunction()
