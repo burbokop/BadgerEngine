@@ -10,6 +10,9 @@ set(BIN2H_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/build_tools/bin2h)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/bin2h.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/shaders.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/utils.cmake)
+set(BIN2H_EXECUTABLE
+    ${BIN2H_EXECUTABLE}
+    PARENT_SCOPE)
 
 add_library(BadgerEngine SHARED)
 add_subdirectory(src)
