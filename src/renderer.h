@@ -5,6 +5,7 @@
 #include "graphicsobject.h"
 #include "pipeline.h"
 #include "vertexobject.h"
+#include <filesystem>
 #include <list>
 
 #include "font.h"
@@ -39,7 +40,7 @@ public:
         float intensity);
 
     bool removeVertexObject(VertexObject* vertexObject);
-    Renderer(Shared<Window> window);
+    Renderer(Shared<Window> window, const std::filesystem::path& fontPath);
 
     void applyPresentation();
     void updateUniformBuffer(uint32_t currentImage);

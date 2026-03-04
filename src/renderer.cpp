@@ -36,7 +36,7 @@ struct GlobalUniformBufferObject {
 };
 }
 
-Renderer::Renderer(Shared<Window> window)
+Renderer::Renderer(Shared<Window> window, const std::filesystem::path& fontPath)
     : m_graphicsObject(std::make_shared<e172vp::GraphicsObject>([window] {
         e172vp::GraphicsObjectCreateInfo createInfo;
         createInfo.setRequiredExtensions(window->requiredVulkanExtensions());
@@ -98,7 +98,7 @@ Renderer::Renderer(Shared<Window> window)
         m_graphicsObject->physicalDevice(),
         m_graphicsObject->commandPool(),
         m_graphicsObject->graphicsQueue(),
-        "fonts/ZCOOL.ttf",
+        fontPath,
         128);
 
     m_normalDebugPipeline = createPipeline(
