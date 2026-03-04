@@ -29,7 +29,7 @@ public:
         const std::vector<BufferBundle>& lightingUniformBufferBundles,
         const std::list<VertexObject*>& vertexObjects);
 
-    static void resetCommandBuffers(const std::vector<vk::CommandBuffer> &commandBuffers, const vk::Queue &graphicsQueue, const vk::Queue &presentQueue);
+    static void resetCommandBuffers(const std::vector<vk::CommandBuffer>& commandBuffers, const vk::Queue& graphicsQueue, const vk::Queue& presentQueue);
     static void createSyncObjects(const vk::Device& logicDevice, vk::Semaphore* imageAvailableSemaphore, vk::Semaphore* renderFinishedSemaphore);
 
     VertexObject* addObject(const BadgerEngine::Model& model);
@@ -59,8 +59,8 @@ public:
 private:
     VertexObject* addCharacter(char c, std::shared_ptr<e172vp::Pipeline> pipeline);
     std::shared_ptr<e172vp::Pipeline> createPipeline(
-        const std::vector<std::uint8_t>& vertShaderCode,
-        const std::vector<std::uint8_t>& fragShaderCode,
+        std::span<const std::uint8_t> vertShaderCode,
+        std::span<const std::uint8_t> fragShaderCode,
         Geometry::Topology topology);
     VertexObject* addObject(const BadgerEngine::Geometry::Mesh& mesh, Shared<e172vp::Pipeline> pipeline);
 

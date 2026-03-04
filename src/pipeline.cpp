@@ -18,19 +18,22 @@ vk::PrimitiveTopology vulkanPrimitiveTopologyFromTopology(BadgerEngine::Geometry
 
 }
 
-vk::Pipeline e172vp::Pipeline::handle() const {
+vk::Pipeline e172vp::Pipeline::handle() const
+{
     return m_handle;
 }
 
-vk::PipelineLayout e172vp::Pipeline::pipelineLayout() const {
+vk::PipelineLayout e172vp::Pipeline::pipelineLayout() const
+{
     return m_pipelineLayout;
 }
 
-e172vp::Pipeline::~Pipeline() {
-    if(m_logicalDevice) {
-        if(m_pipelineLayout)
+e172vp::Pipeline::~Pipeline()
+{
+    if (m_logicalDevice) {
+        if (m_pipelineLayout)
             m_logicalDevice.destroyPipelineLayout(m_pipelineLayout);
-        if(m_handle)
+        if (m_handle)
             m_logicalDevice.destroyPipeline(m_handle);
     }
 }
@@ -40,12 +43,12 @@ vk::Device e172vp::Pipeline::logicalDevice() const
     return m_logicalDevice;
 }
 
-vk::ShaderModule e172vp::Pipeline::createShaderModule(const vk::Device& logicDevice, const std::vector<std::uint8_t>& code)
+vk::ShaderModule e172vp::Pipeline::createShaderModule(const vk::Device& logicDevice, std::span<const std::uint8_t> code)
 {
     assert(!code.empty());
     vk::ShaderModuleCreateInfo createInfo;
     createInfo.setCodeSize(code.size());
-    createInfo.setPCode(reinterpret_cast<const uint32_t*>(code.data()));
+    createInfo.setPCode(reinterpret_cast<const std::uint32_t*>(code.data()));
 
     vk::ShaderModule shaderModule;
     if (logicDevice.createShaderModule(&createInfo, nullptr, &shaderModule) != vk::Result::eSuccess) {
@@ -59,8 +62,8 @@ e172vp::Pipeline::Pipeline(const vk::Device& logicalDevice,
     const vk::Extent2D& extent,
     const vk::RenderPass& renderPass,
     const std::vector<vk::DescriptorSetLayout>& descriptorSetLayouts,
-    const std::vector<std::uint8_t>& vertexShader,
-    const std::vector<std::uint8_t>& fragmentShader,
+    std::span<const std::uint8_t> vertexShader,
+    std::span<const std::uint8_t> fragmentShader,
     BadgerEngine::Geometry::Topology topology)
     : m_topology(topology)
 {
@@ -72,15 +75,14 @@ e172vp::Pipeline::Pipeline(const vk::Device& logicalDevice,
     vertShaderStageInfo.module = vertShaderModule;
     vertShaderStageInfo.pName = "main";
 
-    vk::PipelineShaderStageCreateInfo fragShaderStageInfo{};
+    vk::PipelineShaderStageCreateInfo fragShaderStageInfo {};
     fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
     fragShaderStageInfo.module = fragShaderModule;
     fragShaderStageInfo.pName = "main";
 
-    vk::PipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
+    vk::PipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
 
-
-    //vertex input
+    // vertex input
     vk::PipelineVertexInputStateCreateInfo vertexInputInfo {};
     const auto bindingDescription = BadgerEngine::Geometry::Vertex::bindingDescription();
     const auto attributeDescriptions = BadgerEngine::Geometry::Vertex::attributeDescriptions();
@@ -111,7 +113,7 @@ e172vp::Pipeline::Pipeline(const vk::Device& logicalDevice,
     viewportState.scissorCount = 1;
     viewportState.pScissors = &scissor;
 
-    vk::PipelineRasterizationStateCreateInfo rasterizer{};
+    vk::PipelineRasterizationStateCreateInfo rasterizer {};
     rasterizer.depthClampEnable = false;
     rasterizer.rasterizerDiscardEnable = false;
     rasterizer.polygonMode = vk::PolygonMode::eFill;
@@ -132,16 +134,16 @@ e172vp::Pipeline::Pipeline(const vk::Device& logicalDevice,
     multisampling.sampleShadingEnable = false;
     multisampling.rasterizationSamples = vk::SampleCountFlagBits::e1;
 
-    vk::PipelineColorBlendAttachmentState colorBlendAttachment{};
+    vk::PipelineColorBlendAttachmentState colorBlendAttachment {};
     colorBlendAttachment.colorWriteMask
-            = vk::ColorComponentFlagBits::eR
-            | vk::ColorComponentFlagBits::eG
-            | vk::ColorComponentFlagBits::eB
-            | vk::ColorComponentFlagBits::eA;
+        = vk::ColorComponentFlagBits::eR
+        | vk::ColorComponentFlagBits::eG
+        | vk::ColorComponentFlagBits::eB
+        | vk::ColorComponentFlagBits::eA;
 
     colorBlendAttachment.blendEnable = false;
 
-    vk::PipelineColorBlendStateCreateInfo colorBlending{};
+    vk::PipelineColorBlendStateCreateInfo colorBlending {};
     colorBlending.logicOpEnable = false;
     colorBlending.logicOp = vk::LogicOp::eCopy;
     colorBlending.attachmentCount = 1;
@@ -151,7 +153,7 @@ e172vp::Pipeline::Pipeline(const vk::Device& logicalDevice,
     colorBlending.blendConstants[2] = 0.0f;
     colorBlending.blendConstants[3] = 0.0f;
 
-    vk::PipelineLayoutCreateInfo pipelineLayoutInfo{};
+    vk::PipelineLayoutCreateInfo pipelineLayoutInfo {};
     pipelineLayoutInfo.pushConstantRangeCount = 0;
 
     pipelineLayoutInfo.setLayoutCount = descriptorSetLayouts.size();

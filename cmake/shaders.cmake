@@ -1,102 +1,109 @@
-function(badger_engine_add_shader_target target)
-  cmake_parse_arguments(PARSE_ARGV 1 arg "" "OUTPUT_DIR" "SOURCES")
+function (badger_engine_add_shader_target target)
+    cmake_parse_arguments(
+        PARSE_ARGV
+        1
+        arg
+        ""
+        "OUTPUT_DIR"
+        "SOURCES")
 
-  if(NOT DEFINED arg_OUTPUT_DIR)
-    message("error" FATAL_ERROR)
-  endif()
+    if (NOT DEFINED arg_OUTPUT_DIR)
+        message("error" FATAL_ERROR)
+    endif ()
 
-  file(MAKE_DIRECTORY ${arg_OUTPUT_DIR})
-  set(ext spv)
+    file(MAKE_DIRECTORY ${arg_OUTPUT_DIR})
+    set(ext spv)
 
-  set(output_file_paths)
-  foreach(source_file_path ${arg_SOURCES})
+    set(output_file_paths)
+    foreach (source_file_path ${arg_SOURCES})
 
-    get_filename_component(source_file_name ${source_file_path} NAME)
-    get_filename_component(
-      output_file_path ${arg_OUTPUT_DIR}/${source_file_name}.${ext} ABSOLUTE)
+        get_filename_component(source_file_name ${source_file_path} NAME)
+        get_filename_component(output_file_path ${arg_OUTPUT_DIR}/${source_file_name}.${ext}
+                               ABSOLUTE)
 
-    message(
-      "source_file_path: ${source_file_path}, output_file_path: ${output_file_path}"
-    )
+        message("source_file_path: ${source_file_path}, output_file_path: ${output_file_path}")
 
-    add_custom_command(
-      DEPENDS ${source_file_path}
-      COMMAND glslc ${source_file_path} -o ${output_file_path}
-      OUTPUT ${output_file_path})
+        add_custom_command(
+            DEPENDS ${source_file_path}
+            COMMAND glslc ${source_file_path} -o ${output_file_path}
+            OUTPUT ${output_file_path})
 
-    list(APPEND output_file_paths ${output_file_path})
+        list(APPEND output_file_paths ${output_file_path})
 
-  endforeach()
+    endforeach ()
 
-  message("output_file_paths: ${output_file_paths}")
+    message("output_file_paths: ${output_file_paths}")
 
-  add_custom_target(
-    ${target}
-    SOURCES ${arg_SOURCES}
-    DEPENDS ${output_file_paths})
+    add_custom_target(
+        ${target}
+        SOURCES ${arg_SOURCES}
+        DEPENDS ${output_file_paths})
 
-endfunction()
+endfunction ()
 
-function(badger_engine_add_embedded_shader_target target)
-  cmake_parse_arguments(PARSE_ARGV 1 arg "" "OUTPUT_DIR;SUBDIR" "SOURCES")
+function (badger_engine_add_embedded_shader_target target)
+    cmake_parse_arguments(
+        PARSE_ARGV
+        1
+        arg
+        ""
+        "OUTPUT_DIR;SUBDIR"
+        "SOURCES")
 
-  if(NOT DEFINED arg_OUTPUT_DIR)
-    set(arg_OUTPUT_DIR
-        "${CMAKE_CURRENT_BINARY_DIR}/badger_engine_add_embedded_shader_target_output/${target}"
-    )
-  endif()
+    if (NOT DEFINED arg_OUTPUT_DIR)
+        set(arg_OUTPUT_DIR
+            "${CMAKE_CURRENT_BINARY_DIR}/badger_engine_add_embedded_shader_target_output/${target}")
+    endif ()
 
-  if(DEFINED arg_SUBDIR)
-    get_filename_component(output_dir ${arg_OUTPUT_DIR}/${arg_SUBDIR} ABSOLUTE)
-  else()
-    set(output_dir ${arg_OUTPUT_DIR})
-  endif()
+    if (DEFINED arg_SUBDIR)
+        get_filename_component(output_dir ${arg_OUTPUT_DIR}/${arg_SUBDIR} ABSOLUTE)
+    else ()
+        set(output_dir ${arg_OUTPUT_DIR})
+    endif ()
 
-  get_filename_component(intermediate_dir ${output_dir}/intermediate ABSOLUTE)
+    get_filename_component(intermediate_dir ${output_dir}/intermediate ABSOLUTE)
 
-  file(MAKE_DIRECTORY ${intermediate_dir})
-  set(ext spv)
+    file(MAKE_DIRECTORY ${intermediate_dir})
+    set(ext spv)
 
-  set(output_file_paths)
-  foreach(source_file_path ${arg_SOURCES})
+    set(output_file_paths)
+    foreach (source_file_path ${arg_SOURCES})
 
-    get_filename_component(source_file_name ${source_file_path} NAME)
-    get_filename_component(
-      intermediate_file_path ${intermediate_dir}/${source_file_name}.${ext}
-      ABSOLUTE)
+        get_filename_component(source_file_name ${source_file_path} NAME)
+        get_filename_component(intermediate_file_path
+                               ${intermediate_dir}/${source_file_name}.${ext} ABSOLUTE)
 
-    get_filename_component(output_file_path
-                           ${output_dir}/${source_file_name}.${ext}.h ABSOLUTE)
+        get_filename_component(output_file_path ${output_dir}/${source_file_name}.${ext}.h ABSOLUTE)
 
-    string(REPLACE "." "_" variable_file_name ${source_file_name})
+        string(REPLACE "." "_" variable_file_name ${source_file_name})
 
-    message(
-      "source_file_path: ${source_file_path}, intermediate_file_path: ${intermediate_file_path}"
-    )
+        message(
+            "source_file_path: ${source_file_path}, intermediate_file_path: ${intermediate_file_path}"
+        )
 
-    add_custom_command(
-      DEPENDS ${source_file_path}
-      COMMAND glslc ${source_file_path} -o ${intermediate_file_path}
-      OUTPUT ${intermediate_file_path})
+        add_custom_command(
+            DEPENDS ${source_file_path}
+            COMMAND glslc ${source_file_path} -o ${intermediate_file_path}
+            OUTPUT ${intermediate_file_path})
 
-    add_custom_command(
-      DEPENDS ${intermediate_file_path}
-      COMMAND bin2c ${intermediate_file_path} --name ${variable_file_name}
-              --const > ${output_file_path}
-      OUTPUT ${output_file_path})
+        add_custom_command(
+            DEPENDS ${intermediate_file_path}
+            COMMAND ${BIN2H_EXECUTABLE} ${intermediate_file_path} --name ${variable_file_name} >
+                    ${output_file_path}
+            OUTPUT ${output_file_path})
 
-    list(APPEND output_file_paths ${output_file_path})
+        list(APPEND output_file_paths ${output_file_path})
 
-  endforeach()
+    endforeach ()
 
-  message("output_file_paths: ${output_file_paths}")
+    message("output_file_paths: ${output_file_paths}")
 
-  add_custom_target(${target}_impl DEPENDS ${output_file_paths})
+    add_custom_target(${target}_impl DEPENDS ${output_file_paths})
 
-  add_library(${target} INTERFACE)
-  target_sources(${target} PRIVATE ${arg_SOURCES})
+    add_library(${target} INTERFACE)
+    target_sources(${target} PRIVATE ${arg_SOURCES})
 
-  add_dependencies(${target} ${target}_impl)
-  target_include_directories(${target} INTERFACE ${arg_OUTPUT_DIR})
+    add_dependencies(${target} ${target}_impl)
+    target_include_directories(${target} INTERFACE ${arg_OUTPUT_DIR})
 
-endfunction()
+endfunction ()

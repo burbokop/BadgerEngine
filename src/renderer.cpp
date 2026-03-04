@@ -26,6 +26,7 @@ struct PointLightUniformBufferObject {
 struct LightingUniformBufferObject {
     PointLightUniformBufferObject lights[64];
     std::uint32_t lightsCount;
+    float ambient;
 };
 
 struct GlobalUniformBufferObject {
@@ -101,14 +102,14 @@ Renderer::Renderer(Shared<Window> window)
         128);
 
     m_normalDebugPipeline = createPipeline(
-        std::vector<std::uint8_t>(normal_debug_vert, normal_debug_vert + sizeof(normal_debug_vert) / sizeof(normal_debug_vert[0])),
-        std::vector<std::uint8_t>(normal_debug_frag, normal_debug_frag + sizeof(normal_debug_frag) / sizeof(normal_debug_frag[0])),
+        normal_debug_vert,
+        normal_debug_frag,
         Geometry::Topology::LineList);
 }
 
 std::shared_ptr<e172vp::Pipeline> Renderer::createPipeline(
-    const std::vector<std::uint8_t>& vertShaderCode,
-    const std::vector<std::uint8_t>& fragShaderCode,
+    std::span<const uint8_t> vertShaderCode,
+    std::span<const uint8_t> fragShaderCode,
     Geometry::Topology topology)
 {
     return std::make_shared<e172vp::Pipeline>(m_graphicsObject->logicalDevice(),
@@ -145,14 +146,13 @@ void Renderer::applyPresentation()
     vk::Result returnCode;
 
     returnCode = m_graphicsObject->logicalDevice().acquireNextImageKHR(m_graphicsObject->swapChain(), UINT64_MAX, m_imageAvailableSemaphore, {}, &imageIndex);
-    if(returnCode != vk::Result::eSuccess)
+    if (returnCode != vk::Result::eSuccess)
         throw std::runtime_error("acquiring next image failed. code: " + vk::to_string(returnCode));
 
     auto currentImageCommandBuffer = m_graphicsObject->commandPool().commandBuffer(imageIndex);
 
     vk::Semaphore waitSemaphores[] = { m_imageAvailableSemaphore };
     vk::PipelineStageFlags waitStages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
-
 
     updateUniformBuffer(imageIndex);
 
@@ -182,7 +182,7 @@ void Renderer::applyPresentation()
     presentInfo.pResults = nullptr; // Optional
 
     returnCode = m_graphicsObject->presentQueue().presentKHR(&presentInfo);
-    if(returnCode != vk::Result::eSuccess)
+    if (returnCode != vk::Result::eSuccess)
         throw std::runtime_error("present failed. code: " + vk::to_string(returnCode));
 }
 
@@ -217,6 +217,7 @@ void Renderer::updateUniformBuffer(uint32_t currentImage)
             ubo.lights[i].position = glm::vec4(m_pointLights[i]->position, 0.f);
             ubo.lights[i].color = glm::vec4(m_pointLights[i]->color, m_pointLights[i]->intensity);
         }
+        ubo.ambient = 0.2;
 
         void* data;
         ::vkMapMemory(m_graphicsObject->logicalDevice(), m_lightingUniformBufferBundles[currentImage].memory, 0, sizeof(ubo), 0, &data);
@@ -235,18 +236,17 @@ void Renderer::proceedCommandBuffers(const vk::RenderPass& renderPass,
     const std::list<VertexObject*>& vertexObjects)
 {
     for (size_t i = 0; i < commandBuffers.size(); i++) {
-        vk::CommandBufferBeginInfo beginInfo{};
+        vk::CommandBufferBeginInfo beginInfo {};
         if (commandBuffers[i].begin(&beginInfo) != vk::Result::eSuccess) {
             throw std::runtime_error("failed to begin recording command buffer!");
         }
 
-        //#1A0033
+        // #1A0033
         const vk::ClearValue clearColor = vk::ClearColorValue(std::array<float, 4> {
-                                                                  0x1a / 256.,
-                                                                  0x00 / 256.,
-                                                                  0x33 / 256.,
-                                                                  0.4f
-                                                              });
+            0x1a / 256.,
+            0x00 / 256.,
+            0x33 / 256.,
+            0.4f });
 
         vk::ClearValue depthClear;
         depthClear.depthStencil = vk::ClearDepthStencilValue(1.0f, 0.f);
@@ -283,7 +283,6 @@ void Renderer::proceedCommandBuffers(const vk::RenderPass& renderPass,
         //        commandBuffers[i].blitImage(fgImage, vk::ImageLayout::eUndefined, swapChainImages[i], vk::ImageLayout::eTransferDstOptimal, { blit }, vk::Filter::eLinear);
         commandBuffers[i].endRenderPass();
         commandBuffers[i].end();
-
     }
 }
 
@@ -292,7 +291,7 @@ void Renderer::resetCommandBuffers(const std::vector<vk::CommandBuffer>& command
     graphicsQueue.waitIdle();
     presentQueue.waitIdle();
 
-    for(auto b : commandBuffers) {
+    for (auto b : commandBuffers) {
         b.reset(vk::CommandBufferResetFlagBits::eReleaseResources);
     }
 }
@@ -364,9 +363,7 @@ void Renderer::createSyncObjects(const vk::Device& logicDevice, vk::Semaphore* i
 {
     vk::SemaphoreCreateInfo semaphoreInfo;
     if (
-            logicDevice.createSemaphore(&semaphoreInfo, nullptr, imageAvailableSemaphore) != vk::Result::eSuccess ||
-            logicDevice.createSemaphore(&semaphoreInfo, nullptr, renderFinishedSemaphore) != vk::Result::eSuccess
-            )
+        logicDevice.createSemaphore(&semaphoreInfo, nullptr, imageAvailableSemaphore) != vk::Result::eSuccess || logicDevice.createSemaphore(&semaphoreInfo, nullptr, renderFinishedSemaphore) != vk::Result::eSuccess)
         throw std::runtime_error("failed to create synchronization objects for a frame!");
 }
 }

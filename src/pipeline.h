@@ -12,8 +12,8 @@ public:
         const vk::Extent2D& extent,
         const vk::RenderPass& renderPass,
         const std::vector<vk::DescriptorSetLayout>& descriptorSetLayouts,
-        const std::vector<std::uint8_t>& vertexShader,
-        const std::vector<std::uint8_t>& fragmentShader,
+        std::span<const std::uint8_t> vertexShader,
+        std::span<const std::uint8_t> fragmentShader,
         BadgerEngine::Geometry::Topology topology);
 
     Pipeline() = delete;
@@ -39,7 +39,7 @@ public:
     ~Pipeline();
 
 private:
-    static vk::ShaderModule createShaderModule(const vk::Device& logicDevice, const std::vector<std::uint8_t>& code);
+    static vk::ShaderModule createShaderModule(const vk::Device& logicDevice, std::span<const std::uint8_t> code);
 
 private:
     vk::Pipeline m_handle;

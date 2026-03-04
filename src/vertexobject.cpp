@@ -30,7 +30,7 @@ std::vector<UploadedModel> createModels(Shared<e172vp::GraphicsObject> graphicsO
         PolygonNormals
     };
 
-    const Normals displayNormals = PolygonNormals;
+    const Normals displayNormals = NoNormals;
     const float len = 1;
 
     switch (displayNormals) {
