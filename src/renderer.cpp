@@ -32,6 +32,7 @@ struct LightingUniformBufferObject {
 struct GlobalUniformBufferObject {
     glm::mat4 transformation;
     float time;
+    float _time;
     glm::vec2 mouse;
 };
 }
@@ -47,7 +48,7 @@ Renderer::Renderer(Shared<Window> window, const std::filesystem::path& fontPath)
 #endif
         createInfo.setRequiredDeviceExtensions({ VK_KHR_SWAPCHAIN_EXTENSION_NAME, "VK_EXT_memory_budget" });
         createInfo.setSurfaceCreator([window](vk::Instance i, vk::SurfaceKHR* s) {
-            *s = window->createVulkanSurface(i).value();
+            *s = window->createVulkanSurface(i).transform_error(handleAsCritical<>).value();
         });
         return createInfo;
     }()))
@@ -143,9 +144,8 @@ void Renderer::applyPresentation()
         m_vertexObjects);
 
     std::uint32_t imageIndex = 0;
-    vk::Result returnCode;
 
-    returnCode = m_graphicsObject->logicalDevice().acquireNextImageKHR(m_graphicsObject->swapChain(), UINT64_MAX, m_imageAvailableSemaphore, {}, &imageIndex);
+    vk::Result returnCode = m_graphicsObject->logicalDevice().acquireNextImageKHR(m_graphicsObject->swapChain(), UINT64_MAX, m_imageAvailableSemaphore, {}, &imageIndex);
     if (returnCode != vk::Result::eSuccess)
         throw std::runtime_error("acquiring next image failed. code: " + vk::to_string(returnCode));
 
@@ -197,11 +197,13 @@ void Renderer::updateUniformBuffer(uint32_t currentImage)
         const auto ubo = GlobalUniformBufferObject {
             .transformation = m_camera->transformation(size.x / size.y),
             .time = time,
+            ._time = time,
             .mouse = { 0, 0 }
         };
 
         void* data;
-        ::vkMapMemory(m_graphicsObject->logicalDevice(), m_commonGlobalUniformBufferBundles[currentImage].memory, 0, sizeof(ubo), 0, &data);
+        const auto ok = ::vkMapMemory(m_graphicsObject->logicalDevice(), m_commonGlobalUniformBufferBundles[currentImage].memory, 0, sizeof(ubo), 0, &data);
+        assert(ok == VK_SUCCESS);
         std::memcpy(data, &ubo, sizeof(ubo));
         ::vkUnmapMemory(m_graphicsObject->logicalDevice(), m_commonGlobalUniformBufferBundles[currentImage].memory);
     }
@@ -220,7 +222,8 @@ void Renderer::updateUniformBuffer(uint32_t currentImage)
         ubo.ambient = 0.2;
 
         void* data;
-        ::vkMapMemory(m_graphicsObject->logicalDevice(), m_lightingUniformBufferBundles[currentImage].memory, 0, sizeof(ubo), 0, &data);
+        const auto ok = ::vkMapMemory(m_graphicsObject->logicalDevice(), m_lightingUniformBufferBundles[currentImage].memory, 0, sizeof(ubo), 0, &data);
+        assert(ok == VK_SUCCESS);
         std::memcpy(data, &ubo, sizeof(ubo));
         ::vkUnmapMemory(m_graphicsObject->logicalDevice(), m_lightingUniformBufferBundles[currentImage].memory);
     }

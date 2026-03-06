@@ -19,8 +19,9 @@ add_subdirectory(src)
 
 find_package(Vulkan REQUIRED)
 find_package(glfw3 REQUIRED)
+find_package(SDL2 REQUIRED)
 
-target_link_libraries(BadgerEngine PRIVATE Vulkan::Vulkan glfw freetype)
+target_link_libraries(BadgerEngine PRIVATE Vulkan::Vulkan SDL2::SDL2 glfw freetype)
 
 target_include_directories(BadgerEngine PUBLIC $<BUILD_INTERFACE:/usr/include/freetype2>)
 

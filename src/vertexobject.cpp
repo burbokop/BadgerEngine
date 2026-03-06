@@ -20,7 +20,7 @@ std::vector<UploadedModel> createModels(Shared<e172vp::GraphicsObject> graphicsO
 {
     std::list<UploadedModel> result = {
         UploadedModel(
-            MeshBuffer::upload(graphicsObject, mesh).value(),
+            MeshBuffer::upload(graphicsObject, mesh).transform_error(handleAsCritical<>).value(),
             std::move(pipeline))
     };
 
@@ -38,12 +38,12 @@ std::vector<UploadedModel> createModels(Shared<e172vp::GraphicsObject> graphicsO
         break;
     case VertexNormals:
         result.push_back(UploadedModel(
-            MeshBuffer::upload(graphicsObject, mesh.vertexNormalsMesh(len).value()).value(),
+            MeshBuffer::upload(graphicsObject, mesh.vertexNormalsMesh(len).value()).transform_error(handleAsCritical<>).value(),
             std::move(nPipeline)));
         break;
     case PolygonNormals:
         result.push_back(UploadedModel(
-            MeshBuffer::upload(graphicsObject, mesh.polygonNormalsMesh(len).value()).value(),
+            MeshBuffer::upload(graphicsObject, mesh.polygonNormalsMesh(len).value()).transform_error(handleAsCritical<>).value(),
             std::move(nPipeline)));
         break;
     }
@@ -125,7 +125,8 @@ std::vector<vk::DescriptorSet> VertexObject::textureDescriptorSets() const
     return m_textureDescriptorSets;
 }
 
-void VertexObject::draw(std::size_t imageIndex,
+void VertexObject::draw(
+    std::size_t imageIndex,
     std::span<const vk::CommandBuffer> commandBuffers,
     std::span<const BufferBundle> commonGlobalUniformBufferBundles,
     std::span<const BufferBundle> lightingUniformBufferBundles) const
@@ -137,10 +138,12 @@ void VertexObject::draw(std::size_t imageIndex,
             vk::PipelineBindPoint::eGraphics,
             model.pipeline()->pipelineLayout(),
             0,
-            { commonGlobalUniformBufferBundles[imageIndex].descriptorSet,
+            {
+                commonGlobalUniformBufferBundles[imageIndex].descriptorSet,
                 lightingUniformBufferBundles[imageIndex].descriptorSet,
                 bufferBundles()[imageIndex].descriptorSet,
-                textureDescriptorSets()[imageIndex] },
+                textureDescriptorSets()[imageIndex],
+            },
             {});
 
         commandBuffers[imageIndex].drawIndexed(model.indexCount(), 1, 0, 0, 0);

@@ -1,10 +1,9 @@
-#include "Window.h"
+#include "GLFWWindow.h"
 
 #define GLFW_INCLUDE_VULKAN
 #define GLM_FORCE_RADIANS
-
 #include <GLFW/glfw3.h>
-#include <atomic>
+#include <iostream>
 
 namespace BadgerEngine {
 
@@ -60,7 +59,8 @@ public:
     Expected<vk::SurfaceKHR> createVulkanSurface(vk::Instance i)
     {
         VkSurfaceKHR surface;
-        if (::glfwCreateWindowSurface(i, m_window.nullable(), NULL, &surface) != VK_SUCCESS) {
+        const auto result = ::glfwCreateWindowSurface(i, m_window.nullable(), NULL, &surface);
+        if (result != VK_SUCCESS) {
             return unexpected("surface creating error");
         }
         return surface;
@@ -70,6 +70,11 @@ public:
     {
         std::uint32_t count = 0;
         const char** extensions = glfwGetRequiredInstanceExtensions(&count);
+        if (!extensions) {
+            std::cerr << "Warn: glfwGetRequiredInstanceExtensions return nullptr. vulkan scene will be rendered by may not be displayed on window" << std::endl;
+            return {};
+        }
+
         assert(extensions);
         std::vector<std::string> result(count);
         for (std::uint32_t i = 0; i < count; ++i) {
