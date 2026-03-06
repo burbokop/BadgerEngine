@@ -7,7 +7,6 @@
 #include "Tools/stringvector.h"
 #include "Window.h"
 #include <chrono>
-#include <fstream>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 #include <math.h>

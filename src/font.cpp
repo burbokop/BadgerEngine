@@ -2,6 +2,8 @@
 #include "swapchain.h"
 
 #include "Buffers/BufferUtils.h"
+
+#include <ft2build.h>
 #include <freetype/freetype.h>
 #include <ft2build.h>
 #include <iostream>
@@ -202,7 +204,7 @@ e172vp::Font::Font(
     }
 
     FT_Face face;
-    if (FT_New_Face(ft, path.c_str(), 0, &face)) {
+    if (FT_New_Face(ft, path.string().c_str(), 0, &face)) {
         throw std::runtime_error("Failed to load font: " + path.string());
     }
 
@@ -228,7 +230,7 @@ e172vp::Font::Font(
         if (face->glyph->bitmap.width > 0 && face->glyph->bitmap.rows > 0) {
             character.m_imageFormat = vk::Format::eR8G8B8A8Srgb;
 
-            uint32_t rgba_buffer[face->glyph->bitmap.rows * face->glyph->bitmap.width];
+            std::vector<std::uint32_t> rgba_buffer(face->glyph->bitmap.rows * face->glyph->bitmap.width);
             auto p = reinterpret_cast<uint8_t*>(face->glyph->bitmap.buffer);
             for (size_t y = 0; y < face->glyph->bitmap.rows; ++y) {
                 for (size_t x = 0; x < face->glyph->bitmap.width; ++x) {
@@ -242,7 +244,7 @@ e172vp::Font::Font(
                 }
             }
 
-            if (!createTextureImage32(logicalDevice, physicalDevice, commandPool, copyQueue, &rgba_buffer, face->glyph->bitmap.width, face->glyph->bitmap.rows, character.m_imageFormat, &character.m_image, &character.m_imageMemory))
+            if (!createTextureImage32(logicalDevice, physicalDevice, commandPool, copyQueue, rgba_buffer.data(), face->glyph->bitmap.width, face->glyph->bitmap.rows, character.m_imageFormat, &character.m_image, &character.m_imageMemory))
                 break;
 
             character.m_imageView = SwapChain::createImageView(logicalDevice, character.m_image, character.m_imageFormat);

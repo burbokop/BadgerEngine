@@ -74,7 +74,7 @@ int main(int argc, const char** argv)
         return -2;
     }
 
-    const auto result = writeHCode(std::cout, input, std::filesystem::file_size(args->inputPath), args->variableName.value_or(args->inputPath));
+    const auto result = writeHCode(std::cout, input, std::filesystem::file_size(args->inputPath), args->variableName.value_or(args->inputPath.string()));
     if (!result) {
         return result.error();
     }

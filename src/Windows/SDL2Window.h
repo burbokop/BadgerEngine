@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../Window.h"
+#include "../Utils/NoNull.h"
 
 namespace BadgerEngine {
 

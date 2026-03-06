@@ -15,7 +15,7 @@ Expected<ObjMesh> ObjMesh::load(const std::filesystem::path& path)
 
     std::vector<Index> indices;
 
-    const auto file = std::fopen(path.c_str(), "r");
+    const auto file = std::fopen(path.string().c_str(), "r");
     if (file == NULL) {
         return unexpected("Failed to open file " + path.string() + ": " + ::strerror(errno));
     }

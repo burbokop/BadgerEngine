@@ -7,7 +7,6 @@
 #include "vertexobject.h"
 #include <filesystem>
 #include <list>
-
 #include "font.h"
 
 namespace BadgerEngine {
@@ -15,7 +14,7 @@ namespace BadgerEngine {
 class Model;
 class PerspectiveCamera;
 class Window;
-class PointLight;
+struct PointLight;
 
 class Renderer {
 
@@ -95,4 +94,5 @@ private:
     Shared<Window> m_window;
     Shared<PerspectiveCamera> m_camera;
 };
+
 }

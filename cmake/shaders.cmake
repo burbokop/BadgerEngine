@@ -25,7 +25,7 @@ function (badger_engine_add_shader_target target)
 
         add_custom_command(
             DEPENDS ${source_file_path}
-            COMMAND glslc ${source_file_path} -o ${output_file_path}
+            COMMAND ${glslc_executable} ${source_file_path} -o ${output_file_path}
             OUTPUT ${output_file_path})
 
         list(APPEND output_file_paths ${output_file_path})
@@ -83,7 +83,7 @@ function (badger_engine_add_embedded_shader_target target)
 
         add_custom_command(
             DEPENDS ${source_file_path}
-            COMMAND glslc ${source_file_path} -o ${intermediate_file_path}
+            COMMAND ${glslc_executable} ${source_file_path} -o ${intermediate_file_path}
             OUTPUT ${intermediate_file_path})
 
         if (NOT DEFINED BIN2H_EXECUTABLE)
