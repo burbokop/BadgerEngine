@@ -2,9 +2,11 @@
 
 #include "Buffers/BufferUtils.h"
 #include "Camera.h"
+#include "Model/Model.h"
 #include "PointLight.h"
-#include "Tools/Model.h"
+#include "Tools/UploadedTexture.h"
 #include "Tools/stringvector.h"
+#include "Utils/NumericCast.h"
 #include "Window.h"
 #include <chrono>
 #include <glm/gtc/matrix_transform.hpp>
@@ -34,23 +36,25 @@ struct GlobalUniformBufferObject {
     float _time;
     glm::vec2 mouse;
 };
+
 }
 
 Renderer::Renderer(Shared<Window> window, const std::filesystem::path& fontPath)
-    : m_graphicsObject(std::make_shared<e172vp::GraphicsObject>([window] {
-        e172vp::GraphicsObjectCreateInfo createInfo;
-        createInfo.setRequiredExtensions(window->requiredVulkanExtensions());
-        createInfo.setApplicationName("test-app");
-        createInfo.setApplicationVersion(1);
+    : m_graphicsObject(std::make_shared<e172vp::GraphicsObject>(e172vp::GraphicsObjectCreateInfo {
+          .applicationName = "badger_engine_app",
+          .applicationVersion = 1,
+          .requiredExtensions = window->requiredVulkanExtensions(),
+          .requiredDeviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, "VK_EXT_memory_budget" },
+          .surfaceCreator = [window](vk::Instance i, vk::SurfaceKHR* s) {
+              *s = window->createVulkanSurface(i).transform_error(handleAsCritical<>).value();
+          },
+          .descriptorPoolSize = 1024 * 64,
 #ifndef NDEBUG
-        createInfo.setDebugEnabled(true);
+          .debugEnabled = true,
+#else
+          .debugEnabled = false,
 #endif
-        createInfo.setRequiredDeviceExtensions({ VK_KHR_SWAPCHAIN_EXTENSION_NAME, "VK_EXT_memory_budget" });
-        createInfo.setSurfaceCreator([window](vk::Instance i, vk::SurfaceKHR* s) {
-            *s = window->createVulkanSurface(i).transform_error(handleAsCritical<>).value();
-        });
-        return createInfo;
-    }()))
+      }))
     , m_window(std::move(window))
     , m_camera(std::make_shared<PerspectiveCamera>())
 {
@@ -104,13 +108,14 @@ Renderer::Renderer(Shared<Window> window, const std::filesystem::path& fontPath)
     m_normalDebugPipeline = createPipeline(
         normal_debug_vert,
         normal_debug_frag,
-        Geometry::Topology::LineList);
+        Geometry::Topology::LineList, PolygonMode::Fill);
 }
 
 std::shared_ptr<e172vp::Pipeline> Renderer::createPipeline(
     std::span<const uint8_t> vertShaderCode,
     std::span<const uint8_t> fragShaderCode,
-    Geometry::Topology topology)
+    Geometry::Topology topology,
+    BadgerEngine::PolygonMode polygonMode)
 {
     return std::make_shared<e172vp::Pipeline>(m_graphicsObject->logicalDevice(),
         m_graphicsObject->swapChainSettings().extent,
@@ -122,7 +127,7 @@ std::shared_ptr<e172vp::Pipeline> Renderer::createPipeline(
             m_samplerDescriptorSetLayout.descriptorSetLayoutHandle() },
         vertShaderCode,
         fragShaderCode,
-        topology);
+        topology, polygonMode);
 }
 
 void Renderer::applyPresentation()
@@ -189,7 +194,7 @@ void Renderer::updateUniformBuffer(uint32_t currentImage)
 {
     {
         static const auto begin = std::chrono::high_resolution_clock::now();
-        const float time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - begin).count() / 1000.f;
+        const float time = static_cast<float>(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - begin).count()) / 1000.f;
 
         const auto size = m_window->size();
 
@@ -201,30 +206,33 @@ void Renderer::updateUniformBuffer(uint32_t currentImage)
         };
 
         void* data;
-        const auto ok = ::vkMapMemory(m_graphicsObject->logicalDevice(), m_commonGlobalUniformBufferBundles[currentImage].memory, 0, sizeof(ubo), 0, &data);
-        assert(ok == VK_SUCCESS);
+        const auto result = m_graphicsObject->logicalDevice().mapMemory(m_commonGlobalUniformBufferBundles[currentImage].memory, 0, sizeof(ubo), vk::MemoryMapFlags(), &data);
+        if (result != vk::Result::eSuccess) {
+            throw std::runtime_error("Failed to map memory: " + vk::to_string(result));
+        }
         std::memcpy(data, &ubo, sizeof(ubo));
-        ::vkUnmapMemory(m_graphicsObject->logicalDevice(), m_commonGlobalUniformBufferBundles[currentImage].memory);
+        m_graphicsObject->logicalDevice().unmapMemory(m_commonGlobalUniformBufferBundles[currentImage].memory);
     }
 
     {
         LightingUniformBufferObject ubo;
-        constexpr auto capacity = sizeof(ubo.lights) / sizeof(ubo.lights[0]);
+        constexpr std::size_t capacity = sizeof(ubo.lights) / sizeof(ubo.lights[0]);
         assert(m_pointLights.size() <= capacity);
-        ubo.lightsCount = std::min(capacity, m_pointLights.size());
+        ubo.lightsCount = numericCast<std::uint32_t>(std::min(capacity, m_pointLights.size())).value();
 
-        std::size_t i = 0;
         for (std::size_t i = 0; i < ubo.lightsCount; ++i) {
             ubo.lights[i].position = glm::vec4(m_pointLights[i]->position, 0.f);
             ubo.lights[i].color = glm::vec4(m_pointLights[i]->color, m_pointLights[i]->intensity);
         }
-        ubo.ambient = 0.2;
+        ubo.ambient = 0.2f;
 
         void* data;
-        const auto ok = ::vkMapMemory(m_graphicsObject->logicalDevice(), m_lightingUniformBufferBundles[currentImage].memory, 0, sizeof(ubo), 0, &data);
-        assert(ok == VK_SUCCESS);
+        const auto result = m_graphicsObject->logicalDevice().mapMemory(m_lightingUniformBufferBundles[currentImage].memory, 0, sizeof(ubo), vk::MemoryMapFlags(), &data);
+        if (result != vk::Result::eSuccess) {
+            throw std::runtime_error("Failed to map memory: " + vk::to_string(result));
+        }
         std::memcpy(data, &ubo, sizeof(ubo));
-        ::vkUnmapMemory(m_graphicsObject->logicalDevice(), m_lightingUniformBufferBundles[currentImage].memory);
+        m_graphicsObject->logicalDevice().unmapMemory(m_lightingUniformBufferBundles[currentImage].memory);
     }
 }
 
@@ -268,9 +276,9 @@ void Renderer::proceedCommandBuffers(const vk::RenderPass& renderPass,
 
         vk::Viewport viewport;
         viewport.setX(0);
-        viewport.setWidth(extent.width);
         viewport.setY(0);
-        viewport.setHeight(extent.height);
+        viewport.setWidth(static_cast<float>(extent.width));
+        viewport.setHeight(static_cast<float>(extent.height));
         viewport.setMinDepth(camera.near());
         viewport.setMaxDepth(camera.far());
 
@@ -298,7 +306,12 @@ void Renderer::resetCommandBuffers(const std::vector<vk::CommandBuffer>& command
     }
 }
 
-VertexObject* Renderer::addObject(const BadgerEngine::Geometry::Mesh& mesh, Shared<e172vp::Pipeline> pipeline)
+VertexObject& Renderer::addObject(const Shared<Geometry::Mesh>& mesh, Shared<e172vp::Pipeline> pipeline)
+{
+    return addObject(mesh, m_font->character('F').imageView(), pipeline);
+}
+
+VertexObject& Renderer::addObject(const Shared<Geometry::Mesh>& mesh, vk::ImageView texture, Shared<e172vp::Pipeline> pipeline)
 {
     const auto r = new VertexObject(
         m_graphicsObject,
@@ -306,14 +319,29 @@ VertexObject* Renderer::addObject(const BadgerEngine::Geometry::Mesh& mesh, Shar
         &m_objectDescriptorSetLayout,
         &m_samplerDescriptorSetLayout,
         mesh,
-        m_font->character('F').imageView(),
+        texture,
         pipeline,
         m_normalDebugPipeline);
     m_vertexObjects.push_back(r);
-    return r;
+    return *r;
 }
 
-VertexObject* Renderer::addCharacter(char c, std::shared_ptr<e172vp::Pipeline> pipeline)
+VertexObject& Renderer::addObject(const Shared<Geometry::Mesh>& mesh, Shared<UploadedTexture> texture, Shared<e172vp::Pipeline> pipeline)
+{
+    const auto r = new VertexObject(
+        m_graphicsObject,
+        m_graphicsObject->swapChain().imageCount(),
+        &m_objectDescriptorSetLayout,
+        &m_samplerDescriptorSetLayout,
+        mesh,
+        texture,
+        pipeline,
+        m_normalDebugPipeline);
+    m_vertexObjects.push_back(r);
+    return *r;
+}
+
+VertexObject& Renderer::addCharacter(char c, std::shared_ptr<e172vp::Pipeline> pipeline)
 {
     const static std::vector<Geometry::Vertex> v = {
         { { -0.1f, -0.1f, 0 }, { 0, 0, 0 }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
@@ -331,17 +359,38 @@ VertexObject* Renderer::addCharacter(char c, std::shared_ptr<e172vp::Pipeline> p
         m_graphicsObject->swapChain().imageCount(),
         &m_objectDescriptorSetLayout,
         &m_samplerDescriptorSetLayout,
-        Geometry::Mesh(Geometry::Topology::TriangleList, v, i),
+        Geometry::Mesh::create(Geometry::Topology::TriangleList, v, i),
         m_font->character(c).imageView(),
         pipeline,
         m_normalDebugPipeline);
     m_vertexObjects.push_back(r);
-    return r;
+    return *r;
 }
 
-VertexObject* Renderer::addObject(const BadgerEngine::Model& model)
+VertexObject& Renderer::addObject(const BadgerEngine::Model& model, bool recursiveTexture)
 {
-    return addObject(model.mesh(), createPipeline(model.vert(), model.frag(), Geometry::Topology::TriangleList));
+    if (recursiveTexture) {
+        const auto& frames = m_graphicsObject->swapChain().frames();
+        std::size_t i = 0;
+        assert(i < frames.size());
+        return addObject(model.mesh(), frames[i].imageView, createPipeline(model.vert(), model.frag(), Geometry::Topology::TriangleList, model.polygonMode()));
+    }
+
+    if (model.textures().size() > 0) {
+
+        const auto texture = UploadedTexture::upload(
+            m_graphicsObject->logicalDevice(),
+            m_graphicsObject->physicalDevice(),
+            m_graphicsObject->commandPool(),
+            // Assuming graphics queue can also do copy. If not then add some check
+            m_graphicsObject->graphicsQueue(), model.textures().front())
+                                 .transform_error(handleAsCritical<>)
+                                 .value();
+
+        return addObject(model.mesh(), texture, createPipeline(model.vert(), model.frag(), Geometry::Topology::TriangleList, model.polygonMode()));
+    } else {
+        return addObject(model.mesh(), createPipeline(model.vert(), model.frag(), Geometry::Topology::TriangleList, model.polygonMode()));
+    }
 }
 
 Shared<PointLight> Renderer::addPointLight(glm::vec3 position, glm::vec3 color, float intensity)

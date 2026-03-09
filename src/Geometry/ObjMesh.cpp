@@ -51,7 +51,7 @@ Expected<ObjMesh> ObjMesh::load(const std::filesystem::path& path)
             std::uint32_t iv3x = 0;
             std::uint32_t iv3y = 0;
             std::uint32_t iv3z = 0;
-            std::fscanf(file, "%d/%d/%d %d/%d/%d %d/%d/%d\n", &iv1x, &iv1y, &iv1z, &iv2x, &iv2y, &iv2z, &iv3x, &iv3y, &iv3z);
+            std::fscanf(file, "%u/%u/%u %u/%u/%u %u/%u/%u\n", &iv1x, &iv1y, &iv1z, &iv2x, &iv2y, &iv2z, &iv3x, &iv3y, &iv3z);
 
             indices.push_back(Index {
                 .vertex = iv1x - 1,

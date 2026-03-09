@@ -1,6 +1,7 @@
 #include "SDL2Window.h"
 
 #define GLM_FORCE_RADIANS
+#include "../Utils/NumericCast.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_vulkan.h>
 #include <atomic>
@@ -390,7 +391,14 @@ RawPtr<SDL_Window> createWindow(const std::string& title, std::size_t w, std::si
         }
     }
 
-    const auto window = ::SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_VULKAN | SDL_WINDOW_SHOWN);
+    const auto window = ::SDL_CreateWindow(
+        title.c_str(),
+        SDL_WINDOWPOS_CENTERED,
+        SDL_WINDOWPOS_CENTERED,
+        numericCast<int>(w).value(),
+        numericCast<int>(h).value(),
+        SDL_WINDOW_VULKAN | SDL_WINDOW_SHOWN);
+
     if (!window) {
         std::cerr << "Failed to create sdl2 window: " << SDL_GetError() << std::endl;
         std::abort();
@@ -448,7 +456,7 @@ public:
 
     void setMousePosition(const glm::vec2& pos)
     {
-        ::SDL_WarpMouseInWindow(m_window.nullable(), pos.x, pos.y);
+        ::SDL_WarpMouseInWindow(m_window.nullable(), numericCast<int>(pos.x).value(), numericCast<int>(pos.y).value());
     }
 
     Expected<vk::SurfaceKHR> createVulkanSurface(vk::Instance i)

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "./Geometry/Topology.h"
+#include "Model/Model.h"
 #include <vulkan/vulkan.hpp>
 
 namespace e172vp {
@@ -14,7 +15,8 @@ public:
         const std::vector<vk::DescriptorSetLayout>& descriptorSetLayouts,
         std::span<const std::uint8_t> vertexShader,
         std::span<const std::uint8_t> fragmentShader,
-        BadgerEngine::Geometry::Topology topology);
+        BadgerEngine::Geometry::Topology topology,
+        BadgerEngine::PolygonMode polygonMode);
 
     Pipeline() = delete;
     Pipeline(const Pipeline&) = delete;

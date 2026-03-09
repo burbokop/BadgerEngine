@@ -2,12 +2,12 @@
 
 #include "Buffers/BufferUtils.h"
 #include "descriptorsetlayout.h"
+#include "font.h"
 #include "graphicsobject.h"
 #include "pipeline.h"
 #include "vertexobject.h"
 #include <filesystem>
 #include <list>
-#include "font.h"
 
 namespace BadgerEngine {
 
@@ -15,6 +15,7 @@ class Model;
 class PerspectiveCamera;
 class Window;
 struct PointLight;
+class UploadedTexture;
 
 class Renderer {
 
@@ -32,7 +33,7 @@ public:
     static void resetCommandBuffers(const std::vector<vk::CommandBuffer>& commandBuffers, const vk::Queue& graphicsQueue, const vk::Queue& presentQueue);
     static void createSyncObjects(const vk::Device& logicDevice, vk::Semaphore* imageAvailableSemaphore, vk::Semaphore* renderFinishedSemaphore);
 
-    VertexObject* addObject(const BadgerEngine::Model& model);
+    VertexObject& addObject(const BadgerEngine::Model& model, bool recursiveTexture = false);
     Shared<PointLight> addPointLight(
         glm::vec3 position,
         glm::vec3 color,
@@ -57,12 +58,16 @@ public:
     }
 
 private:
-    VertexObject* addCharacter(char c, std::shared_ptr<e172vp::Pipeline> pipeline);
+    VertexObject& addCharacter(char c, std::shared_ptr<e172vp::Pipeline> pipeline);
     std::shared_ptr<e172vp::Pipeline> createPipeline(
         std::span<const std::uint8_t> vertShaderCode,
         std::span<const std::uint8_t> fragShaderCode,
-        Geometry::Topology topology);
-    VertexObject* addObject(const BadgerEngine::Geometry::Mesh& mesh, Shared<e172vp::Pipeline> pipeline);
+        Geometry::Topology topology,
+        BadgerEngine::PolygonMode polygonMode);
+    VertexObject& addObject(const Shared<Geometry::Mesh>& mesh, Shared<e172vp::Pipeline> pipeline);
+    [[deprecated("Use the one with uploaded texture")]]
+    VertexObject& addObject(const Shared<Geometry::Mesh>& mesh, vk::ImageView texture, Shared<e172vp::Pipeline> pipeline);
+    VertexObject& addObject(const Shared<Geometry::Mesh>& mesh, Shared<UploadedTexture> texture, Shared<e172vp::Pipeline> pipeline);
 
 private:
     Shared<e172vp::GraphicsObject> m_graphicsObject;

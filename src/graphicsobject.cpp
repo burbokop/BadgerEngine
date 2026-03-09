@@ -1,13 +1,8 @@
 #include "graphicsobject.h"
 
-#include "Tools/extensiontools.h"
 #include "Tools/hardware.h"
 #include "Tools/logicdevicefactory.h"
-#include "Tools/stringvector.h"
-#include "Tools/validation.h"
 #include "Tools/vulkaninstancefactory.h"
-#include <iostream>
-#include <set>
 
 vk::Instance e172vp::GraphicsObject::vulkanInstance() const { return m_vulkanInstance; }
 vk::PhysicalDevice e172vp::GraphicsObject::physicalDevice() const { return m_physicalDevice; }
@@ -24,21 +19,25 @@ e172vp::RenderPass e172vp::GraphicsObject::renderPass() const { return m_renderP
 bool e172vp::GraphicsObject::debugEnabled() const { return m_debugEnabled; }
 e172vp::SwapChain::Settings e172vp::GraphicsObject::swapChainSettings() const { return m_swapChainSettings; }
 
-std::vector<std::string> e172vp::GraphicsObject::pullErrors() {
+std::vector<std::string> e172vp::GraphicsObject::pullErrors()
+{
     const auto r = m_errors;
     m_errors.clear();
     return r;
 }
 
-vk::DescriptorPool e172vp::GraphicsObject::descriptorPool() const {
+vk::DescriptorPool e172vp::GraphicsObject::descriptorPool() const
+{
     return m_descriptorPool;
 }
 
-vk::Sampler e172vp::GraphicsObject::sampler() const {
+vk::Sampler e172vp::GraphicsObject::sampler() const
+{
     return m_sampler;
 }
 
-void e172vp::GraphicsObject::createTextureSampler(const vk::Device &logicalDevice, vk::Sampler *sampler) {
+void e172vp::GraphicsObject::createTextureSampler(const vk::Device& logicalDevice, vk::Sampler* sampler)
+{
     vk::SamplerCreateInfo samplerInfo;
     samplerInfo.magFilter = vk::Filter::eLinear;
     samplerInfo.minFilter = vk::Filter::eLinear;
@@ -58,7 +57,8 @@ void e172vp::GraphicsObject::createTextureSampler(const vk::Device &logicalDevic
     }
 }
 
-void e172vp::GraphicsObject::createDescriptorPool(const vk::Device &logicalDevice, size_t size, vk::DescriptorPool *uniformDescriptorPool, std::vector<std::string> *m_errors) {
+void e172vp::GraphicsObject::createDescriptorPool(const vk::Device& logicalDevice, size_t size, vk::DescriptorPool* uniformDescriptorPool, std::vector<std::string>* m_errors)
+{
     vk::DescriptorPoolSize poolSize;
     poolSize.type = vk::DescriptorType::eUniformBuffer;
     poolSize.descriptorCount = static_cast<uint32_t>(size);
@@ -69,24 +69,25 @@ void e172vp::GraphicsObject::createDescriptorPool(const vk::Device &logicalDevic
     poolInfo.maxSets = static_cast<uint32_t>(size);
 
     if (logicalDevice.createDescriptorPool(&poolInfo, nullptr, uniformDescriptorPool) != vk::Result::eSuccess) {
-        if(m_errors)
+        if (m_errors)
             m_errors->push_back("[error] e172vp::GraphicsObject: failed to create descriptor pool!");
     }
 }
 
-e172vp::GraphicsObject::GraphicsObject(const GraphicsObjectCreateInfo &createInfo) {
-    m_debugEnabled = createInfo.debugEnabled();
+e172vp::GraphicsObject::GraphicsObject(const GraphicsObjectCreateInfo& createInfo)
+{
+    m_debugEnabled = createInfo.debugEnabled;
     e172vp::VulkanInstanceFactory vulkanInstanceFactory("test", VK_MAKE_VERSION(1, 0, 0));
-    vulkanInstanceFactory.setRequiredExtensions(createInfo.requiredExtensions());
+    vulkanInstanceFactory.setRequiredExtensions(createInfo.requiredExtensions);
     vulkanInstanceFactory.setDebugEnabled(m_debugEnabled);
     m_vulkanInstance = vulkanInstanceFactory.create();
-    if(!m_vulkanInstance) {
+    if (!m_vulkanInstance) {
         m_errors.push_back("[error] Instance not created.");
     }
 
-    if(createInfo.surfaceCreator()) {
-        createInfo.surfaceCreator()(m_vulkanInstance, &m_surface);
-        if(!m_surface) {
+    if (createInfo.surfaceCreator) {
+        createInfo.surfaceCreator(m_vulkanInstance, &m_surface);
+        if (!m_surface) {
             m_errors.push_back("[error] Surface not created.");
             return;
         }
@@ -95,8 +96,8 @@ e172vp::GraphicsObject::GraphicsObject(const GraphicsObjectCreateInfo &createInf
         return;
     }
 
-    m_physicalDevice = Hardware::findSuitablePhysicalDevice(m_vulkanInstance, m_surface, createInfo.requiredDeviceExtensions());
-    if(!m_physicalDevice) {
+    m_physicalDevice = Hardware::findSuitablePhysicalDevice(m_vulkanInstance, m_surface, createInfo.requiredDeviceExtensions);
+    if (!m_physicalDevice) {
         m_errors.push_back("[error] Suitable device not found.");
         return;
     }
@@ -105,9 +106,9 @@ e172vp::GraphicsObject::GraphicsObject(const GraphicsObjectCreateInfo &createInf
     e172vp::LogicDeviceFactory logicDeviceFactory;
     logicDeviceFactory.setQueueFamilies(m_queueFamilies);
     logicDeviceFactory.setValidationLayersEnabled(m_debugEnabled);
-    logicDeviceFactory.setRequiredDeviceExtensions(createInfo.requiredDeviceExtensions());
+    logicDeviceFactory.setRequiredDeviceExtensions(createInfo.requiredDeviceExtensions);
     m_logicalDevice = logicDeviceFactory.create(m_physicalDevice);
-    if(!m_logicalDevice) {
+    if (!m_logicalDevice) {
         m_errors.push_back("[error] Logic device not found.");
         return;
     }
@@ -127,10 +128,8 @@ e172vp::GraphicsObject::GraphicsObject(const GraphicsObjectCreateInfo &createInf
         m_swapChainSettings);
     m_commandPool = e172vp::CommandPool(m_logicalDevice, m_queueFamilies, m_swapChain.imageCount());
 
-    createDescriptorPool(m_logicalDevice, createInfo.descriptorPoolSize(), &m_descriptorPool, &m_errors);
+    createDescriptorPool(m_logicalDevice, createInfo.descriptorPoolSize, &m_descriptorPool, &m_errors);
     createTextureSampler(m_logicalDevice, &m_sampler);
 
     m_isValid = m_swapChain.isValid() && m_renderPass.isValid() && m_commandPool.isValid();
-
 }
-

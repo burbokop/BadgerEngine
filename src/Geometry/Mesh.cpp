@@ -1,15 +1,20 @@
 #include "Mesh.h"
 
 #include "../Utils/Collections.h"
+#include "../Utils/NumericCast.h"
 #include "ObjMesh.h"
 #include <ranges>
 
 namespace BadgerEngine::Geometry {
 
-Mesh Mesh::fromObjMesh(const ObjMesh& mesh, glm::vec3 color)
+namespace {
+
+}
+
+Shared<Mesh> Mesh::fromObjMesh(const ObjMesh& mesh, glm::vec3 color)
 {
     // TODO pass normales
-    return Mesh(
+    return Mesh::create(
         Topology::TriangleList,
         mesh.indices()
             | std::views::transform([&mesh, &color](auto i) {
@@ -25,7 +30,7 @@ Mesh Mesh::fromObjMesh(const ObjMesh& mesh, glm::vec3 color)
             | Collect<std::vector>);
 }
 
-std::optional<Mesh> Mesh::polygonNormalsMesh(float len) const
+std::optional<Shared<Mesh>> Mesh::polygonNormalsMesh(float len) const
 {
 
     switch (m_topology) {
@@ -51,16 +56,17 @@ std::optional<Mesh> Mesh::polygonNormalsMesh(float len) const
             vertices.push_back(Vertex { .position = center + averageNormal * len, .normal = averageNormal, .color = averageColor, .uv = averageUV });
         }
 
-        return Mesh(
+        const auto verticesCount = vertices.size();
+        return Mesh::create(
             Topology::LineList,
-            vertices,
-            std::views::iota(0u, static_cast<std::uint32_t>(vertices.size())) | Collect<std::vector>);
+            std::move(vertices),
+            std::views::iota(0u, numericCast<Index>(verticesCount).value()) | Collect<std::vector>);
     }
     }
     std::abort();
 }
 
-std::optional<Mesh> Mesh::vertexNormalsMesh(float len) const
+std::optional<Shared<Mesh>> Mesh::vertexNormalsMesh(float len) const
 {
     switch (m_topology) {
     case Topology::LineList:
@@ -75,12 +81,14 @@ std::optional<Mesh> Mesh::vertexNormalsMesh(float len) const
             vertices.push_back(Vertex { .position = v.position + v.normal * len, .normal = v.normal, .color = v.color, .uv = v.uv });
         }
 
-        return Mesh(
+        const auto verticesCount = vertices.size();
+        return Mesh::create(
             Topology::LineList,
-            vertices,
-            std::views::iota(0u, static_cast<std::uint32_t>(vertices.size())) | Collect<std::vector>);
+            std::move(vertices),
+            std::views::iota(0u, numericCast<Index>(verticesCount).value()) | Collect<std::vector>);
     }
     }
     std::abort();
 }
+
 }

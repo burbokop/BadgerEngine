@@ -15,6 +15,8 @@ class Pipeline;
 namespace BadgerEngine {
 
 class Renderer;
+class UploadedTexture;
+
 namespace Geometry {
 class Mesh;
 }
@@ -30,13 +32,30 @@ class VertexObject {
     };
 
     ~VertexObject();
+
+    VertexObject& operator=(VertexObject&&) = delete;
+    VertexObject& operator=(const VertexObject&) = delete;
+    VertexObject(VertexObject&&) = delete;
+    VertexObject(const VertexObject&) = delete;
+
+    [[deprecated("Use the one with uploaded texture")]]
     VertexObject(
         Shared<e172vp::GraphicsObject> graphicsObject,
-        size_t imageCount,
+        std::size_t imageCount,
         const e172vp::DescriptorSetLayout* descriptorSetLayout,
         const e172vp::DescriptorSetLayout* samplerDescriptorSetLayout,
-        const BadgerEngine::Geometry::Mesh& mesh,
+        const Shared<BadgerEngine::Geometry::Mesh>& mesh,
         const vk::ImageView& imageView,
+        Shared<e172vp::Pipeline> pipeline,
+        Shared<e172vp::Pipeline> nPipeline);
+
+    VertexObject(
+        Shared<e172vp::GraphicsObject> graphicsObject,
+        std::size_t imageCount,
+        const e172vp::DescriptorSetLayout* descriptorSetLayout,
+        const e172vp::DescriptorSetLayout* samplerDescriptorSetLayout,
+        const Shared<BadgerEngine::Geometry::Mesh>& mesh,
+        Shared<UploadedTexture> texture,
         Shared<e172vp::Pipeline> pipeline,
         Shared<e172vp::Pipeline> nPipeline);
 
@@ -51,13 +70,12 @@ public:
         return m_uniformBufferBundles;
     }
 
-    void updateUbo(int imageIndex);
     glm::mat4 rotation() const;
-    void setRotation(const glm::mat4 &rotation);
+    VertexObject& setRotation(const glm::mat4& rotation);
     glm::mat4 translation() const;
-    void setTranslation(const glm::mat4 &translation);
+    VertexObject& setTranslation(const glm::mat4& translation);
     glm::mat4 scale() const;
-    void setScale(const glm::mat4 &scale);
+    VertexObject& setScale(const glm::mat4& scale);
     std::vector<vk::DescriptorSet> textureDescriptorSets() const;
 
     void draw(std::size_t imageIndex,
@@ -66,12 +84,16 @@ public:
         std::span<const BufferBundle> lightingUniformBufferBundles) const;
 
 private:
+    void updateUbo(std::size_t imageIndex);
+
+private:
     glm::mat4 m_rotation = sm;
     glm::mat4 m_translation = sm;
     glm::mat4 m_scale = sm;
 
     Shared<e172vp::GraphicsObject> m_graphicsObject;
     std::vector<UploadedModel> m_models;
+    std::optional<Shared<UploadedTexture>> m_texture;
 
     std::vector<BadgerEngine::BufferBundle> m_uniformBufferBundles;
     std::vector<vk::DescriptorSet> m_textureDescriptorSets;

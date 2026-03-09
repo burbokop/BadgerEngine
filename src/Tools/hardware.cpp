@@ -3,7 +3,8 @@
 #include "extensiontools.h"
 #include "stringvector.h"
 
-bool e172vp::Hardware::isDeviceSuitable(vk::PhysicalDevice physicalDevice, vk::SurfaceKHR surface, const std::vector<std::string> &requiredDeviceExtensions) {
+bool e172vp::Hardware::isDeviceSuitable(vk::PhysicalDevice physicalDevice, vk::SurfaceKHR surface, const std::vector<std::string>& requiredDeviceExtensions)
+{
     const auto missing = StringVector::subtract(requiredDeviceExtensions, Extension::presentDeviceExtensions(physicalDevice));
     bool swapChainAdequate = false;
     const auto features = physicalDevice.getFeatures();
@@ -14,59 +15,73 @@ bool e172vp::Hardware::isDeviceSuitable(vk::PhysicalDevice physicalDevice, vk::S
     return swapChainAdequate && missing.size() == 0 && features.samplerAnisotropy;
 }
 
-e172vp::Hardware::SwapChainSupportDetails e172vp::Hardware::querySwapChainSupport(const vk::PhysicalDevice &physicalDevice, vk::SurfaceKHR surface) {
+e172vp::Hardware::SwapChainSupportDetails e172vp::Hardware::querySwapChainSupport(const vk::PhysicalDevice& physicalDevice, vk::SurfaceKHR surface)
+{
     SwapChainSupportDetails details;
-    physicalDevice.getSurfaceCapabilitiesKHR(surface, &details.capabilities);
+    {
+        const auto result = physicalDevice.getSurfaceCapabilitiesKHR(surface, &details.capabilities);
+        if (result != vk::Result::eSuccess) {
+            throw std::runtime_error("[error] Failed to get surface capabilities: " + vk::to_string(result));
+        }
+    }
 
-    //GETTING FORMATS
+    // GETTING FORMATS
     uint32_t formatCount;
     vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount, nullptr);
     if (formatCount != 0) {
         details.formats.resize(formatCount);
-        physicalDevice.getSurfaceFormatsKHR(surface, &formatCount, details.formats.data());
+        const auto result = physicalDevice.getSurfaceFormatsKHR(surface, &formatCount, details.formats.data());
+        if (result != vk::Result::eSuccess) {
+            throw std::runtime_error("[error] Failed to get surface formats: " + vk::to_string(result));
+        }
     }
-    //GETTING FORMATS END
+    // GETTING FORMATS END
 
-    //GETTING PRESENT MODES
+    // GETTING PRESENT MODES
     uint32_t presentModeCount;
     vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModeCount, nullptr);
     if (presentModeCount != 0) {
         details.presentModes.resize(presentModeCount);
-        physicalDevice.getSurfacePresentModesKHR(surface, &presentModeCount, details.presentModes.data());
+        const auto result = physicalDevice.getSurfacePresentModesKHR(surface, &presentModeCount, details.presentModes.data());
+        if (result != vk::Result::eSuccess) {
+            throw std::runtime_error("[error] Failed to get surface present modes: " + vk::to_string(result));
+        }
     }
-    //GETTING PRESENT MODES END
+    // GETTING PRESENT MODES END
 
     return details;
 }
 
-vk::PhysicalDevice e172vp::Hardware::findSuitablePhysicalDevice(const vk::Instance &instance, vk::SurfaceKHR surface, const std::vector<std::string> &requiredDeviceExtensions) {
+vk::PhysicalDevice e172vp::Hardware::findSuitablePhysicalDevice(const vk::Instance& instance, vk::SurfaceKHR surface, const std::vector<std::string>& requiredDeviceExtensions)
+{
     const auto devices = instance.enumeratePhysicalDevices();
-    for(const auto& d : devices) {
-        if(isDeviceSuitable(d, surface, requiredDeviceExtensions))
+    for (const auto& d : devices) {
+        if (isDeviceSuitable(d, surface, requiredDeviceExtensions))
             return d;
     }
     return nullptr;
 }
 
-
-
-
-e172vp::Hardware::QueueFamilies e172vp::Hardware::queryQueueFamilies(const vk::PhysicalDevice &physicalDevice, const vk::SurfaceKHR &surface) {
+e172vp::Hardware::QueueFamilies e172vp::Hardware::queryQueueFamilies(const vk::PhysicalDevice& physicalDevice, const vk::SurfaceKHR& surface)
+{
     QueueFamilies result;
     const auto queueFamilies = physicalDevice.getQueueFamilyProperties();
 
-    int i = 0;
-    for (const auto& queueFamily : queueFamilies) {
+    for (std::uint32_t i = 0; const auto& queueFamily : queueFamilies) {
         vk::Bool32 presentSupport = false;
-        physicalDevice.getSurfaceSupportKHR(i, surface, &presentSupport);
 
-        if(presentSupport)
+        const auto r = physicalDevice.getSurfaceSupportKHR(i, surface, &presentSupport);
+        if (r != vk::Result::eSuccess) {
+            throw std::runtime_error("[error] Failed to get surface capabilities: " + vk::to_string(r));
+        }
+
+        if (presentSupport)
             result.m_presentFamily = i;
 
         if (queueFamily.queueFlags & vk::QueueFlagBits::eGraphics)
             result.m_graphicsFamily = i;
 
-        if(result.isValid())
+        if (result.isValid())
             break;
 
         i++;
@@ -74,5 +89,3 @@ e172vp::Hardware::QueueFamilies e172vp::Hardware::queryQueueFamilies(const vk::P
 
     return result;
 }
-
-

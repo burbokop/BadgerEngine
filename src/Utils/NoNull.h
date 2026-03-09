@@ -53,13 +53,29 @@ public:
         return *this;
     }
 
-    auto operator->()
+    decltype(auto) operator->()
+        requires(std::is_pointer_v<T>)
+    {
+        assert(m_v);
+        return m_v;
+    }
+
+    decltype(auto) operator->() const
+        requires(std::is_pointer_v<T>)
+    {
+        assert(m_v);
+        return m_v;
+    }
+
+    decltype(auto) operator->()
+        requires(!std::is_pointer_v<T>)
     {
         assert(m_v);
         return m_v.operator->();
     }
 
-    const auto operator->() const
+    decltype(auto) operator->() const
+        requires(!std::is_pointer_v<T>)
     {
         assert(m_v);
         return m_v.operator->();
@@ -97,8 +113,17 @@ public:
         return m_v;
     }
 
+    // clang-format off
     // version of value for non-const rvalues... are you bored yet?
     constexpr T&& nullable() &&
+        requires(!std::is_pointer_v<T>)
+    {
+        assert(m_v);
+        return m_v;
+    }
+
+    constexpr T nullable() &&
+        requires(std::is_pointer_v<T>)
     {
         assert(m_v);
         return m_v;
@@ -110,6 +135,7 @@ public:
         assert(m_v);
         return m_v;
     }
+    // clang-format on
 
 private:
     T m_v;

@@ -7,45 +7,54 @@
 #include <limits>
 #include <ranges>
 
-vk::SwapchainKHR e172vp::SwapChain::swapChainHandle() const {
+vk::SwapchainKHR e172vp::SwapChain::swapChainHandle() const
+{
     return m_swapChainHandle;
 }
 
-e172vp::SwapChain::operator vk::SwapchainKHR() const {
+e172vp::SwapChain::operator vk::SwapchainKHR() const
+{
     return m_swapChainHandle;
 }
 
-std::vector<std::string> e172vp::SwapChain::pullErrors() {
+std::vector<std::string> e172vp::SwapChain::pullErrors()
+{
     const auto r = m_errors;
     m_errors.clear();
     return r;
 }
 
-bool e172vp::SwapChain::isValid() const {
+bool e172vp::SwapChain::isValid() const
+{
     return m_isValid;
 }
 
-vk::Image e172vp::SwapChain::image(size_t index) const {
+vk::Image e172vp::SwapChain::image(size_t index) const
+{
     if (index < m_frames.size())
         return m_frames[index].image;
     return vk::Image();
 }
 
-size_t e172vp::SwapChain::imageCount() const {
+size_t e172vp::SwapChain::imageCount() const
+{
     return m_frames.size();
 }
 
-vk::ImageView e172vp::SwapChain::imageView(size_t index) const {
+vk::ImageView e172vp::SwapChain::imageView(size_t index) const
+{
     if (index < m_frames.size())
         return m_frames[index].imageView;
     return vk::ImageView();
 }
 
-size_t e172vp::SwapChain::imageViewCount() const {
+size_t e172vp::SwapChain::imageViewCount() const
+{
     return m_frames.size();
 }
 
-e172vp::SwapChain::Settings e172vp::SwapChain::settings() const {
+e172vp::SwapChain::Settings e172vp::SwapChain::settings() const
+{
     return m_settings;
 }
 
@@ -87,8 +96,8 @@ vk::Image e172vp::SwapChain::make_image(ImageInputChunk input)
 
     try {
         return input.logicalDevice.createImage(imageInfo);
-    } catch (vk::SystemError err) {
-        throw std::runtime_error("Unable to make image");
+    } catch (const vk::SystemError& err) {
+        throw std::runtime_error("Unable to make image: " + std::string(err.what()));
     }
 }
 
@@ -106,8 +115,8 @@ vk::DeviceMemory e172vp::SwapChain::make_image_memory(ImageInputChunk input, vk:
         vk::DeviceMemory imageMemory = input.logicalDevice.allocateMemory(allocation);
         input.logicalDevice.bindImageMemory(image, imageMemory, 0);
         return imageMemory;
-    } catch (vk::SystemError err) {
-        throw std::runtime_error("Unable to allocate memory for image");
+    } catch (const vk::SystemError& err) {
+        throw std::runtime_error("Unable to allocate memory for image: " + std::string(err.what()));
     }
 }
 
@@ -170,7 +179,8 @@ uint32_t e172vp::SwapChain::findMemoryTypeIndex(vk::PhysicalDevice physicalDevic
     return 0;
 }
 
-vk::SurfaceFormatKHR e172vp::SwapChain::chooseSurfaceFormat(const std::vector<vk::SurfaceFormatKHR> &availableFormats) {
+vk::SurfaceFormatKHR e172vp::SwapChain::chooseSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats)
+{
     for (const auto& availableFormat : availableFormats) {
         if (availableFormat.format == vk::Format::eB8G8R8A8Srgb && availableFormat.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) {
             return availableFormat;
@@ -179,7 +189,8 @@ vk::SurfaceFormatKHR e172vp::SwapChain::chooseSurfaceFormat(const std::vector<vk
     return availableFormats[0];
 }
 
-vk::PresentModeKHR e172vp::SwapChain::choosePresentMode(const std::vector<vk::PresentModeKHR> &availablePresentModes) {
+vk::PresentModeKHR e172vp::SwapChain::choosePresentMode(const std::vector<vk::PresentModeKHR>& availablePresentModes)
+{
     for (const auto& availablePresentMode : availablePresentModes) {
         if (availablePresentMode == vk::PresentModeKHR::eMailbox) {
             return availablePresentMode;
@@ -188,7 +199,8 @@ vk::PresentModeKHR e172vp::SwapChain::choosePresentMode(const std::vector<vk::Pr
     return vk::PresentModeKHR::eFifo;
 }
 
-vk::Extent2D e172vp::SwapChain::chooseExtent(const vk::SurfaceCapabilitiesKHR &capabilities, const vk::Extent2D &defaultExtent) {
+vk::Extent2D e172vp::SwapChain::chooseExtent(const vk::SurfaceCapabilitiesKHR& capabilities, const vk::Extent2D& defaultExtent)
+{
     if (capabilities.currentExtent.width != std::numeric_limits<std::uint32_t>::max()) {
         return capabilities.currentExtent;
     } else {
@@ -250,18 +262,20 @@ vk::Format e172vp::SwapChain::find_supported_depth_format(vk::PhysicalDevice phy
     throw std::runtime_error("Unable to find suitable format");
 }
 
-bool e172vp::SwapChain::createImageViewes(const vk::Device &logicDevice, const std::vector<vk::Image> &swapChainImages, const vk::Format &swapChainImageFormat, std::vector<vk::ImageView> *swapChainImageViews, std::vector<std::string> *error_queue) {
+bool e172vp::SwapChain::createImageViewes(const vk::Device& logicDevice, const std::vector<vk::Image>& swapChainImages, const vk::Format& swapChainImageFormat, std::vector<vk::ImageView>* swapChainImageViews, std::vector<std::string>* error_queue)
+{
     swapChainImageViews->resize(swapChainImages.size());
 
     for (uint32_t i = 0; i < swapChainImages.size(); i++) {
         swapChainImageViews->operator[](i) = createImageView(logicDevice, swapChainImages[i], swapChainImageFormat, error_queue);
-        if(!swapChainImageViews->operator[](i))
+        if (!swapChainImageViews->operator[](i))
             return false;
     }
     return true;
 }
 
-vk::ImageView e172vp::SwapChain::createImageView(const vk::Device &logicalDevice, vk::Image image, vk::Format format, std::vector<std::string> *error_queue) {
+vk::ImageView e172vp::SwapChain::createImageView(const vk::Device& logicalDevice, vk::Image image, vk::Format format, std::vector<std::string>* error_queue)
+{
     vk::ImageViewCreateInfo viewInfo;
     viewInfo.image = image;
     viewInfo.viewType = vk::ImageViewType::e2D;
@@ -274,7 +288,7 @@ vk::ImageView e172vp::SwapChain::createImageView(const vk::Device &logicalDevice
 
     vk::ImageView imageView;
     if (logicalDevice.createImageView(&viewInfo, nullptr, &imageView) != vk::Result::eSuccess) {
-        if(error_queue)
+        if (error_queue)
             error_queue->push_back("failed to create texture image view");
     }
 
@@ -315,7 +329,7 @@ e172vp::SwapChain::SwapChain(
     swapchainCreateInfo.setImageUsage(vk::ImageUsageFlagBits::eColorAttachment);
     swapchainCreateInfo.setPNext(nullptr);
 
-    uint32_t queueFamilyIndices[] = { queueFamilies.graphicsFamily(), queueFamilies.presentFamily()};
+    uint32_t queueFamilyIndices[] = { queueFamilies.graphicsFamily(), queueFamilies.presentFamily() };
 
     if (queueFamilies.graphicsFamily() != queueFamilies.presentFamily()) {
         swapchainCreateInfo.imageSharingMode = vk::SharingMode::eConcurrent;
@@ -334,7 +348,7 @@ e172vp::SwapChain::SwapChain(
 
     m_swapChainHandle = logicalDevice.createSwapchainKHR(swapchainCreateInfo);
     m_isValid = m_swapChainHandle;
-    if(m_isValid) {
+    if (m_isValid) {
         std::vector<vk::Image> images = logicalDevice.getSwapchainImagesKHR(m_swapChainHandle);
         std::vector<vk::ImageView> imageViewes;
         m_isValid = createImageViewes(logicalDevice, images, settings.surfaceFormat.format, &imageViewes, &m_errors);

@@ -7,47 +7,54 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(ENABLE_BADGER_ENGINE_GLFW3 "Compile glfw3 based window" ON)
 option(ENABLE_BADGER_ENGINE_SDL2 "Compile SDL2 based window" ON)
+option(ENABLE_BADGER_ENGINE_PEDANTIC_DIAGNOSTIC
+       "Enable all compiler warnings. Treat warnings as errors" ON)
 
 find_package(Vulkan REQUIRED COMPONENTS glslc)
-find_program(glslc_executable NAMES glslc HINTS Vulkan::glslc)
 find_package(Freetype REQUIRED)
+find_package(assimp REQUIRED)
+find_program(
+    GLSLC_EXECUTABLE
+    NAMES glslc
+    HINTS Vulkan::glslc)
 
-message("glslc_executable: ${glslc_executable}")
-
-if(ENABLE_BADGER_ENGINE_GLFW3)
+if (ENABLE_BADGER_ENGINE_GLFW3)
     find_package(glfw3 REQUIRED)
-endif()
+endif ()
 
-if(ENABLE_BADGER_ENGINE_SDL2)
+if (ENABLE_BADGER_ENGINE_SDL2)
     find_package(SDL2 REQUIRED)
-endif()
+endif ()
 
 set(BIN2H_SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/build_tools/bin2h)
 set(BIN2H_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/build_tools/bin2h)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/bin2h.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/shaders.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/utils.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/diagnostic.cmake)
 set(BIN2H_EXECUTABLE
     ${BIN2H_EXECUTABLE}
     PARENT_SCOPE)
 
-if(WIN32)
+if (WIN32)
     add_library(BadgerEngine STATIC)
-else()
+else ()
     add_library(BadgerEngine SHARED)
-endif()
+endif ()
 
 add_subdirectory(src)
 
-target_link_libraries(BadgerEngine PRIVATE Vulkan::Vulkan Freetype::Freetype)
+target_link_libraries(BadgerEngine PRIVATE Vulkan::Vulkan Freetype::Freetype assimp::assimp)
 
-if(ENABLE_BADGER_ENGINE_GLFW3)
+badger_engine_target_pedantic_diagnostic(BadgerEngine)
+
+if (ENABLE_BADGER_ENGINE_GLFW3)
     target_link_libraries(BadgerEngine PRIVATE glfw)
-endif()
+endif ()
 
-if(ENABLE_BADGER_ENGINE_SDL2)
+if (ENABLE_BADGER_ENGINE_SDL2)
     target_link_libraries(BadgerEngine PRIVATE SDL2::SDL2)
-endif()
+endif ()
 
 badger_engine_install_public_headers(
     BadgerEngine ${CMAKE_CURRENT_LIST_DIR}/src

@@ -36,7 +36,7 @@ bool BufferUtils::createAbstractBuffer(
     vk::Buffer* buffer,
     vk::DeviceMemory* bufferMemory)
 {
-    if(size <= 0) {
+    if (size <= 0) {
         std::cerr << "e172vp::Buffer::createAbstractBuffer: failed to create buffer with size 0.\n";
         return false;
     }
@@ -58,8 +58,6 @@ bool BufferUtils::createAbstractBuffer(
     allocInfo.allocationSize = memRequirements.size;
     allocInfo.memoryTypeIndex = findMemoryType(physicalDevice, memRequirements.memoryTypeBits, properties);
 
-
-
     const auto code = logicalDevice.allocateMemory(&allocInfo, nullptr, bufferMemory);
     if (code != vk::Result::eSuccess) {
         std::cerr << "e172vp::Buffer::createAbstractBuffer: failed to allocate buffer memory: " << vk::to_string(code) << "\n";
@@ -78,30 +76,46 @@ void BufferUtils::copyBuffer(
     const vk::Buffer& dstBuffer,
     const vk::DeviceSize& size)
 {
-    vk::CommandBufferAllocateInfo allocInfo{};
+    vk::CommandBufferAllocateInfo allocInfo {};
     allocInfo.level = vk::CommandBufferLevel::ePrimary;
     allocInfo.commandPool = commandPool;
     allocInfo.commandBufferCount = 1;
 
     vk::CommandBuffer commandBuffer;
-    logicalDevice.allocateCommandBuffers(&allocInfo, &commandBuffer);
+    {
+        const auto result = logicalDevice.allocateCommandBuffers(&allocInfo, &commandBuffer);
+        if (result != vk::Result::eSuccess) {
+            throw std::runtime_error("[error] Failed to allocate command buffers: " + vk::to_string(result));
+        }
+    }
 
-    vk::CommandBufferBeginInfo beginInfo{};
+    vk::CommandBufferBeginInfo beginInfo {};
     beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
 
-    commandBuffer.begin(&beginInfo);
+    {
+        const auto result = commandBuffer.begin(&beginInfo);
+        if (result != vk::Result::eSuccess) {
+            throw std::runtime_error("[error] Failed to begin command buffer: " + vk::to_string(result));
+        }
+    }
 
-    vk::BufferCopy copyRegion{};
+    vk::BufferCopy copyRegion {};
     copyRegion.size = size;
     commandBuffer.copyBuffer(srcBuffer, dstBuffer, 1, &copyRegion);
 
     commandBuffer.end();
 
-    vk::SubmitInfo submitInfo{};
+    vk::SubmitInfo submitInfo {};
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &commandBuffer;
 
-    graphicsQueue.submit(1, &submitInfo, vk::Fence());
+    {
+        const auto result = graphicsQueue.submit(1, &submitInfo, vk::Fence());
+        if (result != vk::Result::eSuccess) {
+            throw std::runtime_error("[error] Failed to submit command buffer: " + vk::to_string(result));
+        }
+    }
+
     graphicsQueue.waitIdle();
 
     logicalDevice.freeCommandBuffers(commandPool, 1, &commandBuffer);
@@ -166,7 +180,7 @@ void BufferUtils::createIndexBuffer(
 
     void* data;
     vkMapMemory(logicalDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, indices.data(), (size_t) bufferSize);
+    memcpy(data, indices.data(), (size_t)bufferSize);
     vkUnmapMemory(logicalDevice, stagingBufferMemory);
 
     createAbstractBuffer(logicalDevice, physicalDevice, bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal, indexBuffer, indexBufferMemory);

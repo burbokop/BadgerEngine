@@ -1,9 +1,24 @@
 #include "pipeline.h"
 
 #include "Geometry/Vertex.h"
-#include <fstream>
+#include "Utils/NumericCast.h"
 
 namespace {
+
+[[nodiscard]] vk::PolygonMode polygonModeToVk(BadgerEngine::PolygonMode pm) noexcept
+{
+    switch (pm) {
+    case BadgerEngine::PolygonMode::Fill:
+        return vk::PolygonMode::eFill;
+    case BadgerEngine::PolygonMode::Line:
+        return vk::PolygonMode::eLine;
+    case BadgerEngine::PolygonMode::Point:
+        return vk::PolygonMode::ePoint;
+    case BadgerEngine::PolygonMode::FillRectangleNV:
+        return vk::PolygonMode::eFillRectangleNV;
+    }
+    std::unreachable();
+}
 
 vk::PrimitiveTopology vulkanPrimitiveTopologyFromTopology(BadgerEngine::Geometry::Topology topology)
 {
@@ -64,7 +79,7 @@ e172vp::Pipeline::Pipeline(const vk::Device& logicalDevice,
     const std::vector<vk::DescriptorSetLayout>& descriptorSetLayouts,
     std::span<const std::uint8_t> vertexShader,
     std::span<const std::uint8_t> fragmentShader,
-    BadgerEngine::Geometry::Topology topology)
+    BadgerEngine::Geometry::Topology topology, BadgerEngine::PolygonMode polygonMode)
     : m_topology(topology)
 {
     vk::ShaderModule vertShaderModule = createShaderModule(logicalDevice, vertexShader);
@@ -116,7 +131,7 @@ e172vp::Pipeline::Pipeline(const vk::Device& logicalDevice,
     vk::PipelineRasterizationStateCreateInfo rasterizer {};
     rasterizer.depthClampEnable = false;
     rasterizer.rasterizerDiscardEnable = false;
-    rasterizer.polygonMode = vk::PolygonMode::eFill;
+    rasterizer.polygonMode = polygonModeToVk(polygonMode);
     rasterizer.lineWidth = 1.0f;
     rasterizer.cullMode = vk::CullModeFlagBits::eBack;
     rasterizer.frontFace = vk::FrontFace::eClockwise;
@@ -156,7 +171,7 @@ e172vp::Pipeline::Pipeline(const vk::Device& logicalDevice,
     vk::PipelineLayoutCreateInfo pipelineLayoutInfo {};
     pipelineLayoutInfo.pushConstantRangeCount = 0;
 
-    pipelineLayoutInfo.setLayoutCount = descriptorSetLayouts.size();
+    pipelineLayoutInfo.setLayoutCount = BadgerEngine::numericCast<std::uint32_t>(descriptorSetLayouts.size()).value();
     pipelineLayoutInfo.pSetLayouts = descriptorSetLayouts.data();
 
     if (logicalDevice.createPipelineLayout(&pipelineLayoutInfo, nullptr, &m_pipelineLayout) != vk::Result::eSuccess) {

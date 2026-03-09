@@ -2,7 +2,7 @@
 
 namespace BadgerEngine::Geometry::Primitives {
 
-const Mesh plane = Mesh(
+const Shared<Mesh> plane = Mesh::create(
     Topology::TriangleList,
     { { { -0.5f, -0.5f, 0 }, { 0, 0, 0 }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
         { { 0.5f, -0.5f, 0 }, { 0, 0, 0 }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 0.0f } },
@@ -11,7 +11,7 @@ const Mesh plane = Mesh(
     { 0, 1, 2,
         2, 3, 0 });
 
-const Mesh ufo = Mesh(
+const Shared<Mesh> ufo = Mesh::create(
     Topology::TriangleList,
     { { { 4.5f, -0.5f, 0 }, { 0, 0, 0 }, { 1.0f, 0.0f, 0.0f }, {} },
         { { 4.5f, 0.5f, 0 }, { 0, 0, 0 }, { 1.0f, 0.0f, 0.0f }, {} },

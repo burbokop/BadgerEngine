@@ -2,6 +2,7 @@
 
 #define GLFW_INCLUDE_VULKAN
 #define GLM_FORCE_RADIANS
+#include "../Utils/NumericCast.h"
 #include <GLFW/glfw3.h>
 #include <iostream>
 
@@ -10,7 +11,7 @@ namespace BadgerEngine {
 class GLFWWindow::Impl {
 public:
     Impl(const std::string& title, std::size_t w, std::size_t h)
-        : m_window(::glfwCreateWindow(w, h, init(title.c_str()), nullptr, nullptr))
+        : m_window(::glfwCreateWindow(BadgerEngine::numericCast<int>(w).value(), BadgerEngine::numericCast<int>(h).value(), init(title.c_str()), nullptr, nullptr))
     {
     }
 

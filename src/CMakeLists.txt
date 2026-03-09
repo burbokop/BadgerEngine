@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.27.2)
 add_subdirectory(Utils)
 add_subdirectory(Tools)
 add_subdirectory(Geometry)
+add_subdirectory(Model)
 add_subdirectory(Buffers)
 add_subdirectory(Windows)
 
@@ -12,8 +13,6 @@ target_sources(
     BadgerEngine
     PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/graphicsobject.h>
            $<INSTALL_INTERFACE:${INSTALLDIR}/graphicsobject.h>
-           $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/graphicsobjectcreateinfo.h>
-           $<INSTALL_INTERFACE:${INSTALLDIR}/graphicsobjectcreateinfo.h>
            $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/renderer.h>
            $<INSTALL_INTERFACE:${INSTALLDIR}/renderer.h>
            $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/swapchain.h>
@@ -37,7 +36,6 @@ target_sources(
            $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/PointLight.h>
            $<INSTALL_INTERFACE:${INSTALLDIR}/PointLight.h>
     PRIVATE graphicsobject.cpp
-            graphicsobjectcreateinfo.cpp
             renderer.cpp
             swapchain.cpp
             renderpass.cpp

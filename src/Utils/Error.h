@@ -4,6 +4,7 @@
 #include <memory>
 #include <optional>
 #include <source_location>
+#include <sstream>
 #include <string>
 
 namespace BadgerEngine {
@@ -11,7 +12,7 @@ namespace BadgerEngine {
 struct Unit {};
 
 template<typename T = Unit>
-class Error {
+class [[nodiscard]] Error {
 public:
     Error(T value, std::string message, std::optional<Error<Unit>> reason = std::nullopt, std::source_location loc = std::source_location::current())
         : m_value(std::move(value))
@@ -67,7 +68,10 @@ void printErr(const std::string& err);
 template<typename T = Unit>
 [[noreturn]] Error<T> handleAsCritical(Error<T> err)
 {
-    printErr("err: " + err.message());
+    std::ostringstream ss;
+    ss << "CRITICAL file://" << err.loc().file_name() << ":" << err.loc().line() << ": " << err.message();
+    printErr(ss.str());
     std::abort();
 }
+
 }
