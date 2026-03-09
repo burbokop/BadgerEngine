@@ -297,7 +297,7 @@ Expected<Shared<UploadedTexture>> UploadedTexture::upload(
     const vk::PhysicalDevice& physicalDevice,
     const vk::CommandPool& commandPool,
     const vk::Queue& copyQueue,
-    BitmapRef texture) noexcept
+    TextureRef texture) noexcept
 {
     const auto imageFormat = vk::Format::eR8G8B8A8Srgb;
 

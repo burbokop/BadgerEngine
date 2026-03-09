@@ -22,7 +22,7 @@ public:
         const vk::PhysicalDevice& physicalDevice,
         const vk::CommandPool& commandPool,
         const vk::Queue& copyQueue,
-        BitmapRef texture) noexcept;
+        TextureRef texture) noexcept;
 
     UploadedTexture(
         vk::Device logicalDevice,

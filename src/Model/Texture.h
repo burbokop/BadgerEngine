@@ -56,6 +56,58 @@ struct TextureMetaData {
     /// bits per pixel
     std::size_t depth = 0;
     PixFormat format = PixFormat::GS;
+
+    constexpr std::uint32_t alphaMask() const
+    {
+        switch (format) {
+        case PixFormat::GS:
+            return 0x00000000;
+        case PixFormat::ARGB32:
+            return 0xff000000;
+        case PixFormat::RGBA32:
+            return 0x000000ff;
+        }
+        std::unreachable();
+    }
+
+    constexpr std::uint32_t redMask() const
+    {
+        switch (format) {
+        case PixFormat::GS:
+            return 0x000000ff;
+        case PixFormat::ARGB32:
+            return 0x00ff0000;
+        case PixFormat::RGBA32:
+            return 0xff000000;
+        }
+        std::unreachable();
+    }
+
+    constexpr std::uint32_t greenMask() const
+    {
+        switch (format) {
+        case PixFormat::GS:
+            return 0x000000ff;
+        case PixFormat::ARGB32:
+            return 0x0000ff00;
+        case PixFormat::RGBA32:
+            return 0x00ff0000;
+        }
+        std::unreachable();
+    }
+
+    constexpr std::uint32_t blueMask() const
+    {
+        switch (format) {
+        case PixFormat::GS:
+            return 0x000000ff;
+        case PixFormat::ARGB32:
+            return 0x000000ff;
+        case PixFormat::RGBA32:
+            return 0x0000ff00;
+        }
+        std::unreachable();
+    }
 };
 
 class Texture {
@@ -121,6 +173,26 @@ public:
     constexpr PixFormat format() const
     {
         return m_meta.format;
+    }
+
+    constexpr std::uint32_t alphaMask() const
+    {
+        return m_meta.alphaMask();
+    }
+
+    constexpr std::uint32_t redMask() const
+    {
+        return m_meta.redMask();
+    }
+
+    constexpr std::uint32_t greenMask() const
+    {
+        return m_meta.greenMask();
+    }
+
+    constexpr std::uint32_t blueMask() const
+    {
+        return m_meta.blueMask();
     }
 
 private:
@@ -194,6 +266,26 @@ public:
         return m_meta.format;
     }
 
+    constexpr std::uint32_t alphaMask() const
+    {
+        return m_meta.alphaMask();
+    }
+
+    constexpr std::uint32_t redMask() const
+    {
+        return m_meta.redMask();
+    }
+
+    constexpr std::uint32_t greenMask() const
+    {
+        return m_meta.greenMask();
+    }
+
+    constexpr std::uint32_t blueMask() const
+    {
+        return m_meta.blueMask();
+    }
+
     constexpr std::pair<std::size_t, std::size_t> size() const
     {
         return {
@@ -204,10 +296,10 @@ public:
 
     template<typename T>
     constexpr std::optional<RawPtr<T>> pixels()
+        requires(!std::is_const_v<B>)
     {
         if (sizeof(T) == m_meta.depth / 8) {
-            assert(m_data);
-            return *reinterpret_cast<T*>(m_data);
+            return RawPtr<T>(reinterpret_cast<T*>(m_data.nullable()));
         } else {
             return std::nullopt;
         }
@@ -217,8 +309,7 @@ public:
     constexpr std::optional<RawPtr<const T>> pixels() const
     {
         if (sizeof(T) == m_meta.depth / 8) {
-            assert(m_data);
-            return *reinterpret_cast<const T*>(m_data);
+            return RawPtr<const T>(reinterpret_cast<const T*>(m_data.nullable()));
         } else {
             return std::nullopt;
         }
@@ -256,7 +347,7 @@ private:
     TextureMetaData m_meta;
 };
 
-using BitmapRef = TextureRefImpl<const std::uint8_t>;
-using MutableBitmapRef = TextureRefImpl<std::uint8_t>;
+using TextureRef = TextureRefImpl<const std::uint8_t>;
+using MutableTextureRef = TextureRefImpl<std::uint8_t>;
 
 }
