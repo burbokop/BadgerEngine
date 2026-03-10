@@ -16,7 +16,7 @@ Expected<SharedTexture> readPNG(const std::filesystem::path& path) noexcept
         .height = image.get_height(),
         .pitch = image.get_width() * 4,
         .depth = 32,
-        .format = PixFormat::RGBA32,
+        .format = PixFormat::ARGB32,
     };
 
     std::vector<std::uint8_t> data(metadata.pitch * metadata.height);
@@ -34,10 +34,10 @@ Expected<SharedTexture> readPNG(const std::filesystem::path& path) noexcept
             std::uint32_t* out = &reinterpret_cast<std::uint32_t*>(data.data())[x + y * metadata.width];
 
             *out
-                = (static_cast<std::uint32_t>(in.red) & 0x000000ff) << 24
-                | (static_cast<std::uint32_t>(in.green) & 0x000000ff) << 16
-                | (static_cast<std::uint32_t>(in.blue) & 0x000000ff) << 8
-                | (static_cast<std::uint32_t>(in.alpha) & 0x000000ff) << 0;
+                = (static_cast<std::uint32_t>(in.alpha) & 0x000000ff) << 24
+                | (static_cast<std::uint32_t>(in.red) & 0x000000ff) << 16
+                | (static_cast<std::uint32_t>(in.green) & 0x000000ff) << 8
+                | (static_cast<std::uint32_t>(in.blue) & 0x000000ff) << 0;
         }
     }
 

@@ -63,14 +63,32 @@ auto unexpected(Error<T> err)
     return std::unexpected(err);
 }
 
-void printErr(const std::string& err);
+void printError(const std::string& err);
+
+template<typename T>
+void printErrorRecursive(std::ostream& stream, const Error<T>& err)
+{
+    const auto tab = "    ";
+    stream << '\n'
+           << tab << "file://" << err.loc().file_name() << ":" << err.loc().line() << ": " << err.message();
+    if (const auto& reason = err.reason()) {
+        printErrorRecursive(stream, *reason);
+    }
+}
 
 template<typename T = Unit>
 [[noreturn]] Error<T> handleAsCritical(Error<T> err)
 {
-    std::ostringstream ss;
-    ss << "CRITICAL file://" << err.loc().file_name() << ":" << err.loc().line() << ": " << err.message();
-    printErr(ss.str());
+    if (err.reason()) {
+        std::ostringstream ss;
+        ss << "CRITICAL:";
+        printErrorRecursive(ss, err);
+        printError(ss.str());
+    } else {
+        std::ostringstream ss;
+        ss << "CRITICAL file://" << err.loc().file_name() << ":" << err.loc().line() << ": " << err.message();
+        printError(ss.str());
+    }
     std::abort();
 }
 

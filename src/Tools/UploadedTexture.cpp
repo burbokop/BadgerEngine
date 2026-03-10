@@ -220,7 +220,7 @@ namespace {
     std::size_t channelCount = 0;
     if (format == vk::Format::eR8G8B8Srgb) {
         channelCount = 3;
-    } else if (format == vk::Format::eR8G8B8A8Srgb) {
+    } else if (format == vk::Format::eR8G8B8A8Srgb || format == vk::Format::eA8B8G8R8SrgbPack32) {
         channelCount = 4;
     } else if (format == vk::Format::eR8Srgb) {
         channelCount = 1;
@@ -228,7 +228,7 @@ namespace {
         return unexpected("Unsupported image format");
     }
 
-    const VkDeviceSize imageSize = w * h * channelCount;
+    const vk::DeviceSize imageSize = w * h * channelCount;
 
     vk::Buffer stagingBuffer;
     vk::DeviceMemory stagingBufferMemory;
@@ -243,10 +243,16 @@ namespace {
         return unexpected("Failed to create image buffer");
     }
 
-    void* data;
-    vkMapMemory(logicalDevice, stagingBufferMemory, 0, imageSize, 0, &data);
-    memcpy(data, pixels, static_cast<size_t>(imageSize));
-    vkUnmapMemory(logicalDevice, stagingBufferMemory);
+    {
+        void* data;
+        const auto result = logicalDevice.mapMemory(stagingBufferMemory, 0, imageSize, vk::MemoryMapFlags(), &data);
+        if (result != vk::Result::eSuccess) {
+            return unexpected("Failed to map memory: " + vk::to_string(result));
+        }
+
+        std::memcpy(data, pixels, static_cast<std::size_t>(imageSize));
+        logicalDevice.unmapMemory(stagingBufferMemory);
+    }
 
     {
         const auto result = createImage(
@@ -290,6 +296,20 @@ namespace {
     return {};
 }
 
+std::optional<vk::Format> pixFormatToVkFormat(PixFormat fmt)
+{
+    switch (fmt) {
+    case PixFormat::GS:
+        return std::nullopt;
+    case PixFormat::ARGB32:
+        // TODO: Investiate why eR8G8B8A8Srgb which by its name should be RGBA, really is ARGB
+        return vk::Format::eR8G8B8A8Srgb;
+    case PixFormat::RGBA32:
+        return std::nullopt;
+    }
+    std::unreachable();
+}
+
 }
 
 Expected<Shared<UploadedTexture>> UploadedTexture::upload(
@@ -299,10 +319,11 @@ Expected<Shared<UploadedTexture>> UploadedTexture::upload(
     const vk::Queue& copyQueue,
     TextureRef texture) noexcept
 {
-    const auto imageFormat = vk::Format::eR8G8B8A8Srgb;
-
-    if (texture.format() != PixFormat::RGBA32) {
-        return unexpected("Unsupported pixel format");
+    const auto imageFormat = pixFormatToVkFormat(texture.format());
+    if (!imageFormat) {
+        std::ostringstream ss;
+        ss << texture.format();
+        return unexpected("Unsupported pixel format: " + ss.str());
     }
 
     vk::DeviceMemory imageMemory;
@@ -316,7 +337,7 @@ Expected<Shared<UploadedTexture>> UploadedTexture::upload(
         texture.data().nullable(),
         texture.width(),
         texture.height(),
-        imageFormat,
+        *imageFormat,
         &image,
         &imageMemory);
     if (!result) {
@@ -324,7 +345,7 @@ Expected<Shared<UploadedTexture>> UploadedTexture::upload(
     }
 
     std::vector<std::string> errs;
-    const auto imageView = e172vp::SwapChain::createImageView(logicalDevice, image, imageFormat, &errs);
+    const auto imageView = e172vp::SwapChain::createImageView(logicalDevice, image, *imageFormat, &errs);
     if (!errs.empty()) {
         return unexpected("Error creating image view: " + errs.front());
     }
@@ -336,7 +357,7 @@ Expected<Shared<UploadedTexture>> UploadedTexture::upload(
         std::move(imageMemory),
         std::move(image),
         std::move(imageView),
-        std::move(imageFormat),
+        *std::move(imageFormat),
         std::move(size),
         Private {});
 }
