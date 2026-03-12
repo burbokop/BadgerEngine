@@ -14,4 +14,6 @@ target_sources(
            $<INSTALL_INTERFACE:${INSTALLDIR}/Collections.h>
            $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/NumericCast.h>
            $<INSTALL_INTERFACE:${INSTALLDIR}/NumericCast.h>
+           $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/Visit.h>
+           $<INSTALL_INTERFACE:${INSTALLDIR}/Visit.h>
     PRIVATE Fs.cpp Error.cpp)

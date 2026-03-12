@@ -10,15 +10,15 @@
 
 // #define BADGER_ENGINE_ASSIMP_LOGS
 
-namespace BadgerEngine {
+namespace BadgerEngine::Assimp {
 
 namespace {
 
 static const auto EmptyMaterial = std::make_shared<Material>();
 
-const char* textureTypeToString(aiTextureType in)
+const char* textureTypeToString(aiTextureType type) noexcept
 {
-    switch (in) {
+    switch (type) {
     case aiTextureType_NONE:
         return "n/a";
     case aiTextureType_DIFFUSE:
@@ -77,7 +77,153 @@ const char* textureTypeToString(aiTextureType in)
     std::unreachable();
 }
 
-[[nodiscard]] Expected<SharedTexture> loadEmbeddedTexture(const aiTexture* embeddedTexture)
+const char* propertyTypeToString(aiPropertyTypeInfo type) noexcept
+{
+    switch (type) {
+    case aiPTI_Float:
+        return "Float";
+    case aiPTI_Double:
+        return "Double";
+    case aiPTI_String:
+        return "String";
+    case aiPTI_Integer:
+        return "Integer";
+    case aiPTI_Buffer:
+        return "Buffer";
+    case _aiPTI_Force32Bit:
+        return "_aiPTI_Force32Bit";
+    };
+    std::unreachable();
+}
+
+const char* aiReturnToString(aiReturn type) noexcept
+{
+    switch (type) {
+    case aiReturn_SUCCESS:
+        return "Success";
+    case aiReturn_FAILURE:
+        return "Failure";
+    case aiReturn_OUTOFMEMORY:
+        return "OutOfMemory";
+    case _AI_ENFORCE_ENUM_SIZE:
+        return "_AI_ENFORCE_ENUM_SIZE";
+    };
+    std::unreachable();
+}
+
+std::string floatPropertyValueToString(const aiMaterial& material, const aiMaterialProperty& property) noexcept
+{
+    unsigned int size = 16;
+    std::vector<float> data(size, 0.f);
+    const auto result = aiGetMaterialFloatArray(&material, property.mKey.C_Str(), property.mSemantic, property.mIndex, data.data(), &size);
+    if (result != aiReturn_SUCCESS) {
+        std::cerr << "aiGetMaterialFloatArray failed: " << aiReturnToString(result) << std::endl;
+        std::abort();
+    }
+    data.resize(size);
+
+    if (size == 0) {
+        return "[]";
+    }
+
+    std::ostringstream ss;
+
+    if (size == 1) {
+        ss << data[0];
+        return ss.str();
+    }
+
+    ss << "[ ";
+    for (std::size_t i = 0; const auto x : std::move(data)) {
+        ss << x;
+        if (i++ < size - 1) {
+            ss << ", ";
+        }
+    }
+    ss << " ]";
+
+    return std::move(ss).str();
+}
+
+std::string stringPropertyValueToString(const aiMaterial& material, const aiMaterialProperty& property) noexcept
+{
+    aiString string;
+    const auto result = aiGetMaterialString(&material, property.mKey.C_Str(), property.mSemantic, property.mIndex, &string);
+    if (result != aiReturn_SUCCESS) {
+        std::cerr << "aiGetMaterialFloatArray failed: " << aiReturnToString(result) << std::endl;
+        std::abort();
+    }
+    return string.C_Str();
+}
+
+std::string bufferPropertyValueToString(const aiMaterialProperty& property) noexcept
+{
+    std::ostringstream ss;
+
+    for (std::size_t i = 0; i < property.mDataLength; ++i) {
+        ss << std::hex << std::setfill('0') << std::setw(2) << static_cast<std::uint16_t>(property.mData[i]);
+        if (i < property.mDataLength - 1) {
+            ss << ".";
+        }
+    }
+
+    return ss.str();
+}
+
+std::string propertyValueToString(const aiMaterial& material, const aiMaterialProperty& property) noexcept
+{
+    switch (property.mType) {
+    case aiPTI_Float:
+        return floatPropertyValueToString(material, property);
+    case aiPTI_Double:
+        return floatPropertyValueToString(material, property);
+    case aiPTI_String:
+        return stringPropertyValueToString(material, property);
+    case aiPTI_Integer:
+        return floatPropertyValueToString(material, property);
+    case aiPTI_Buffer:
+        return bufferPropertyValueToString(property);
+    case _aiPTI_Force32Bit:
+        break;
+    }
+    std::unreachable();
+}
+
+Expected<std::optional<Color>> materialColorProperty(const aiMaterial& material, const char* key, unsigned int type, unsigned int idx) noexcept
+{
+    aiColor4D c;
+    const auto result = material.Get(key, type, idx, c);
+    switch (result) {
+    case aiReturn_SUCCESS:
+        return glm::vec4 { c.r, c.g, c.b, c.a };
+    case aiReturn_FAILURE:
+        return std::nullopt;
+    case aiReturn_OUTOFMEMORY:
+        return unexpected("Out of memory");
+    case _AI_ENFORCE_ENUM_SIZE:
+        break;
+    }
+    std::unreachable();
+}
+
+Expected<std::optional<float>> materialFloatProperty(const aiMaterial& material, const char* key, unsigned int type, unsigned int idx) noexcept
+{
+    float c;
+    const auto result = material.Get(key, type, idx, c);
+    switch (result) {
+    case aiReturn_SUCCESS:
+        return c;
+    case aiReturn_FAILURE:
+        return std::nullopt;
+    case aiReturn_OUTOFMEMORY:
+        return unexpected("Out of memory");
+    case _AI_ENFORCE_ENUM_SIZE:
+        break;
+    }
+    std::unreachable();
+}
+
+[[nodiscard]] Expected<SharedTexture> loadEmbeddedTexture(const aiTexture* embeddedTexture) noexcept
 {
     (void)embeddedTexture;
     return unexpected("TODO");
@@ -88,7 +234,7 @@ const char* textureTypeToString(aiTextureType in)
     RawPtr<aiMaterial> material,
     aiTextureType type,
     RawPtr<const aiScene> scene,
-    const std::optional<std::filesystem::path>& sceneSourcePath)
+    const std::optional<std::filesystem::path>& sceneSourcePath) noexcept
 {
 #ifdef BADGER_ENGINE_ASSIMP_LOGS
     if (material->GetTextureCount(type) != 0) {
@@ -106,7 +252,7 @@ const char* textureTypeToString(aiTextureType in)
         material->GetTexture(type, i, &texturePath);
 
 #ifdef BADGER_ENGINE_ASSIMP_LOGS
-        std::cout << "\tt: " << texturePath.C_Str() << std::endl;
+        std::cout << "\ttexture: " << texturePath.C_Str() << std::endl;
 #endif
 
         if (const auto texture = textureLoader.texture(texturePath.C_Str())) {
@@ -139,6 +285,46 @@ const char* textureTypeToString(aiTextureType in)
     RawPtr<const aiScene> scene,
     const std::optional<std::filesystem::path>& sceneSourcePath)
 {
+    const auto baseColor = materialColorProperty(*material, AI_MATKEY_BASE_COLOR);
+    if (!baseColor) {
+        return unexpected("Failed to get material base color", baseColor.error());
+    }
+
+    const auto diffuseColor = materialColorProperty(*material, AI_MATKEY_COLOR_DIFFUSE);
+    if (!diffuseColor) {
+        return unexpected("Failed to get material diffuse color", diffuseColor.error());
+    }
+
+    const auto emissiveColor = materialColorProperty(*material, AI_MATKEY_COLOR_EMISSIVE);
+    if (!emissiveColor) {
+        return unexpected("Failed to get material emissive color", emissiveColor.error());
+    }
+
+    const auto specularColor = materialColorProperty(*material, AI_MATKEY_COLOR_SPECULAR);
+    if (!specularColor) {
+        return unexpected("Failed to get material specular color", specularColor.error());
+    }
+
+    const auto metallness = materialFloatProperty(*material, AI_MATKEY_METALLIC_FACTOR);
+    if (!metallness) {
+        return unexpected("Failed to get material metallness", metallness.error());
+    }
+
+    const auto roughness = materialFloatProperty(*material, AI_MATKEY_ROUGHNESS_FACTOR);
+    if (!roughness) {
+        return unexpected("Failed to get material roughness", roughness.error());
+    }
+
+    const auto shininess = materialFloatProperty(*material, AI_MATKEY_SHININESS);
+    if (!shininess) {
+        return unexpected("Failed to get material shininess", shininess.error());
+    }
+
+    const auto specularFactor = materialFloatProperty(*material, AI_MATKEY_SPECULAR_FACTOR);
+    if (!specularFactor) {
+        return unexpected("Failed to get material specularFactor", specularFactor.error());
+    }
+
     const auto diffuseMaps = loadMaterialTextures(textureLoader, material, aiTextureType_DIFFUSE, scene, sceneSourcePath);
     if (!diffuseMaps) {
         return unexpected("Failde to load diffuse maps", diffuseMaps.error());
@@ -264,7 +450,26 @@ const char* textureTypeToString(aiTextureType in)
         return unexpected("Failde to load aiTextureType_MAYA_SPECULAR_ROUGHNESS maps", diffuseMaps.error());
     }
 
+#ifdef BADGER_ENGINE_ASSIMP_LOGS
+    std::cout << "Material `" << material->GetName().C_Str() << "` properties:" << std::endl;
+    for (std::size_t i = 0; i < material->mNumProperties; ++i) {
+        const auto property = material->mProperties[i];
+        assert(property);
+
+        std::cout << "\tkey: " << property->mKey.C_Str() << ": " << propertyTypeToString(property->mType) << " = " << propertyValueToString(*material, *property) << std::endl;
+    }
+#endif
+
     return std::make_shared<Material>(Material {
+        .name = material->GetName().C_Str(),
+        .baseColor = *std::move(baseColor),
+        .diffuseColor = *std::move(diffuseColor),
+        .emissiveColor = *std::move(emissiveColor),
+        .specularColor = *std::move(specularColor),
+        .metallness = *std::move(metallness),
+        .roughness = *std::move(roughness),
+        .shininess = *std::move(shininess),
+        .specularFactor = *std::move(specularFactor),
         .diffuseMaps = *std::move(diffuseMaps),
         .specularMaps = *std::move(specularMaps),
         .ambientMaps = *std::move(ambientMaps),
@@ -303,7 +508,7 @@ Expected<std::vector<SharedMaterial>> loadMaterials(
     for (unsigned int i = 0; i < scene->mNumMaterials; ++i) {
         const auto material = loadMaterial(textureLoader, scene->mMaterials[i], scene, sceneSourcePath);
         if (!material) {
-            return unexpected("Failed to load scene material");
+            return unexpected("Failed to load scene material", material.error());
         }
 
         result.push_back(*material);
@@ -326,7 +531,7 @@ Expected<std::vector<SharedMaterial>> loadMaterials(
         && !std::isnan(vertex.uv.y);
 }
 
-[[nodiscard]] Expected<Shared<AssimpMesh>> processMesh(const std::vector<SharedMaterial>& materials, RawPtr<aiMesh> mesh, glm::mat4 transformation)
+[[nodiscard]] Expected<Shared<Mesh>> processMesh(const std::vector<SharedMaterial>& materials, RawPtr<aiMesh> mesh, glm::mat4 transformation)
 {
     std::vector<Geometry::Vertex> vertices;
     std::vector<Geometry::Mesh::Index> indices;
@@ -340,14 +545,13 @@ Expected<std::vector<SharedMaterial>> loadMaterials(
         vertex.position.x = mesh->mVertices[i].x;
         vertex.position.y = mesh->mVertices[i].y;
         vertex.position.z = mesh->mVertices[i].z;
-
         vertex.position = transformation * glm::vec4(vertex.position, 1.);
 
         if (mesh->mNormals) {
             vertex.normal.x = mesh->mNormals[i].x;
             vertex.normal.y = mesh->mNormals[i].y;
             vertex.normal.z = mesh->mNormals[i].z;
-            vertex.normal = transformation * glm::vec4(vertex.normal, 1.);
+            vertex.normal = transformation * glm::vec4(vertex.normal, 0.);
         }
 
         if (mesh->mNumBones > 0) {
@@ -382,12 +586,14 @@ Expected<std::vector<SharedMaterial>> loadMaterials(
         }
     }
 
-    // std::cout << mesh->mName.C_Str() << " -> mesh->mMaterialIndex: " << mesh->mMaterialIndex << std::endl;
+#ifdef BADGER_ENGINE_ASSIMP_LOGS
+    std::cout << "Mesh `" << mesh->mName.C_Str() << "` -> material index: " << mesh->mMaterialIndex << std::endl;
+#endif
     if (std::cmp_greater_equal(mesh->mMaterialIndex, 0) && std::cmp_less(mesh->mMaterialIndex, materials.size())) {
         material = materials[mesh->mMaterialIndex];
     }
 
-    return AssimpMesh::create(Geometry::Mesh::create(Geometry::Topology::TriangleList, std::move(vertices), std::move(indices)), std::move(material));
+    return Mesh::create(Geometry::Mesh::create(Geometry::Topology::TriangleList, std::move(vertices), std::move(indices)), std::move(material));
 }
 
 [[nodiscard]] glm::mat4 glmMat4FromAiMatrix4x4(const aiMatrix4x4& m)
@@ -400,7 +606,7 @@ Expected<std::vector<SharedMaterial>> loadMaterials(
 }
 
 [[nodiscard]] Expected<void> processNode(
-    std::vector<Shared<AssimpMesh>>& meshes,
+    std::vector<Shared<Mesh>>& meshes,
     const std::vector<SharedMaterial>& materials,
     RawPtr<aiNode> node,
     RawPtr<const aiScene> scene,
@@ -431,7 +637,7 @@ Expected<std::vector<SharedMaterial>> loadMaterials(
 
 }
 
-Expected<AssimpModel> AssimpModel::load(
+Expected<Model> Model::load(
     const TextureLoader& textureLoader,
     const std::filesystem::path& path,
     const std::map<std::pair<MaterialIndex, TextureRole>, TextureLoader::VirtualTexturePath>& additionalTextures)
@@ -442,7 +648,7 @@ Expected<AssimpModel> AssimpModel::load(
         return unexpected("File `" + path.string() + "` does not exist.");
     }
 
-    Assimp::Importer importer;
+    ::Assimp::Importer importer;
     const aiScene* scene = importer.ReadFile(path.string().c_str(), aiProcess_Triangulate | aiProcess_ConvertToLeftHanded);
 
     if (scene == nullptr) {
@@ -469,21 +675,21 @@ Expected<AssimpModel> AssimpModel::load(
     }
 #endif
 
-    std::vector<Shared<AssimpMesh>> meshes;
+    std::vector<Shared<Mesh>> meshes;
     const auto result = processNode(meshes, *materials, scene->mRootNode, scene, glm::mat4(1.));
     if (!result) {
         return unexpected(result.error());
     }
 
     importer.FreeScene();
-    return AssimpModel(std::move(meshes));
+    return Model(std::move(meshes));
 }
 
-Expected<AssimpModel> AssimpModel::parse(const TextureLoader& textureLoader, std::span<uint8_t> data, const std::string& hint, const std::map<std::pair<MaterialIndex, TextureRole>, TextureLoader::VirtualTexturePath>& additionalTextures)
+Expected<Model> Model::parse(const TextureLoader& textureLoader, std::span<uint8_t> data, const std::string& hint, const std::map<std::pair<MaterialIndex, TextureRole>, TextureLoader::VirtualTexturePath>& additionalTextures)
 {
     (void)additionalTextures;
 
-    Assimp::Importer importer;
+    ::Assimp::Importer importer;
     const aiScene* scene = importer.ReadFileFromMemory(data.data(), data.size(), aiProcess_Triangulate | aiProcess_ConvertToLeftHanded, hint.c_str());
 
     if (scene == nullptr) {
@@ -495,13 +701,13 @@ Expected<AssimpModel> AssimpModel::parse(const TextureLoader& textureLoader, std
         return unexpected("Failed to load scene materials", materials.error());
     }
 
-    std::vector<Shared<AssimpMesh>> meshes;
+    std::vector<Shared<Mesh>> meshes;
     const auto result = processNode(meshes, *materials, scene->mRootNode, scene, glm::mat4(1.));
     if (!result) {
         return unexpected(result.error());
     }
 
-    return AssimpModel(meshes);
+    return Model(meshes);
 }
 
 }

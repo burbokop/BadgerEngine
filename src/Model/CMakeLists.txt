@@ -12,4 +12,10 @@ target_sources(
            $<INSTALL_INTERFACE:${INSTALLDIR}/TextureLoader.h>
            $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/AssimpModel.h>
            $<INSTALL_INTERFACE:${INSTALLDIR}/AssimpModel.h>
-    PRIVATE Model.cpp Texture.cpp TextureLoader.cpp AssimpModel.cpp)
+           $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/Material.h>
+           $<INSTALL_INTERFACE:${INSTALLDIR}/Material.h>
+    PRIVATE Model.cpp
+            Texture.cpp
+            TextureLoader.cpp
+            AssimpModel.cpp
+            Material.cpp)

@@ -3,10 +3,13 @@
 #include "../Utils/NoNull.h"
 #include <assert.h>
 #include <cstdint>
+#include <glm/glm.hpp>
 #include <optional>
 #include <vector>
 
 namespace BadgerEngine {
+
+using Color = glm::vec4;
 
 enum class PixFormat {
     /// Gray scale 8 bit

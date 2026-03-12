@@ -33,7 +33,7 @@ public:
     static void resetCommandBuffers(const std::vector<vk::CommandBuffer>& commandBuffers, const vk::Queue& graphicsQueue, const vk::Queue& presentQueue);
     static void createSyncObjects(const vk::Device& logicDevice, vk::Semaphore* imageAvailableSemaphore, vk::Semaphore* renderFinishedSemaphore);
 
-    VertexObject& addObject(const BadgerEngine::Model& model, bool recursiveTexture = false);
+    VertexObject& addObject(const BadgerEngine::Model& model);
     Shared<PointLight> addPointLight(
         glm::vec3 position,
         glm::vec3 color,

@@ -7,6 +7,7 @@
 #include "Tools/UploadedTexture.h"
 #include "Tools/stringvector.h"
 #include "Utils/NumericCast.h"
+#include "Utils/Visit.h"
 #include "Window.h"
 #include <chrono>
 #include <glm/gtc/matrix_transform.hpp>
@@ -367,30 +368,40 @@ VertexObject& Renderer::addCharacter(char c, std::shared_ptr<e172vp::Pipeline> p
     return *r;
 }
 
-VertexObject& Renderer::addObject(const BadgerEngine::Model& model, bool recursiveTexture)
+VertexObject& Renderer::addObject(const BadgerEngine::Model& model)
 {
-    if (recursiveTexture) {
-        const auto& frames = m_graphicsObject->swapChain().frames();
-        std::size_t i = 0;
-        assert(i < frames.size());
-        return addObject(model.mesh(), frames[i].imageView, createPipeline(model.vert(), model.frag(), Geometry::Topology::TriangleList, model.polygonMode()));
-    }
+    return std::visit(
+        Overloaded {
+            [](const BSDFMaterial& material) -> VertexObject& {
+                (void)material;
+                std::cerr << "TODO";
+                std::abort();
+            },
+            [this, &model](const RecursiveMaterial& material) -> VertexObject& {
+                const auto& frames = m_graphicsObject->swapChain().frames();
+                std::size_t i = 0;
+                assert(i < frames.size());
+                return addObject(model.mesh(), frames[i].imageView, createPipeline(material.vert, material.frag, Geometry::Topology::TriangleList, model.polygonMode()));
+            },
+            [this, &model](const CustomMaterial& material) -> VertexObject& {
+                if (material.textures.size() > 0) {
 
-    if (model.textures().size() > 0) {
+                    const auto texture = UploadedTexture::upload(
+                        m_graphicsObject->logicalDevice(),
+                        m_graphicsObject->physicalDevice(),
+                        m_graphicsObject->commandPool(),
+                        // Assuming graphics queue can also do copy. If not then add some check
+                        m_graphicsObject->graphicsQueue(), material.textures.front())
+                                             .transform_error(handleAsCritical<>)
+                                             .value();
 
-        const auto texture = UploadedTexture::upload(
-            m_graphicsObject->logicalDevice(),
-            m_graphicsObject->physicalDevice(),
-            m_graphicsObject->commandPool(),
-            // Assuming graphics queue can also do copy. If not then add some check
-            m_graphicsObject->graphicsQueue(), model.textures().front())
-                                 .transform_error(handleAsCritical<>)
-                                 .value();
-
-        return addObject(model.mesh(), texture, createPipeline(model.vert(), model.frag(), Geometry::Topology::TriangleList, model.polygonMode()));
-    } else {
-        return addObject(model.mesh(), createPipeline(model.vert(), model.frag(), Geometry::Topology::TriangleList, model.polygonMode()));
-    }
+                    return addObject(model.mesh(), texture, createPipeline(material.vert, material.frag, Geometry::Topology::TriangleList, model.polygonMode()));
+                } else {
+                    return addObject(model.mesh(), createPipeline(material.vert, material.frag, Geometry::Topology::TriangleList, model.polygonMode()));
+                }
+            },
+        },
+        *model.material());
 }
 
 Shared<PointLight> Renderer::addPointLight(glm::vec3 position, glm::vec3 color, float intensity)
