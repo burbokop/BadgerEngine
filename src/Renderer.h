@@ -21,18 +21,17 @@ class Renderer {
 
 public:
     VertexObject& addObject(const BadgerEngine::Model& model);
+
     Shared<PointLight> addPointLight(
         glm::vec3 position,
         glm::vec3 color,
         float intensity);
 
     bool removeVertexObject(VertexObject* vertexObject);
+
     Renderer(Shared<Window> window, const std::filesystem::path& fontPath);
 
     [[nodiscard]] Expected<void> applyPresentation() noexcept;
-    void updateUniformBuffer(uint32_t currentImage);
-
-    const auto& graphicsObject() const { return m_graphicsObject; }
 
     Shared<const PerspectiveCamera> camera() const
     {
@@ -44,7 +43,26 @@ public:
         return m_camera;
     }
 
+    void setDirectionalLightVector(glm::vec3 v)
+    {
+        m_directionalLightVector = v;
+    }
+
+    void setDirectionalLightColor(glm::vec3 c)
+    {
+        m_directionalLightColor = c;
+    }
+
+    void setDirectionalLightIntensity(float i)
+    {
+        m_directionalLightIntensity = i;
+    };
+
 private:
+    void updateUniformBuffer(uint32_t currentImage);
+
+    const auto& graphicsObject() const { return m_graphicsObject; }
+
     Expected<void> proceedCommandBuffers(const vk::RenderPass& renderPass,
         const vk::Extent2D& extent,
         const PerspectiveCamera& camera,
@@ -88,6 +106,10 @@ private:
     std::shared_ptr<e172vp::Pipeline> m_normalDebugPipeline;
 
     std::vector<Shared<PointLight>> m_pointLights;
+
+    glm::vec3 m_directionalLightVector = glm::vec3(0.);
+    glm::vec3 m_directionalLightColor = glm::vec3(1.f);
+    float m_directionalLightIntensity = 0.f;
 
     Shared<Window> m_window;
     Shared<PerspectiveCamera> m_camera;

@@ -2,19 +2,12 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
-layout(binding = 0, set = 0) uniform Global {
-    mat4 transformation;
-    float time;
-    float _time;
-    vec2 mouse;
-} global;
-
 struct PointLight {
     vec4 position;
     vec4 color;
 };
 
-layout(binding = 0, set = 1) uniform Lighting {
+layout(binding = 0, set = 1, std140) uniform Lighting {
     PointLight lights[64];
     uint lightsCount;
     float ambient;
@@ -32,7 +25,9 @@ layout(location = 0) out vec4 outColor;
 
 void main() {
     const vec3 baseColor = texture(baseColorSampler, fragTexCoord).xyz;
-    const vec3 ambientOcclusionColor = texture(ambientOcclusionSampler, fragTexCoord).xyz;
+
+    // .x because gltf format stores ambient occlusion map in R channel of combined AO - Roughness - Metallness texture
+    const float ambientOcclusionColor = texture(ambientOcclusionSampler, fragTexCoord).x;
 
     vec3 lightsSumColor = baseColor * ambientOcclusionColor * lighting.ambient;
 

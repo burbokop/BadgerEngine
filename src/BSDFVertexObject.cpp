@@ -17,6 +17,8 @@ struct UniformBufferObject {
     glm::mat4 model;
 };
 
+static_assert(offsetof(UniformBufferObject, model) == 0, "Offset must comply with std140");
+
 std::vector<UploadedModel> createModels(Shared<e172vp::GraphicsObject> graphicsObject, const Shared<Geometry::Mesh>& mesh, Shared<e172vp::Pipeline> pipeline, Shared<e172vp::Pipeline> nPipeline)
 {
     std::list<UploadedModel> result = {

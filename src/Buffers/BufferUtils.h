@@ -51,7 +51,14 @@ public:
     template<typename T>
     static void createUniformBuffer(const e172vp::GraphicsObject* graphicsObject, vk::Buffer* uniformBuffers, vk::DeviceMemory* uniformBuffersMemory)
     {
-        createAbstractBuffer(logicalDevice(graphicsObject), physicalDevice(graphicsObject), sizeof(T), uniformBufferType, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, uniformBuffers, uniformBuffersMemory);
+        createAbstractBuffer(
+            logicalDevice(graphicsObject),
+            physicalDevice(graphicsObject),
+            sizeof(T),
+            uniformBufferType,
+            vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
+            uniformBuffers,
+            uniformBuffersMemory);
     }
 
     template<typename T>

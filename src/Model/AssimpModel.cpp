@@ -77,7 +77,7 @@ const char* textureTypeToString(aiTextureType type) noexcept
     std::unreachable();
 }
 
-const char* propertyTypeToString(aiPropertyTypeInfo type) noexcept
+[[maybe_unused]] const char* propertyTypeToString(aiPropertyTypeInfo type) noexcept
 {
     switch (type) {
     case aiPTI_Float:
@@ -170,7 +170,7 @@ std::string bufferPropertyValueToString(const aiMaterialProperty& property) noex
     return ss.str();
 }
 
-std::string propertyValueToString(const aiMaterial& material, const aiMaterialProperty& property) noexcept
+[[maybe_unused]] std::string propertyValueToString(const aiMaterial& material, const aiMaterialProperty& property) noexcept
 {
     switch (property.mType) {
     case aiPTI_Float:

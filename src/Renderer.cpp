@@ -25,23 +25,59 @@ namespace BadgerEngine {
 
 namespace {
 
+template<size_t N>
+class Padding {
+public:
+    Padding()
+    {
+    }
+
+private:
+    char _[N];
+};
+
 struct PointLightUniformBufferObject {
     glm::vec4 position;
     glm::vec4 color;
 };
 
+static_assert(offsetof(PointLightUniformBufferObject, position) == 0, "Offset must comply with std140");
+static_assert(offsetof(PointLightUniformBufferObject, color) == 16, "Offset must comply with std140");
+
+struct DirectionalLightUniformBufferObject {
+    glm::vec3 vector;
+    Padding<4> _;
+    glm::vec3 color;
+    float intensity;
+};
+
+static_assert(offsetof(DirectionalLightUniformBufferObject, vector) == 0, "Offset must comply with std140");
+static_assert(offsetof(DirectionalLightUniformBufferObject, color) == 16, "Offset must comply with std140");
+static_assert(offsetof(DirectionalLightUniformBufferObject, intensity) == 28, "Offset must comply with std140");
+
 struct LightingUniformBufferObject {
     PointLightUniformBufferObject lights[64];
     std::uint32_t lightsCount;
     float ambient;
+    Padding<8> _;
+    DirectionalLightUniformBufferObject directionalLight;
 };
+
+static_assert(offsetof(LightingUniformBufferObject, lights) == 0, "Offset must comply with std140");
+static_assert(offsetof(LightingUniformBufferObject, lightsCount) == 2048, "Offset must comply with std140");
+static_assert(offsetof(LightingUniformBufferObject, ambient) == 2052, "Offset must comply with std140");
+static_assert(offsetof(LightingUniformBufferObject, directionalLight) == 2064, "Offset must comply with std140");
 
 struct GlobalUniformBufferObject {
     glm::mat4 transformation;
     float time;
-    float _time;
+    Padding<4> _;
     glm::vec2 mouse;
 };
+
+static_assert(offsetof(GlobalUniformBufferObject, transformation) == 0, "Offset must comply with std140");
+static_assert(offsetof(GlobalUniformBufferObject, time) == 64, "Offset must comply with std140");
+static_assert(offsetof(GlobalUniformBufferObject, mouse) == 72, "Offset must comply with std140");
 
 Expected<Shared<UploadedTexture>> uploadMaterialColorChannel(
     const MaterialColorChannel& channel,
@@ -334,11 +370,11 @@ void Renderer::updateUniformBuffer(uint32_t currentImage)
         const auto ubo = GlobalUniformBufferObject {
             .transformation = m_camera->transformation(size.x / size.y),
             .time = time,
-            ._time = time,
+            ._ = {},
             .mouse = { 0, 0 }
         };
 
-        void* data;
+        void* data = nullptr;
         const auto result = m_graphicsObject->logicalDevice().mapMemory(m_commonGlobalUniformBufferBundles[currentImage].memory, 0, sizeof(ubo), vk::MemoryMapFlags(), &data);
         if (result != vk::Result::eSuccess) {
             throw std::runtime_error("Failed to map memory: " + vk::to_string(result));
@@ -359,7 +395,14 @@ void Renderer::updateUniformBuffer(uint32_t currentImage)
         }
         ubo.ambient = 0.2f;
 
-        void* data;
+        ubo.directionalLight = DirectionalLightUniformBufferObject {
+            .vector = m_directionalLightVector,
+            ._ = {},
+            .color = m_directionalLightColor,
+            .intensity = m_directionalLightIntensity,
+        };
+
+        void* data = nullptr;
         const auto result = m_graphicsObject->logicalDevice().mapMemory(m_lightingUniformBufferBundles[currentImage].memory, 0, sizeof(ubo), vk::MemoryMapFlags(), &data);
         if (result != vk::Result::eSuccess) {
             throw std::runtime_error("Failed to map memory: " + vk::to_string(result));
