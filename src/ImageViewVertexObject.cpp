@@ -1,4 +1,4 @@
-#include "vertexobject.h"
+#include "ImageViewVertexObject.h"
 
 #include "Buffers/BufferUtils.h"
 #include "Geometry/Mesh.h"
@@ -21,7 +21,7 @@ std::vector<UploadedModel> createModels(Shared<e172vp::GraphicsObject> graphicsO
 {
     std::list<UploadedModel> result = {
         UploadedModel(
-            MeshBuffer::upload(graphicsObject, *mesh).transform_error(handleAsCritical<>).value(),
+            MeshBuffer::upload(graphicsObject, *mesh).transform_error(AsCritical()).value(),
             std::move(pipeline))
     };
 
@@ -39,24 +39,26 @@ std::vector<UploadedModel> createModels(Shared<e172vp::GraphicsObject> graphicsO
         break;
     case VertexNormals:
         result.push_back(UploadedModel(
-            MeshBuffer::upload(graphicsObject, *mesh->vertexNormalsMesh(len).value()).transform_error(handleAsCritical<>).value(),
+            MeshBuffer::upload(graphicsObject, *mesh->vertexNormalsMesh(len).value()).transform_error(AsCritical()).value(),
             std::move(nPipeline)));
         break;
     case PolygonNormals:
         result.push_back(UploadedModel(
-            MeshBuffer::upload(graphicsObject, *mesh->polygonNormalsMesh(len).value()).transform_error(handleAsCritical<>).value(),
+            MeshBuffer::upload(graphicsObject, *mesh->polygonNormalsMesh(len).value()).transform_error(AsCritical()).value(),
             std::move(nPipeline)));
         break;
     }
 
     return result | Collect<std::vector>;
 }
+
 }
 
-VertexObject::VertexObject(Shared<e172vp::GraphicsObject> graphicsObject,
+ImageViewVertexObject::ImageViewVertexObject(
+    Shared<e172vp::GraphicsObject> graphicsObject,
     size_t imageCount,
-    const e172vp::DescriptorSetLayout* descriptorSetLayout,
-    const e172vp::DescriptorSetLayout* samplerDescriptorSetLayout,
+    const e172vp::DescriptorSetLayout& uniformBufferDescriptorSetLayout,
+    const e172vp::DescriptorSetLayout& samplerDescriptorSetLayout,
     const Shared<Geometry::Mesh>& mesh,
     const vk::ImageView& imageView,
     Shared<e172vp::Pipeline> pipeline, Shared<e172vp::Pipeline> nPipeline)
@@ -67,7 +69,7 @@ VertexObject::VertexObject(Shared<e172vp::GraphicsObject> graphicsObject,
         *m_graphicsObject,
         m_graphicsObject->swapChain().imageCount(),
         m_graphicsObject->descriptorPool(),
-        *descriptorSetLayout);
+        uniformBufferDescriptorSetLayout);
 
     BufferUtils::createSamplerDescriptorSets(m_graphicsObject->logicalDevice(),
         m_graphicsObject->descriptorPool(),
@@ -78,11 +80,11 @@ VertexObject::VertexObject(Shared<e172vp::GraphicsObject> graphicsObject,
         &m_textureDescriptorSets);
 }
 
-VertexObject::VertexObject(
+ImageViewVertexObject::ImageViewVertexObject(
     Shared<e172vp::GraphicsObject> graphicsObject,
     std::size_t imageCount,
-    const e172vp::DescriptorSetLayout* descriptorSetLayout,
-    const e172vp::DescriptorSetLayout* samplerDescriptorSetLayout,
+    const e172vp::DescriptorSetLayout& uniformBufferDescriptorSetLayout,
+    const e172vp::DescriptorSetLayout& samplerDescriptorSetLayout,
     const Shared<Geometry::Mesh>& mesh,
     Shared<UploadedTexture> texture,
     Shared<e172vp::Pipeline> pipeline,
@@ -95,7 +97,7 @@ VertexObject::VertexObject(
         *m_graphicsObject,
         m_graphicsObject->swapChain().imageCount(),
         m_graphicsObject->descriptorPool(),
-        *descriptorSetLayout);
+        uniformBufferDescriptorSetLayout);
 
     BufferUtils::createSamplerDescriptorSets(m_graphicsObject->logicalDevice(),
         m_graphicsObject->descriptorPool(),
@@ -106,62 +108,11 @@ VertexObject::VertexObject(
         &m_textureDescriptorSets);
 }
 
-void VertexObject::updateUbo(std::size_t imageIndex)
-{
-    const auto ubo = UniformBufferObject {
-        .model = m_translation * m_rotation * m_scale,
-    };
-
-    void* data;
-    vkMapMemory(m_graphicsObject->logicalDevice(), m_uniformBufferBundles[imageIndex].memory, 0, sizeof(UniformBufferObject), 0, &data);
-    assert(data);
-    memcpy(data, &ubo, sizeof(UniformBufferObject));
-    vkUnmapMemory(m_graphicsObject->logicalDevice(), m_uniformBufferBundles[imageIndex].memory);
-}
-
-glm::mat4 VertexObject::rotation() const
-{
-    return m_rotation;
-}
-
-VertexObject& VertexObject::setRotation(const glm::mat4& rotation)
-{
-    m_rotation = rotation;
-    return *this;
-}
-
-glm::mat4 VertexObject::translation() const
-{
-    return m_translation;
-}
-
-VertexObject& VertexObject::setTranslation(const glm::mat4& translation)
-{
-    m_translation = translation;
-    return *this;
-}
-
-glm::mat4 VertexObject::scale() const
-{
-    return m_scale;
-}
-
-VertexObject& VertexObject::setScale(const glm::mat4& scale)
-{
-    m_scale = scale;
-    return *this;
-}
-
-std::vector<vk::DescriptorSet> VertexObject::textureDescriptorSets() const
-{
-    return m_textureDescriptorSets;
-}
-
-void VertexObject::draw(
+Expected<void> ImageViewVertexObject::draw(
     std::size_t imageIndex,
     std::span<const vk::CommandBuffer> commandBuffers,
     std::span<const BufferBundle> commonGlobalUniformBufferBundles,
-    std::span<const BufferBundle> lightingUniformBufferBundles) const
+    std::span<const BufferBundle> lightingUniformBufferBundles) const noexcept
 {
     for (const auto& model : m_models) {
         model.bindTo(commandBuffers[imageIndex]);
@@ -173,16 +124,35 @@ void VertexObject::draw(
             {
                 commonGlobalUniformBufferBundles[imageIndex].descriptorSet,
                 lightingUniformBufferBundles[imageIndex].descriptorSet,
-                bufferBundles()[imageIndex].descriptorSet,
-                textureDescriptorSets()[imageIndex],
+                m_uniformBufferBundles.at(imageIndex).descriptorSet,
+                m_textureDescriptorSets.at(imageIndex),
             },
             {});
 
         commandBuffers[imageIndex].drawIndexed(numericCast<std::uint32_t>(model.indexCount()).value(), 1, 0, 0, 0);
     }
+
+    return {};
 }
 
-VertexObject::~VertexObject()
+Expected<void> ImageViewVertexObject::updateUniformBuffer(std::size_t imageIndex) noexcept
+{
+    const auto ubo = UniformBufferObject {
+        .model = translation() * rotation() * scale(),
+    };
+
+    void* data = nullptr;
+    const auto result = m_graphicsObject->logicalDevice().mapMemory(m_uniformBufferBundles[imageIndex].memory, 0, sizeof(UniformBufferObject), vk::MemoryMapFlags(), &data);
+    if (result != vk::Result::eSuccess) {
+        return unexpected("Failed to map memory: " + vk::to_string(result));
+    }
+    assert(data);
+    std::memcpy(data, &ubo, sizeof(UniformBufferObject));
+    m_graphicsObject->logicalDevice().unmapMemory(m_uniformBufferBundles[imageIndex].memory);
+    return {};
+}
+
+ImageViewVertexObject::~ImageViewVertexObject()
 {
     for (size_t i = 0; i < m_uniformBufferBundles.size(); ++i) {
         m_graphicsObject->logicalDevice().destroyBuffer(m_uniformBufferBundles[i].buffer);

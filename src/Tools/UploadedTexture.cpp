@@ -302,12 +302,46 @@ std::optional<vk::Format> pixFormatToVkFormat(PixFormat fmt)
     case PixFormat::GS:
         return std::nullopt;
     case PixFormat::ARGB32:
-        // TODO: Investiate why eR8G8B8A8Srgb which by its name should be RGBA, really is ARGB
-        return vk::Format::eR8G8B8A8Srgb;
-    case PixFormat::RGBA32:
         return std::nullopt;
+    case PixFormat::RGBA32:
+        return vk::Format::eR8G8B8A8Srgb;
     }
     std::unreachable();
+}
+
+std::vector<std::uint8_t> colorToBytesOfPixFormat(PixFormat fmt, Color color)
+{
+    switch (fmt) {
+    case PixFormat::GS:
+        return { static_cast<std::uint8_t>((color.a + color.r + color.g + color.b) * 255.f / 4.f) };
+    case PixFormat::ARGB32:
+        return {
+            static_cast<std::uint8_t>(color.a * 255.f),
+            static_cast<std::uint8_t>(color.r * 255.f),
+            static_cast<std::uint8_t>(color.g * 255.f),
+            static_cast<std::uint8_t>(color.b * 255.f),
+        };
+    case PixFormat::RGBA32:
+        return {
+            static_cast<std::uint8_t>(color.r * 255.f),
+            static_cast<std::uint8_t>(color.g * 255.f),
+            static_cast<std::uint8_t>(color.b * 255.f),
+            static_cast<std::uint8_t>(color.a * 255.f),
+        };
+    }
+    std::unreachable();
+}
+
+std::vector<std::uint8_t> textureBytesFilledWithColor(PixFormat fmt, UploadedTexture::Size size, Color color)
+{
+    const auto pix = colorToBytesOfPixFormat(fmt, color);
+
+    std::vector<std::uint8_t> result;
+    result.reserve(size.x * size.y * pix.size());
+    for (std::size_t i = 0; i < size.x * size.y; ++i) {
+        result.insert(result.end(), pix.begin(), pix.end());
+    }
+    return result;
 }
 
 }
@@ -351,6 +385,58 @@ Expected<Shared<UploadedTexture>> UploadedTexture::upload(
     }
 
     const auto size = glm::ivec2(texture.width(), texture.height());
+
+    return std::make_shared<UploadedTexture>(
+        std::move(logicalDevice),
+        std::move(imageMemory),
+        std::move(image),
+        std::move(imageView),
+        *std::move(imageFormat),
+        std::move(size),
+        Private {});
+}
+
+Expected<Shared<UploadedTexture>> UploadedTexture::create(
+    const vk::Device& logicalDevice,
+    const vk::PhysicalDevice& physicalDevice,
+    const vk::CommandPool& commandPool,
+    const vk::Queue& copyQueue,
+    PixFormat format,
+    Size size,
+    Color fillColor) noexcept
+{
+    const auto imageFormat = pixFormatToVkFormat(format);
+    if (!imageFormat) {
+        std::ostringstream ss;
+        ss << format;
+        return unexpected("Unsupported pixel format: " + ss.str());
+    }
+
+    vk::DeviceMemory imageMemory;
+    vk::Image image;
+
+    const auto data = textureBytesFilledWithColor(format, size, fillColor);
+
+    const auto result = createTextureImage32(
+        logicalDevice,
+        physicalDevice,
+        commandPool,
+        copyQueue,
+        data.data(),
+        size.x,
+        size.y,
+        *imageFormat,
+        &image,
+        &imageMemory);
+    if (!result) {
+        return unexpected("Failed to create texture image", result.error());
+    }
+
+    std::vector<std::string> errs;
+    const auto imageView = e172vp::SwapChain::createImageView(logicalDevice, image, *imageFormat, &errs);
+    if (!errs.empty()) {
+        return unexpected("Error creating image view: " + errs.front());
+    }
 
     return std::make_shared<UploadedTexture>(
         std::move(logicalDevice),

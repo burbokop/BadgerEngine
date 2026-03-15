@@ -4,15 +4,16 @@
 
 namespace BadgerEngine {
 
-using MaterialChannel = std::variant<SharedTexture, Color>;
+using MaterialColorChannel = std::variant<SharedTexture, Color>;
+using MaterialFloatChannel = std::variant<SharedTexture, float>;
 
 struct BSDFMaterial {
-    MaterialChannel baseColor;
-    MaterialChannel metallness;
-    MaterialChannel roughness;
-    MaterialChannel indexOfRefration;
-    MaterialChannel normalMap;
-    MaterialChannel ambientOclusion;
+    MaterialColorChannel baseColor;
+    MaterialColorChannel normalMap;
+    MaterialColorChannel ambientOclusion;
+    MaterialFloatChannel metallness;
+    MaterialFloatChannel roughness;
+    MaterialFloatChannel indexOfRefration;
 };
 
 /// Uses frame buffer as texture

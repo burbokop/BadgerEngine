@@ -51,6 +51,24 @@ constexpr std::size_t pixFormatDepth(PixFormat fmt)
     return 0;
 }
 
+/**
+ * @brief pixFormatBytesPerPixel
+ * @param fmt
+ * @return bytes per pixel fr given format. 0 means `fmt` not recognized
+ */
+constexpr std::size_t pixFormatBytesPerPixel(PixFormat fmt)
+{
+    switch (fmt) {
+    case PixFormat::GS:
+        return 1;
+    case PixFormat::ARGB32:
+        return 4;
+    case PixFormat::RGBA32:
+        return 4;
+    }
+    return 0;
+}
+
 struct TextureMetaData {
     std::size_t width = 0;
     std::size_t height = 0;

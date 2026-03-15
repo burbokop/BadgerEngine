@@ -13,16 +13,16 @@ target_sources(
     BadgerEngine
     PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/graphicsobject.h>
            $<INSTALL_INTERFACE:${INSTALLDIR}/graphicsobject.h>
-           $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/renderer.h>
-           $<INSTALL_INTERFACE:${INSTALLDIR}/renderer.h>
+           $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/Renderer.h>
+           $<INSTALL_INTERFACE:${INSTALLDIR}/Renderer.h>
            $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/swapchain.h>
            $<INSTALL_INTERFACE:${INSTALLDIR}/swapchain.h>
            $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/renderpass.h>
            $<INSTALL_INTERFACE:${INSTALLDIR}/renderpass.h>
            $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/commandpool.h>
            $<INSTALL_INTERFACE:${INSTALLDIR}/commandpool.h>
-           $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/vertexobject.h>
-           $<INSTALL_INTERFACE:${INSTALLDIR}/vertexobject.h>
+           $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/VertexObject.h>
+           $<INSTALL_INTERFACE:${INSTALLDIR}/VertexObject.h>
            $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/descriptorsetlayout.h>
            $<INSTALL_INTERFACE:${INSTALLDIR}/descriptorsetlayout.h>
            $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/pipeline.h>
@@ -36,12 +36,16 @@ target_sources(
            $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/PointLight.h>
            $<INSTALL_INTERFACE:${INSTALLDIR}/PointLight.h>
     PRIVATE graphicsobject.cpp
-            renderer.cpp
+            Renderer.cpp
             swapchain.cpp
             renderpass.cpp
             commandpool.cpp
-            vertexobject.cpp
+            VertexObject.cpp
             descriptorsetlayout.cpp
             pipeline.cpp
             font.cpp
-            Camera.cpp)
+            Camera.cpp
+            ImageViewVertexObject.cpp
+            ImageViewVertexObject.h
+            BSDFVertexObject.cpp
+            BSDFVertexObject.h)

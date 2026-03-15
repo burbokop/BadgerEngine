@@ -1,14 +1,19 @@
-#include "renderer.h"
+#include "Renderer.h"
 
+#include "BSDFVertexObject.h"
 #include "Buffers/BufferUtils.h"
 #include "Camera.h"
+#include "ImageViewVertexObject.h"
 #include "Model/Model.h"
 #include "PointLight.h"
 #include "Tools/UploadedTexture.h"
 #include "Tools/stringvector.h"
 #include "Utils/NumericCast.h"
 #include "Utils/Visit.h"
+#include "VertexObject.h"
 #include "Window.h"
+#include <BSDF.frag.spv.h>
+#include <BSDF.vert.spv.h>
 #include <chrono>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
@@ -38,6 +43,55 @@ struct GlobalUniformBufferObject {
     glm::vec2 mouse;
 };
 
+Expected<Shared<UploadedTexture>> uploadMaterialColorChannel(
+    const MaterialColorChannel& channel,
+    const e172vp::GraphicsObject& graphicsObject)
+{
+    return std::visit(
+        Overloaded {
+            [&graphicsObject](const SharedTexture& texture) -> Expected<Shared<UploadedTexture>> {
+                return UploadedTexture::upload(
+                    graphicsObject.logicalDevice(),
+                    graphicsObject.physicalDevice(),
+                    graphicsObject.commandPool(),
+                    // Assuming graphics queue can also do copy. If not then add some check
+                    graphicsObject.graphicsQueue(), texture)
+                    .transform_error(AsReason("Failed to upload a texture"));
+            },
+            [&graphicsObject](const Color& color) -> Expected<Shared<UploadedTexture>> {
+                return UploadedTexture::create(
+                    graphicsObject.logicalDevice(),
+                    graphicsObject.physicalDevice(),
+                    graphicsObject.commandPool(),
+                    // Assuming graphics queue can also do copy. If not then add some check
+                    graphicsObject.graphicsQueue(),
+                    PixFormat::RGBA32,
+                    { 1, 1 },
+                    color)
+                    .transform_error(AsReason("Failed to create a texture from color"));
+            },
+        },
+        channel);
+}
+
+void resetCommandBuffers(const std::vector<vk::CommandBuffer>& commandBuffers, const vk::Queue& graphicsQueue, const vk::Queue& presentQueue)
+{
+    graphicsQueue.waitIdle();
+    presentQueue.waitIdle();
+
+    for (auto b : commandBuffers) {
+        b.reset(vk::CommandBufferResetFlagBits::eReleaseResources);
+    }
+}
+
+void createSyncObjects(const vk::Device& logicDevice, vk::Semaphore* imageAvailableSemaphore, vk::Semaphore* renderFinishedSemaphore)
+{
+    vk::SemaphoreCreateInfo semaphoreInfo;
+    if (
+        logicDevice.createSemaphore(&semaphoreInfo, nullptr, imageAvailableSemaphore) != vk::Result::eSuccess || logicDevice.createSemaphore(&semaphoreInfo, nullptr, renderFinishedSemaphore) != vk::Result::eSuccess)
+        throw std::runtime_error("failed to create synchronization objects for a frame!");
+}
+
 }
 
 Renderer::Renderer(Shared<Window> window, const std::filesystem::path& fontPath)
@@ -47,7 +101,7 @@ Renderer::Renderer(Shared<Window> window, const std::filesystem::path& fontPath)
           .requiredExtensions = window->requiredVulkanExtensions(),
           .requiredDeviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, "VK_EXT_memory_budget" },
           .surfaceCreator = [window](vk::Instance i, vk::SurfaceKHR* s) {
-              *s = window->createVulkanSurface(i).transform_error(handleAsCritical<>).value();
+              *s = window->createVulkanSurface(i).transform_error(AsCritical()).value();
           },
           .descriptorPoolSize = 1024 * 64,
 #ifndef NDEBUG
@@ -74,7 +128,8 @@ Renderer::Renderer(Shared<Window> window, const std::filesystem::path& fontPath)
     m_globalDescriptorSetLayout = e172vp::DescriptorSetLayout::createUniformDSL(m_graphicsObject->logicalDevice(), 0);
     m_lightingDescriptorSetLayout = e172vp::DescriptorSetLayout::createUniformDSL(m_graphicsObject->logicalDevice(), 0);
     m_objectDescriptorSetLayout = e172vp::DescriptorSetLayout::createUniformDSL(m_graphicsObject->logicalDevice(), 0);
-    m_samplerDescriptorSetLayout = e172vp::DescriptorSetLayout::createSamplerDSL(m_graphicsObject->logicalDevice(), 0);
+    m_baseColorSamplerDescriptorSetLayout = e172vp::DescriptorSetLayout::createSamplerDSL(m_graphicsObject->logicalDevice(), 0);
+    m_ambientOcclusionDescriptorSetLayout = e172vp::DescriptorSetLayout::createSamplerDSL(m_graphicsObject->logicalDevice(), 0);
 
     m_commonGlobalUniformBufferBundles = BufferUtils::createUniformBufferBundle<GlobalUniformBufferObject>(
         *m_graphicsObject,
@@ -112,132 +167,7 @@ Renderer::Renderer(Shared<Window> window, const std::filesystem::path& fontPath)
         Geometry::Topology::LineList, PolygonMode::Fill);
 }
 
-std::shared_ptr<e172vp::Pipeline> Renderer::createPipeline(
-    std::span<const uint8_t> vertShaderCode,
-    std::span<const uint8_t> fragShaderCode,
-    Geometry::Topology topology,
-    BadgerEngine::PolygonMode polygonMode)
-{
-    return std::make_shared<e172vp::Pipeline>(m_graphicsObject->logicalDevice(),
-        m_graphicsObject->swapChainSettings().extent,
-        m_graphicsObject->renderPass(),
-        std::vector {
-            m_globalDescriptorSetLayout.descriptorSetLayoutHandle(),
-            m_lightingDescriptorSetLayout.descriptorSetLayoutHandle(),
-            m_objectDescriptorSetLayout.descriptorSetLayoutHandle(),
-            m_samplerDescriptorSetLayout.descriptorSetLayoutHandle() },
-        vertShaderCode,
-        fragShaderCode,
-        topology, polygonMode);
-}
-
-void Renderer::applyPresentation()
-{
-    resetCommandBuffers(
-        m_graphicsObject->commandPool().commandBufferVector(),
-        m_graphicsObject->graphicsQueue(),
-        m_graphicsObject->presentQueue());
-
-    proceedCommandBuffers(
-        m_graphicsObject->renderPass(),
-        m_graphicsObject->swapChainSettings().extent,
-        *m_camera,
-        m_graphicsObject->swapChain().frameBufferVector(),
-        m_graphicsObject->commandPool().commandBufferVector(),
-        m_commonGlobalUniformBufferBundles,
-        m_lightingUniformBufferBundles,
-        m_vertexObjects);
-
-    std::uint32_t imageIndex = 0;
-
-    vk::Result returnCode = m_graphicsObject->logicalDevice().acquireNextImageKHR(m_graphicsObject->swapChain(), UINT64_MAX, m_imageAvailableSemaphore, {}, &imageIndex);
-    if (returnCode != vk::Result::eSuccess)
-        throw std::runtime_error("acquiring next image failed. code: " + vk::to_string(returnCode));
-
-    auto currentImageCommandBuffer = m_graphicsObject->commandPool().commandBuffer(imageIndex);
-
-    vk::Semaphore waitSemaphores[] = { m_imageAvailableSemaphore };
-    vk::PipelineStageFlags waitStages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
-
-    updateUniformBuffer(imageIndex);
-
-    for (auto& o : m_vertexObjects) {
-        o->updateUbo(imageIndex);
-    }
-
-    vk::SubmitInfo submitInfo;
-    submitInfo.waitSemaphoreCount = 1;
-    submitInfo.pWaitSemaphores = waitSemaphores;
-    submitInfo.pWaitDstStageMask = waitStages;
-    submitInfo.setCommandBuffers(currentImageCommandBuffer);
-    submitInfo.setSignalSemaphores(m_renderFinishedSemaphore);
-
-    returnCode = m_graphicsObject->graphicsQueue().submit(1, &submitInfo, {});
-
-    if (returnCode != vk::Result::eSuccess)
-        throw std::runtime_error("failed to submit draw command buffer. code: " + vk::to_string(returnCode));
-
-    vk::SwapchainKHR swapChains[] = { m_graphicsObject->swapChain() };
-
-    vk::PresentInfoKHR presentInfo;
-    presentInfo.setWaitSemaphores(m_renderFinishedSemaphore);
-    presentInfo.swapchainCount = 1;
-    presentInfo.pSwapchains = swapChains;
-    presentInfo.pImageIndices = &imageIndex;
-    presentInfo.pResults = nullptr; // Optional
-
-    returnCode = m_graphicsObject->presentQueue().presentKHR(&presentInfo);
-    if (returnCode != vk::Result::eSuccess)
-        throw std::runtime_error("present failed. code: " + vk::to_string(returnCode));
-}
-
-void Renderer::updateUniformBuffer(uint32_t currentImage)
-{
-    {
-        static const auto begin = std::chrono::high_resolution_clock::now();
-        const float time = static_cast<float>(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - begin).count()) / 1000.f;
-
-        const auto size = m_window->size();
-
-        const auto ubo = GlobalUniformBufferObject {
-            .transformation = m_camera->transformation(size.x / size.y),
-            .time = time,
-            ._time = time,
-            .mouse = { 0, 0 }
-        };
-
-        void* data;
-        const auto result = m_graphicsObject->logicalDevice().mapMemory(m_commonGlobalUniformBufferBundles[currentImage].memory, 0, sizeof(ubo), vk::MemoryMapFlags(), &data);
-        if (result != vk::Result::eSuccess) {
-            throw std::runtime_error("Failed to map memory: " + vk::to_string(result));
-        }
-        std::memcpy(data, &ubo, sizeof(ubo));
-        m_graphicsObject->logicalDevice().unmapMemory(m_commonGlobalUniformBufferBundles[currentImage].memory);
-    }
-
-    {
-        LightingUniformBufferObject ubo;
-        constexpr std::size_t capacity = sizeof(ubo.lights) / sizeof(ubo.lights[0]);
-        assert(m_pointLights.size() <= capacity);
-        ubo.lightsCount = numericCast<std::uint32_t>(std::min(capacity, m_pointLights.size())).value();
-
-        for (std::size_t i = 0; i < ubo.lightsCount; ++i) {
-            ubo.lights[i].position = glm::vec4(m_pointLights[i]->position, 0.f);
-            ubo.lights[i].color = glm::vec4(m_pointLights[i]->color, m_pointLights[i]->intensity);
-        }
-        ubo.ambient = 0.2f;
-
-        void* data;
-        const auto result = m_graphicsObject->logicalDevice().mapMemory(m_lightingUniformBufferBundles[currentImage].memory, 0, sizeof(ubo), vk::MemoryMapFlags(), &data);
-        if (result != vk::Result::eSuccess) {
-            throw std::runtime_error("Failed to map memory: " + vk::to_string(result));
-        }
-        std::memcpy(data, &ubo, sizeof(ubo));
-        m_graphicsObject->logicalDevice().unmapMemory(m_lightingUniformBufferBundles[currentImage].memory);
-    }
-}
-
-void Renderer::proceedCommandBuffers(const vk::RenderPass& renderPass,
+Expected<void> Renderer::proceedCommandBuffers(const vk::RenderPass& renderPass,
     const vk::Extent2D& extent,
     const PerspectiveCamera& camera,
     const std::vector<vk::Framebuffer>& swapChainFramebuffers,
@@ -287,59 +217,156 @@ void Renderer::proceedCommandBuffers(const vk::RenderPass& renderPass,
         commandBuffers[i].setViewport(0, 1, &viewport);
 
         for (auto object : vertexObjects) {
-            object->draw(i, commandBuffers, commonGlobalUniformBufferBundles, lightingUniformBufferBundles);
+            const auto result = object->draw(i, commandBuffers, commonGlobalUniformBufferBundles, lightingUniformBufferBundles);
+            if (!result) {
+                return unexpected("Failed to draw vertex object", result.error());
+            }
         }
 
-        //        vk::ImageBlit blit;
-        //        commandBuffers[i].blitImage(fgImage, vk::ImageLayout::eUndefined, swapChainImages[i], vk::ImageLayout::eTransferDstOptimal, { blit }, vk::Filter::eLinear);
         commandBuffers[i].endRenderPass();
         commandBuffers[i].end();
     }
+
+    return {};
 }
 
-void Renderer::resetCommandBuffers(const std::vector<vk::CommandBuffer>& commandBuffers, const vk::Queue& graphicsQueue, const vk::Queue& presentQueue)
+std::shared_ptr<e172vp::Pipeline> Renderer::createPipeline(
+    std::span<const uint8_t> vertShaderCode,
+    std::span<const uint8_t> fragShaderCode,
+    Geometry::Topology topology,
+    BadgerEngine::PolygonMode polygonMode)
 {
-    graphicsQueue.waitIdle();
-    presentQueue.waitIdle();
+    return std::make_shared<e172vp::Pipeline>(m_graphicsObject->logicalDevice(),
+        m_graphicsObject->swapChainSettings().extent,
+        m_graphicsObject->renderPass(),
+        std::vector {
+            m_globalDescriptorSetLayout.descriptorSetLayoutHandle(),
+            m_lightingDescriptorSetLayout.descriptorSetLayoutHandle(),
+            m_objectDescriptorSetLayout.descriptorSetLayoutHandle(),
+            m_baseColorSamplerDescriptorSetLayout.descriptorSetLayoutHandle(),
+            m_ambientOcclusionDescriptorSetLayout.descriptorSetLayoutHandle(),
+        },
+        vertShaderCode,
+        fragShaderCode,
+        topology, polygonMode);
+}
 
-    for (auto b : commandBuffers) {
-        b.reset(vk::CommandBufferResetFlagBits::eReleaseResources);
+Expected<void> Renderer::applyPresentation() noexcept
+{
+    resetCommandBuffers(
+        m_graphicsObject->commandPool().commandBufferVector(),
+        m_graphicsObject->graphicsQueue(),
+        m_graphicsObject->presentQueue());
+
+    proceedCommandBuffers(
+        m_graphicsObject->renderPass(),
+        m_graphicsObject->swapChainSettings().extent,
+        *m_camera,
+        m_graphicsObject->swapChain().frameBufferVector(),
+        m_graphicsObject->commandPool().commandBufferVector(),
+        m_commonGlobalUniformBufferBundles,
+        m_lightingUniformBufferBundles,
+        m_vertexObjects);
+
+    std::uint32_t imageIndex = 0;
+
+    {
+        const auto result = m_graphicsObject->logicalDevice().acquireNextImageKHR(m_graphicsObject->swapChain(), UINT64_MAX, m_imageAvailableSemaphore, {}, &imageIndex);
+        if (result != vk::Result::eSuccess) {
+            return unexpected("Failed to acquire next image: " + vk::to_string(result));
+        }
     }
+
+    auto currentImageCommandBuffer = m_graphicsObject->commandPool().commandBuffer(imageIndex);
+
+    vk::Semaphore waitSemaphores[] = { m_imageAvailableSemaphore };
+    vk::PipelineStageFlags waitStages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
+
+    updateUniformBuffer(imageIndex);
+
+    for (auto& o : m_vertexObjects) {
+        const auto result = o->updateUniformBuffer(imageIndex);
+        if (!result) {
+        }
+    }
+
+    vk::SubmitInfo submitInfo;
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = waitSemaphores;
+    submitInfo.pWaitDstStageMask = waitStages;
+    submitInfo.setCommandBuffers(currentImageCommandBuffer);
+    submitInfo.setSignalSemaphores(m_renderFinishedSemaphore);
+
+    {
+        const auto result = m_graphicsObject->graphicsQueue().submit(1, &submitInfo, {});
+        if (result != vk::Result::eSuccess) {
+            return unexpected("Failed to submit draw command buffer: " + vk::to_string(result));
+        }
+    }
+
+    vk::SwapchainKHR swapChains[] = { m_graphicsObject->swapChain() };
+
+    vk::PresentInfoKHR presentInfo;
+    presentInfo.setWaitSemaphores(m_renderFinishedSemaphore);
+    presentInfo.swapchainCount = 1;
+    presentInfo.pSwapchains = swapChains;
+    presentInfo.pImageIndices = &imageIndex;
+    presentInfo.pResults = nullptr; // Optional
+
+    {
+        const auto result = m_graphicsObject->presentQueue().presentKHR(&presentInfo);
+        if (result != vk::Result::eSuccess) {
+            return unexpected("Present failed: " + vk::to_string(result));
+        }
+    }
+
+    return {};
 }
 
-VertexObject& Renderer::addObject(const Shared<Geometry::Mesh>& mesh, Shared<e172vp::Pipeline> pipeline)
+void Renderer::updateUniformBuffer(uint32_t currentImage)
 {
-    return addObject(mesh, m_font->character('F').imageView(), pipeline);
-}
+    {
+        static const auto begin = std::chrono::high_resolution_clock::now();
+        const float time = static_cast<float>(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - begin).count()) / 1000.f;
 
-VertexObject& Renderer::addObject(const Shared<Geometry::Mesh>& mesh, vk::ImageView texture, Shared<e172vp::Pipeline> pipeline)
-{
-    const auto r = new VertexObject(
-        m_graphicsObject,
-        m_graphicsObject->swapChain().imageCount(),
-        &m_objectDescriptorSetLayout,
-        &m_samplerDescriptorSetLayout,
-        mesh,
-        texture,
-        pipeline,
-        m_normalDebugPipeline);
-    m_vertexObjects.push_back(r);
-    return *r;
-}
+        const auto size = m_window->size();
 
-VertexObject& Renderer::addObject(const Shared<Geometry::Mesh>& mesh, Shared<UploadedTexture> texture, Shared<e172vp::Pipeline> pipeline)
-{
-    const auto r = new VertexObject(
-        m_graphicsObject,
-        m_graphicsObject->swapChain().imageCount(),
-        &m_objectDescriptorSetLayout,
-        &m_samplerDescriptorSetLayout,
-        mesh,
-        texture,
-        pipeline,
-        m_normalDebugPipeline);
-    m_vertexObjects.push_back(r);
-    return *r;
+        const auto ubo = GlobalUniformBufferObject {
+            .transformation = m_camera->transformation(size.x / size.y),
+            .time = time,
+            ._time = time,
+            .mouse = { 0, 0 }
+        };
+
+        void* data;
+        const auto result = m_graphicsObject->logicalDevice().mapMemory(m_commonGlobalUniformBufferBundles[currentImage].memory, 0, sizeof(ubo), vk::MemoryMapFlags(), &data);
+        if (result != vk::Result::eSuccess) {
+            throw std::runtime_error("Failed to map memory: " + vk::to_string(result));
+        }
+        std::memcpy(data, &ubo, sizeof(ubo));
+        m_graphicsObject->logicalDevice().unmapMemory(m_commonGlobalUniformBufferBundles[currentImage].memory);
+    }
+
+    {
+        LightingUniformBufferObject ubo;
+        constexpr std::size_t capacity = sizeof(ubo.lights) / sizeof(ubo.lights[0]);
+        assert(m_pointLights.size() <= capacity);
+        ubo.lightsCount = numericCast<std::uint32_t>(std::min(capacity, m_pointLights.size())).value();
+
+        for (std::size_t i = 0; i < ubo.lightsCount; ++i) {
+            ubo.lights[i].position = glm::vec4(m_pointLights[i]->position, 0.f);
+            ubo.lights[i].color = glm::vec4(m_pointLights[i]->color, m_pointLights[i]->intensity);
+        }
+        ubo.ambient = 0.2f;
+
+        void* data;
+        const auto result = m_graphicsObject->logicalDevice().mapMemory(m_lightingUniformBufferBundles[currentImage].memory, 0, sizeof(ubo), vk::MemoryMapFlags(), &data);
+        if (result != vk::Result::eSuccess) {
+            throw std::runtime_error("Failed to map memory: " + vk::to_string(result));
+        }
+        std::memcpy(data, &ubo, sizeof(ubo));
+        m_graphicsObject->logicalDevice().unmapMemory(m_lightingUniformBufferBundles[currentImage].memory);
+    }
 }
 
 VertexObject& Renderer::addCharacter(char c, std::shared_ptr<e172vp::Pipeline> pipeline)
@@ -350,16 +377,17 @@ VertexObject& Renderer::addCharacter(char c, std::shared_ptr<e172vp::Pipeline> p
         { { 0.1f, 0.1f, 0 }, { 0, 0, 0 }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f } },
         { { -0.1f, 0.1f, 0 }, { 0, 0, 0 }, { 1.0f, 1.0f, 1.0f }, { 0.0f, 1.0f } }
     };
+
     const static std::vector<uint32_t> i = {
         0, 1, 2,
         2, 3, 0
     };
 
-    const auto r = new VertexObject(
+    const auto r = new ImageViewVertexObject(
         m_graphicsObject,
         m_graphicsObject->swapChain().imageCount(),
-        &m_objectDescriptorSetLayout,
-        &m_samplerDescriptorSetLayout,
+        m_objectDescriptorSetLayout,
+        m_baseColorSamplerDescriptorSetLayout,
         Geometry::Mesh::create(Geometry::Topology::TriangleList, v, i),
         m_font->character(c).imageView(),
         pipeline,
@@ -372,16 +400,39 @@ VertexObject& Renderer::addObject(const BadgerEngine::Model& model)
 {
     return std::visit(
         Overloaded {
-            [](const BSDFMaterial& material) -> VertexObject& {
-                (void)material;
-                std::cerr << "TODO";
-                std::abort();
+            [this, &model](const BSDFMaterial& material) -> VertexObject& {
+                const auto baseColor = uploadMaterialColorChannel(material.baseColor, *m_graphicsObject).transform_error(AsCritical()).value();
+                const auto ambientOclusion = uploadMaterialColorChannel(material.ambientOclusion, *m_graphicsObject).transform_error(AsCritical()).value();
+
+                const auto result = new BSDFVertexObject(
+                    m_graphicsObject,
+                    m_graphicsObject->swapChain().imageCount(),
+                    m_objectDescriptorSetLayout,
+                    m_baseColorSamplerDescriptorSetLayout,
+                    m_ambientOcclusionDescriptorSetLayout,
+                    model.mesh(),
+                    std::move(baseColor),
+                    std::move(ambientOclusion),
+                    createPipeline(BSDF_vert, BSDF_frag, Geometry::Topology::TriangleList, model.polygonMode()),
+                    m_normalDebugPipeline);
+                m_vertexObjects.push_back(result);
+                return *result;
             },
             [this, &model](const RecursiveMaterial& material) -> VertexObject& {
                 const auto& frames = m_graphicsObject->swapChain().frames();
                 std::size_t i = 0;
                 assert(i < frames.size());
-                return addObject(model.mesh(), frames[i].imageView, createPipeline(material.vert, material.frag, Geometry::Topology::TriangleList, model.polygonMode()));
+                const auto result = new ImageViewVertexObject(
+                    m_graphicsObject,
+                    m_graphicsObject->swapChain().imageCount(),
+                    m_objectDescriptorSetLayout,
+                    m_baseColorSamplerDescriptorSetLayout,
+                    model.mesh(),
+                    frames[i].imageView,
+                    createPipeline(material.vert, material.frag, Geometry::Topology::TriangleList, model.polygonMode()),
+                    m_normalDebugPipeline);
+                m_vertexObjects.push_back(result);
+                return *result;
             },
             [this, &model](const CustomMaterial& material) -> VertexObject& {
                 if (material.textures.size() > 0) {
@@ -392,12 +443,33 @@ VertexObject& Renderer::addObject(const BadgerEngine::Model& model)
                         m_graphicsObject->commandPool(),
                         // Assuming graphics queue can also do copy. If not then add some check
                         m_graphicsObject->graphicsQueue(), material.textures.front())
-                                             .transform_error(handleAsCritical<>)
+                                             .transform_error(AsCritical())
                                              .value();
 
-                    return addObject(model.mesh(), texture, createPipeline(material.vert, material.frag, Geometry::Topology::TriangleList, model.polygonMode()));
+                    const auto result = new ImageViewVertexObject(
+                        m_graphicsObject,
+                        m_graphicsObject->swapChain().imageCount(),
+                        m_objectDescriptorSetLayout,
+                        m_baseColorSamplerDescriptorSetLayout,
+                        model.mesh(),
+                        texture,
+                        createPipeline(material.vert, material.frag, Geometry::Topology::TriangleList, model.polygonMode()),
+                        m_normalDebugPipeline);
+                    m_vertexObjects.push_back(result);
+                    return *result;
+
                 } else {
-                    return addObject(model.mesh(), createPipeline(material.vert, material.frag, Geometry::Topology::TriangleList, model.polygonMode()));
+                    const auto result = new ImageViewVertexObject(
+                        m_graphicsObject,
+                        m_graphicsObject->swapChain().imageCount(),
+                        m_objectDescriptorSetLayout,
+                        m_baseColorSamplerDescriptorSetLayout,
+                        model.mesh(),
+                        m_font->character('N').imageView(),
+                        createPipeline(material.vert, material.frag, Geometry::Topology::TriangleList, model.polygonMode()),
+                        m_normalDebugPipeline);
+                    m_vertexObjects.push_back(result);
+                    return *result;
                 }
             },
         },
@@ -421,11 +493,4 @@ bool Renderer::removeVertexObject(VertexObject* vertexObject)
     return true;
 }
 
-void Renderer::createSyncObjects(const vk::Device& logicDevice, vk::Semaphore* imageAvailableSemaphore, vk::Semaphore* renderFinishedSemaphore)
-{
-    vk::SemaphoreCreateInfo semaphoreInfo;
-    if (
-        logicDevice.createSemaphore(&semaphoreInfo, nullptr, imageAvailableSemaphore) != vk::Result::eSuccess || logicDevice.createSemaphore(&semaphoreInfo, nullptr, renderFinishedSemaphore) != vk::Result::eSuccess)
-        throw std::runtime_error("failed to create synchronization objects for a frame!");
-}
 }

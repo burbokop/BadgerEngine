@@ -3,6 +3,7 @@
 #include "Buffers/BufferUtils.h"
 #include "Buffers/MeshBuffer.h"
 #include "Tools/UploadedModel.h"
+#include "VertexObject.h"
 #include "descriptorsetlayout.h"
 #include <glm/glm.hpp>
 #include <span>
@@ -21,39 +22,26 @@ namespace Geometry {
 class Mesh;
 }
 
-class VertexObject {
-    friend BadgerEngine::Renderer;
+class ImageViewVertexObject : public VertexObject {
 
-    static constexpr glm::mat4 sm = {
-        { 1, 0, 0, 0 },
-        { 0, 1, 0, 0 },
-        { 0, 0, 1, 0 },
-        { 0, 0, 0, 1 }
-    };
+public:
+    ~ImageViewVertexObject();
 
-    ~VertexObject();
-
-    VertexObject& operator=(VertexObject&&) = delete;
-    VertexObject& operator=(const VertexObject&) = delete;
-    VertexObject(VertexObject&&) = delete;
-    VertexObject(const VertexObject&) = delete;
-
-    [[deprecated("Use the one with uploaded texture")]]
-    VertexObject(
+    ImageViewVertexObject(
         Shared<e172vp::GraphicsObject> graphicsObject,
         std::size_t imageCount,
-        const e172vp::DescriptorSetLayout* descriptorSetLayout,
-        const e172vp::DescriptorSetLayout* samplerDescriptorSetLayout,
+        const e172vp::DescriptorSetLayout& uniformBufferDescriptorSetLayout,
+        const e172vp::DescriptorSetLayout& samplerDescriptorSetLayout,
         const Shared<BadgerEngine::Geometry::Mesh>& mesh,
         const vk::ImageView& imageView,
         Shared<e172vp::Pipeline> pipeline,
         Shared<e172vp::Pipeline> nPipeline);
 
-    VertexObject(
+    ImageViewVertexObject(
         Shared<e172vp::GraphicsObject> graphicsObject,
         std::size_t imageCount,
-        const e172vp::DescriptorSetLayout* descriptorSetLayout,
-        const e172vp::DescriptorSetLayout* samplerDescriptorSetLayout,
+        const e172vp::DescriptorSetLayout& uniformBufferDescriptorSetLayout,
+        const e172vp::DescriptorSetLayout& samplerDescriptorSetLayout,
         const Shared<BadgerEngine::Geometry::Mesh>& mesh,
         Shared<UploadedTexture> texture,
         Shared<e172vp::Pipeline> pipeline,
@@ -70,33 +58,22 @@ public:
         return m_uniformBufferBundles;
     }
 
-    glm::mat4 rotation() const;
-    VertexObject& setRotation(const glm::mat4& rotation);
-    glm::mat4 translation() const;
-    VertexObject& setTranslation(const glm::mat4& translation);
-    glm::mat4 scale() const;
-    VertexObject& setScale(const glm::mat4& scale);
-    std::vector<vk::DescriptorSet> textureDescriptorSets() const;
-
-    void draw(std::size_t imageIndex,
+protected:
+    Expected<void> draw(std::size_t imageIndex,
         std::span<const vk::CommandBuffer> commandBuffers,
         std::span<const BufferBundle> commonGlobalUniformBufferBundles,
-        std::span<const BufferBundle> lightingUniformBufferBundles) const;
+        std::span<const BufferBundle> lightingUniformBufferBundles) const noexcept override;
+
+    Expected<void> updateUniformBuffer(std::size_t imageIndex) noexcept override;
 
 private:
-    void updateUbo(std::size_t imageIndex);
-
-private:
-    glm::mat4 m_rotation = sm;
-    glm::mat4 m_translation = sm;
-    glm::mat4 m_scale = sm;
-
     Shared<e172vp::GraphicsObject> m_graphicsObject;
     std::vector<UploadedModel> m_models;
     std::optional<Shared<UploadedTexture>> m_texture;
 
     std::vector<BadgerEngine::BufferBundle> m_uniformBufferBundles;
     std::vector<vk::DescriptorSet> m_textureDescriptorSets;
+    std::vector<vk::DescriptorSet> m_ambientOclussionMapDescriptorSets;
 };
 
 }

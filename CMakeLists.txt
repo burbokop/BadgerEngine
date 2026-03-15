@@ -66,7 +66,9 @@ badger_engine_add_embedded_shader_target(
     ${CMAKE_CURRENT_BINARY_DIR}/install_prefix/include/BadgerEngine/Shaders
     SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/shaders/normal_debug.frag
-    ${CMAKE_CURRENT_LIST_DIR}/shaders/normal_debug.vert)
+    ${CMAKE_CURRENT_LIST_DIR}/shaders/normal_debug.vert
+    ${CMAKE_CURRENT_LIST_DIR}/shaders/BSDF.vert
+    ${CMAKE_CURRENT_LIST_DIR}/shaders/BSDF.frag)
 
 add_dependencies(BadgerEngine BadgerEngineEmbeddedShaders)
 

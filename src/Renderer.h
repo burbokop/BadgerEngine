@@ -5,7 +5,6 @@
 #include "font.h"
 #include "graphicsobject.h"
 #include "pipeline.h"
-#include "vertexobject.h"
 #include <filesystem>
 #include <list>
 
@@ -16,23 +15,11 @@ class PerspectiveCamera;
 class Window;
 struct PointLight;
 class UploadedTexture;
+class VertexObject;
 
 class Renderer {
 
 public:
-    static void proceedCommandBuffers(
-        const vk::RenderPass& renderPass,
-        const vk::Extent2D& extent,
-        const PerspectiveCamera& camera,
-        const std::vector<vk::Framebuffer>& swapChainFramebuffers,
-        const std::vector<vk::CommandBuffer>& commandBuffers,
-        const std::vector<BufferBundle>& commonGlobalUniformBufferBundles,
-        const std::vector<BufferBundle>& lightingUniformBufferBundles,
-        const std::list<VertexObject*>& vertexObjects);
-
-    static void resetCommandBuffers(const std::vector<vk::CommandBuffer>& commandBuffers, const vk::Queue& graphicsQueue, const vk::Queue& presentQueue);
-    static void createSyncObjects(const vk::Device& logicDevice, vk::Semaphore* imageAvailableSemaphore, vk::Semaphore* renderFinishedSemaphore);
-
     VertexObject& addObject(const BadgerEngine::Model& model);
     Shared<PointLight> addPointLight(
         glm::vec3 position,
@@ -42,7 +29,7 @@ public:
     bool removeVertexObject(VertexObject* vertexObject);
     Renderer(Shared<Window> window, const std::filesystem::path& fontPath);
 
-    void applyPresentation();
+    [[nodiscard]] Expected<void> applyPresentation() noexcept;
     void updateUniformBuffer(uint32_t currentImage);
 
     const auto& graphicsObject() const { return m_graphicsObject; }
@@ -58,16 +45,21 @@ public:
     }
 
 private:
+    Expected<void> proceedCommandBuffers(const vk::RenderPass& renderPass,
+        const vk::Extent2D& extent,
+        const PerspectiveCamera& camera,
+        const std::vector<vk::Framebuffer>& swapChainFramebuffers,
+        const std::vector<vk::CommandBuffer>& commandBuffers,
+        const std::vector<BufferBundle>& commonGlobalUniformBufferBundles,
+        const std::vector<BufferBundle>& lightingUniformBufferBundles,
+        const std::list<VertexObject*>& vertexObjects);
+
     VertexObject& addCharacter(char c, std::shared_ptr<e172vp::Pipeline> pipeline);
     std::shared_ptr<e172vp::Pipeline> createPipeline(
         std::span<const std::uint8_t> vertShaderCode,
         std::span<const std::uint8_t> fragShaderCode,
         Geometry::Topology topology,
         BadgerEngine::PolygonMode polygonMode);
-    VertexObject& addObject(const Shared<Geometry::Mesh>& mesh, Shared<e172vp::Pipeline> pipeline);
-    [[deprecated("Use the one with uploaded texture")]]
-    VertexObject& addObject(const Shared<Geometry::Mesh>& mesh, vk::ImageView texture, Shared<e172vp::Pipeline> pipeline);
-    VertexObject& addObject(const Shared<Geometry::Mesh>& mesh, Shared<UploadedTexture> texture, Shared<e172vp::Pipeline> pipeline);
 
 private:
     Shared<e172vp::GraphicsObject> m_graphicsObject;
@@ -83,7 +75,8 @@ private:
     e172vp::DescriptorSetLayout m_globalDescriptorSetLayout;
     e172vp::DescriptorSetLayout m_lightingDescriptorSetLayout;
     e172vp::DescriptorSetLayout m_objectDescriptorSetLayout;
-    e172vp::DescriptorSetLayout m_samplerDescriptorSetLayout;
+    e172vp::DescriptorSetLayout m_baseColorSamplerDescriptorSetLayout;
+    e172vp::DescriptorSetLayout m_ambientOcclusionDescriptorSetLayout;
 
     std::vector<BufferBundle> m_commonGlobalUniformBufferBundles;
     std::vector<BufferBundle> m_lightingUniformBufferBundles;

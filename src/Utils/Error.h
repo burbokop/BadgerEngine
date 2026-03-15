@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cassert>
 #include <expected>
 #include <memory>
 #include <optional>
@@ -65,31 +66,64 @@ auto unexpected(Error<T> err)
 
 void printError(const std::string& err);
 
-template<typename T>
-void printErrorRecursive(std::ostream& stream, const Error<T>& err)
-{
-    const auto tab = "    ";
-    stream << '\n'
-           << tab << "file://" << err.loc().file_name() << ":" << err.loc().line() << ": " << err.message();
-    if (const auto& reason = err.reason()) {
-        printErrorRecursive(stream, *reason);
+template<typename T = Unit>
+class AsReason {
+public:
+    AsReason(std::string message, std::source_location loc = std::source_location::current())
+        : m_message(std::move(message))
+        , m_loc(std::move(loc))
+    {
     }
-}
+
+    Error<T> operator()(Error<T> err) && noexcept
+    {
+        assert(!m_moved);
+        m_moved = true;
+        return Error<T>(std::move(m_message), err, m_loc);
+    }
+
+private:
+    std::string m_message;
+    std::source_location m_loc;
+    bool m_moved = false;
+};
 
 template<typename T = Unit>
-[[noreturn]] Error<T> handleAsCritical(Error<T> err)
-{
-    if (err.reason()) {
+class AsCritical {
+public:
+    AsCritical(std::source_location loc = std::source_location::current())
+        : m_loc(std::move(loc))
+    {
+    }
+
+    [[noreturn]] Error<T> operator()(Error<T> err) && noexcept
+    {
         std::ostringstream ss;
-        ss << "CRITICAL:";
+        ss << "CRITICAL:\n"
+           << tab << locToUrl(m_loc) << ": Error handled as critical here";
         printErrorRecursive(ss, err);
         printError(ss.str());
-    } else {
-        std::ostringstream ss;
-        ss << "CRITICAL file://" << err.loc().file_name() << ":" << err.loc().line() << ": " << err.message();
-        printError(ss.str());
+        std::abort();
     }
-    std::abort();
-}
+
+private:
+    static std::string locToUrl(std::source_location loc)
+    {
+        return std::string("file://") + loc.file_name() + ":" + std::to_string(loc.line()) + ":" + std::to_string(loc.column());
+    }
+
+    static void printErrorRecursive(std::ostream& stream, const Error<T>& err)
+    {
+        stream << '\n'
+               << tab << locToUrl(err.loc()) << ": " << err.message();
+        if (const auto& reason = err.reason()) {
+            printErrorRecursive(stream, *reason);
+        }
+    }
+
+private:
+    std::source_location m_loc;
+    static constexpr const char* tab = "    ";
+};
 
 }

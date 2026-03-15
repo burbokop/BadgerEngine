@@ -268,11 +268,11 @@ void BufferUtils::createSamplerDescriptorSets(
     const vk::DescriptorPool& descriptorPool,
     const vk::ImageView& imageView,
     const vk::Sampler& sampler,
-    size_t count,
-    const e172vp::DescriptorSetLayout* descriptorSetLayout,
+    std::size_t count,
+    const e172vp::DescriptorSetLayout& descriptorSetLayout,
     std::vector<vk::DescriptorSet>* descriptorSets)
 {
-    std::vector<vk::DescriptorSetLayout> layouts(count, descriptorSetLayout->descriptorSetLayoutHandle());
+    std::vector<vk::DescriptorSetLayout> layouts(count, descriptorSetLayout.descriptorSetLayoutHandle());
     vk::DescriptorSetAllocateInfo allocInfo;
     allocInfo.descriptorPool = descriptorPool;
     allocInfo.descriptorSetCount = static_cast<uint32_t>(count);
@@ -293,7 +293,7 @@ void BufferUtils::createSamplerDescriptorSets(
 
         vk::WriteDescriptorSet descriptorWrite;
         descriptorWrite.dstSet = descriptorSets->at(i);
-        descriptorWrite.dstBinding = descriptorSetLayout->binding();
+        descriptorWrite.dstBinding = descriptorSetLayout.binding();
         descriptorWrite.dstArrayElement = 0;
         descriptorWrite.descriptorType = vk::DescriptorType::eCombinedImageSampler;
         descriptorWrite.descriptorCount = 1;

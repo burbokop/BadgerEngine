@@ -18,9 +18,9 @@ struct BufferBundle {
 
 class BufferUtils {
 public:
-    static uint32_t findMemoryType(const vk::PhysicalDevice &physicalDevice, uint32_t typeFilter, vk::MemoryPropertyFlags properties);
-    static bool createAbstractBuffer(const vk::Device &logicalDevice, const vk::PhysicalDevice &physicalDevice, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer *buffer, vk::DeviceMemory *bufferMemory);
-    static void copyBuffer(const vk::Device &logicalDevice, const vk::CommandPool &commandPool, const vk::Queue &graphicsQueue, const vk::Buffer &srcBuffer, const vk::Buffer &dstBuffer, const vk::DeviceSize &size);
+    static uint32_t findMemoryType(const vk::PhysicalDevice& physicalDevice, uint32_t typeFilter, vk::MemoryPropertyFlags properties);
+    static bool createAbstractBuffer(const vk::Device& logicalDevice, const vk::PhysicalDevice& physicalDevice, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer* buffer, vk::DeviceMemory* bufferMemory);
+    static void copyBuffer(const vk::Device& logicalDevice, const vk::CommandPool& commandPool, const vk::Queue& graphicsQueue, const vk::Buffer& srcBuffer, const vk::Buffer& dstBuffer, const vk::DeviceSize& size);
 
     static void createVertexBuffer(const vk::Device& logicalDevice,
         const vk::PhysicalDevice& physicalDevice,
@@ -30,7 +30,7 @@ public:
         vk::Buffer* vertexBuffer,
         vk::DeviceMemory* vertexBufferMemory);
 
-    static void createIndexBuffer(const vk::Device &logicalDevice, const vk::PhysicalDevice &physicalDevice, const vk::CommandPool &commandPool, const vk::Queue &graphicsQueue, const std::vector<uint32_t> &indices, vk::Buffer *indexBuffer, vk::DeviceMemory *indexBufferMemory);
+    static void createIndexBuffer(const vk::Device& logicalDevice, const vk::PhysicalDevice& physicalDevice, const vk::CommandPool& commandPool, const vk::Queue& graphicsQueue, const std::vector<uint32_t>& indices, vk::Buffer* indexBuffer, vk::DeviceMemory* indexBufferMemory);
 
     static void createAbstractBuffer(const e172vp::GraphicsObject* graphicsObject, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer* buffer, vk::DeviceMemory* bufferMemory);
     static void copyBuffer(const e172vp::GraphicsObject* graphicsObject, const vk::Buffer& srcBuffer, const vk::Buffer& dstBuffer, const vk::DeviceSize& size);
@@ -43,7 +43,8 @@ public:
     static void createIndexBuffer(const e172vp::GraphicsObject* graphicsObject, const std::vector<uint32_t>& indices, vk::Buffer* indexBuffer, vk::DeviceMemory* indexBufferMemory);
 
     template<typename T>
-    static void createUniformBuffer(const vk::Device &logicalDevice, const vk::PhysicalDevice &physicalDevice, vk::Buffer *uniformBuffers, vk::DeviceMemory *uniformBuffersMemory) {
+    static void createUniformBuffer(const vk::Device& logicalDevice, const vk::PhysicalDevice& physicalDevice, vk::Buffer* uniformBuffers, vk::DeviceMemory* uniformBuffersMemory)
+    {
         createAbstractBuffer(logicalDevice, physicalDevice, sizeof(T), uniformBufferType, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, uniformBuffers, uniformBuffersMemory);
     }
 
@@ -59,7 +60,7 @@ public:
         uniformBuffers->resize(count);
         uniformBuffersMemory->resize(count);
 
-        for(size_t i = 0; i < count; ++i) {
+        for (size_t i = 0; i < count; ++i) {
             createUniformBuffer<T>(
                 logicalDevice(graphicsObject),
                 physicalDevice(graphicsObject),
@@ -69,11 +70,12 @@ public:
     }
 
     template<typename T>
-    static void createUniformBuffers(const vk::Device &logicalDevice, const vk::PhysicalDevice &physicalDevice, size_t count, std::vector<vk::Buffer> *uniformBuffers, std::vector<vk::DeviceMemory> *uniformBuffersMemory) {
+    static void createUniformBuffers(const vk::Device& logicalDevice, const vk::PhysicalDevice& physicalDevice, size_t count, std::vector<vk::Buffer>* uniformBuffers, std::vector<vk::DeviceMemory>* uniformBuffersMemory)
+    {
         uniformBuffers->resize(count);
         uniformBuffersMemory->resize(count);
 
-        for(size_t i = 0; i < count; ++i) {
+        for (size_t i = 0; i < count; ++i) {
             createUniformBuffer<T>(
                 logicalDevice,
                 physicalDevice,
@@ -127,11 +129,19 @@ public:
         return result;
     }
 
-    static void createSamplerDescriptorSets(const vk::Device& logicalDevice, const vk::DescriptorPool& descriptorPool, const vk::ImageView& imageView, const vk::Sampler& sampler, size_t count, const e172vp::DescriptorSetLayout* descriptorSetLayout, std::vector<vk::DescriptorSet>* descriptorSets);
+    static void createSamplerDescriptorSets(
+        const vk::Device& logicalDevice,
+        const vk::DescriptorPool& descriptorPool,
+        const vk::ImageView& imageView,
+        const vk::Sampler& sampler,
+        std::size_t count,
+        const e172vp::DescriptorSetLayout& descriptorSetLayout,
+        std::vector<vk::DescriptorSet>* descriptorSets);
 
     template<typename T>
-    static void createUniformDescriptorSets(const vk::Device &logicalDevice, const vk::DescriptorPool &descriptorPool, const std::vector<vk::Buffer> &uniformBuffers, const e172vp::DescriptorSetLayout *descriptorSetLayout, std::vector<vk::DescriptorSet> *descriptorSets) {
-        createUniformDescriptorSets(logicalDevice, descriptorPool, sizeof (T), uniformBuffers, descriptorSetLayout, descriptorSets);
+    static void createUniformDescriptorSets(const vk::Device& logicalDevice, const vk::DescriptorPool& descriptorPool, const std::vector<vk::Buffer>& uniformBuffers, const e172vp::DescriptorSetLayout* descriptorSetLayout, std::vector<vk::DescriptorSet>* descriptorSets)
+    {
+        createUniformDescriptorSets(logicalDevice, descriptorPool, sizeof(T), uniformBuffers, descriptorSetLayout, descriptorSets);
     }
 
 private:
