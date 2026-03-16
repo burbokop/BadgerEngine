@@ -41,7 +41,7 @@ std::vector<UploadedModel> createModels(Shared<e172vp::GraphicsObject> graphicsO
         break;
     case VertexNormals:
         result.push_back(UploadedModel(
-            MeshBuffer::upload(graphicsObject, *mesh->vertexNormalsMesh(len).value()).transform_error(AsCritical()).value(),
+            MeshBuffer::upload(graphicsObject, *mesh->vertexNormalsMesh(len, glm::vec3(0, 0, 1)).value()).transform_error(AsCritical()).value(),
             std::move(nPipeline)));
         break;
     case PolygonNormals:

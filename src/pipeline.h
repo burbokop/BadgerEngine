@@ -16,7 +16,7 @@ public:
         std::span<const std::uint8_t> vertexShader,
         std::span<const std::uint8_t> fragmentShader,
         BadgerEngine::Geometry::Topology topology,
-        BadgerEngine::PolygonMode polygonMode);
+        BadgerEngine::PolygonMode polygonMode, bool backfaceCulling);
 
     Pipeline() = delete;
     Pipeline(const Pipeline&) = delete;

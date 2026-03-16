@@ -17,10 +17,14 @@ struct PointLight;
 class UploadedTexture;
 class VertexObject;
 
+struct RenderingOptions {
+    bool backfaceCulling = true;
+};
+
 class Renderer {
 
 public:
-    VertexObject& addObject(const BadgerEngine::Model& model);
+    VertexObject& addObject(const BadgerEngine::Model& model, RenderingOptions options = RenderingOptions());
 
     Shared<PointLight> addPointLight(
         glm::vec3 position,
@@ -48,15 +52,21 @@ public:
         m_directionalLightVector = v;
     }
 
+    glm::vec3 directionalLightVector() const { return m_directionalLightVector; }
+
     void setDirectionalLightColor(glm::vec3 c)
     {
         m_directionalLightColor = c;
     }
 
+    glm::vec3 directionalLightColor() const { return m_directionalLightColor; }
+
     void setDirectionalLightIntensity(float i)
     {
         m_directionalLightIntensity = i;
     };
+
+    float directionalLightIntensity() const { return m_directionalLightIntensity; }
 
 private:
     void updateUniformBuffer(uint32_t currentImage);
@@ -77,7 +87,8 @@ private:
         std::span<const std::uint8_t> vertShaderCode,
         std::span<const std::uint8_t> fragShaderCode,
         Geometry::Topology topology,
-        BadgerEngine::PolygonMode polygonMode);
+        BadgerEngine::PolygonMode polygonMode,
+        bool backfaceCulling);
 
 private:
     Shared<e172vp::GraphicsObject> m_graphicsObject;
@@ -95,6 +106,7 @@ private:
     e172vp::DescriptorSetLayout m_objectDescriptorSetLayout;
     e172vp::DescriptorSetLayout m_baseColorSamplerDescriptorSetLayout;
     e172vp::DescriptorSetLayout m_ambientOcclusionDescriptorSetLayout;
+    e172vp::DescriptorSetLayout m_normalMapDescriptorSetLayout;
 
     std::vector<BufferBundle> m_commonGlobalUniformBufferBundles;
     std::vector<BufferBundle> m_lightingUniformBufferBundles;

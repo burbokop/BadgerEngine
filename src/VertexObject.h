@@ -37,8 +37,10 @@ public:
     VertexObject& setRotation(const glm::mat4& rotation);
     glm::mat4 translation() const;
     VertexObject& setTranslation(const glm::mat4& translation);
+    VertexObject& setTranslation(const glm::vec3& translation);
     glm::mat4 scale() const;
     VertexObject& setScale(const glm::mat4& scale);
+    VertexObject& setScale(const glm::vec3& scale);
     std::vector<vk::DescriptorSet> textureDescriptorSets() const;
 
 protected:

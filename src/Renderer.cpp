@@ -44,6 +44,14 @@ struct PointLightUniformBufferObject {
 static_assert(offsetof(PointLightUniformBufferObject, position) == 0, "Offset must comply with std140");
 static_assert(offsetof(PointLightUniformBufferObject, color) == 16, "Offset must comply with std140");
 
+struct AmbientLightUniformBufferObject {
+    glm::vec3 color;
+    float intensity;
+};
+
+static_assert(offsetof(AmbientLightUniformBufferObject, color) == 0, "Offset must comply with std140");
+static_assert(offsetof(AmbientLightUniformBufferObject, intensity) == 12, "Offset must comply with std140");
+
 struct DirectionalLightUniformBufferObject {
     glm::vec3 vector;
     Padding<4> _;
@@ -58,26 +66,28 @@ static_assert(offsetof(DirectionalLightUniformBufferObject, intensity) == 28, "O
 struct LightingUniformBufferObject {
     PointLightUniformBufferObject lights[64];
     std::uint32_t lightsCount;
-    float ambient;
-    Padding<8> _;
+    Padding<12> _;
+    AmbientLightUniformBufferObject ambient;
     DirectionalLightUniformBufferObject directionalLight;
 };
 
 static_assert(offsetof(LightingUniformBufferObject, lights) == 0, "Offset must comply with std140");
 static_assert(offsetof(LightingUniformBufferObject, lightsCount) == 2048, "Offset must comply with std140");
-static_assert(offsetof(LightingUniformBufferObject, ambient) == 2052, "Offset must comply with std140");
-static_assert(offsetof(LightingUniformBufferObject, directionalLight) == 2064, "Offset must comply with std140");
+static_assert(offsetof(LightingUniformBufferObject, ambient) == 2064, "Offset must comply with std140");
+static_assert(offsetof(LightingUniformBufferObject, directionalLight) == 2080, "Offset must comply with std140");
 
 struct GlobalUniformBufferObject {
     glm::mat4 transformation;
     float time;
     Padding<4> _;
     glm::vec2 mouse;
+    glm::vec3 cameraPosition;
 };
 
 static_assert(offsetof(GlobalUniformBufferObject, transformation) == 0, "Offset must comply with std140");
 static_assert(offsetof(GlobalUniformBufferObject, time) == 64, "Offset must comply with std140");
 static_assert(offsetof(GlobalUniformBufferObject, mouse) == 72, "Offset must comply with std140");
+static_assert(offsetof(GlobalUniformBufferObject, cameraPosition) == 80, "Offset must comply with std140");
 
 Expected<Shared<UploadedTexture>> uploadMaterialColorChannel(
     const MaterialColorChannel& channel,
@@ -166,6 +176,7 @@ Renderer::Renderer(Shared<Window> window, const std::filesystem::path& fontPath)
     m_objectDescriptorSetLayout = e172vp::DescriptorSetLayout::createUniformDSL(m_graphicsObject->logicalDevice(), 0);
     m_baseColorSamplerDescriptorSetLayout = e172vp::DescriptorSetLayout::createSamplerDSL(m_graphicsObject->logicalDevice(), 0);
     m_ambientOcclusionDescriptorSetLayout = e172vp::DescriptorSetLayout::createSamplerDSL(m_graphicsObject->logicalDevice(), 0);
+    m_normalMapDescriptorSetLayout = e172vp::DescriptorSetLayout::createSamplerDSL(m_graphicsObject->logicalDevice(), 0);
 
     m_commonGlobalUniformBufferBundles = BufferUtils::createUniformBufferBundle<GlobalUniformBufferObject>(
         *m_graphicsObject,
@@ -200,7 +211,9 @@ Renderer::Renderer(Shared<Window> window, const std::filesystem::path& fontPath)
     m_normalDebugPipeline = createPipeline(
         normal_debug_vert,
         normal_debug_frag,
-        Geometry::Topology::LineList, PolygonMode::Fill);
+        Geometry::Topology::LineList,
+        PolygonMode::Fill,
+        true);
 }
 
 Expected<void> Renderer::proceedCommandBuffers(const vk::RenderPass& renderPass,
@@ -270,7 +283,8 @@ std::shared_ptr<e172vp::Pipeline> Renderer::createPipeline(
     std::span<const uint8_t> vertShaderCode,
     std::span<const uint8_t> fragShaderCode,
     Geometry::Topology topology,
-    BadgerEngine::PolygonMode polygonMode)
+    BadgerEngine::PolygonMode polygonMode,
+    bool backfaceCulling)
 {
     return std::make_shared<e172vp::Pipeline>(m_graphicsObject->logicalDevice(),
         m_graphicsObject->swapChainSettings().extent,
@@ -281,10 +295,13 @@ std::shared_ptr<e172vp::Pipeline> Renderer::createPipeline(
             m_objectDescriptorSetLayout.descriptorSetLayoutHandle(),
             m_baseColorSamplerDescriptorSetLayout.descriptorSetLayoutHandle(),
             m_ambientOcclusionDescriptorSetLayout.descriptorSetLayoutHandle(),
+            m_normalMapDescriptorSetLayout.descriptorSetLayoutHandle(),
         },
         vertShaderCode,
         fragShaderCode,
-        topology, polygonMode);
+        topology,
+        polygonMode,
+        backfaceCulling);
 }
 
 Expected<void> Renderer::applyPresentation() noexcept
@@ -371,7 +388,8 @@ void Renderer::updateUniformBuffer(uint32_t currentImage)
             .transformation = m_camera->transformation(size.x / size.y),
             .time = time,
             ._ = {},
-            .mouse = { 0, 0 }
+            .mouse = { 0, 0 },
+            .cameraPosition = m_camera->position()
         };
 
         void* data = nullptr;
@@ -390,10 +408,16 @@ void Renderer::updateUniformBuffer(uint32_t currentImage)
         ubo.lightsCount = numericCast<std::uint32_t>(std::min(capacity, m_pointLights.size())).value();
 
         for (std::size_t i = 0; i < ubo.lightsCount; ++i) {
-            ubo.lights[i].position = glm::vec4(m_pointLights[i]->position, 0.f);
-            ubo.lights[i].color = glm::vec4(m_pointLights[i]->color, m_pointLights[i]->intensity);
+            ubo.lights[i] = PointLightUniformBufferObject {
+                .position = glm::vec4(m_pointLights[i]->position, 0.f),
+                .color = glm::vec4(m_pointLights[i]->color, m_pointLights[i]->intensity),
+            };
         }
-        ubo.ambient = 0.2f;
+
+        ubo.ambient = AmbientLightUniformBufferObject {
+            .color = glm::vec3(1),
+            .intensity = 0.05f,
+        };
 
         ubo.directionalLight = DirectionalLightUniformBufferObject {
             .vector = m_directionalLightVector,
@@ -415,10 +439,10 @@ void Renderer::updateUniformBuffer(uint32_t currentImage)
 VertexObject& Renderer::addCharacter(char c, std::shared_ptr<e172vp::Pipeline> pipeline)
 {
     const static std::vector<Geometry::Vertex> v = {
-        { { -0.1f, -0.1f, 0 }, { 0, 0, 0 }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
-        { { 0.1f, -0.1f, 0 }, { 0, 0, 0 }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 0.0f } },
-        { { 0.1f, 0.1f, 0 }, { 0, 0, 0 }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f } },
-        { { -0.1f, 0.1f, 0 }, { 0, 0, 0 }, { 1.0f, 1.0f, 1.0f }, { 0.0f, 1.0f } }
+        { .position = { -0.1f, -0.1f, 0 }, .normal = { 0, 0, 1 }, .tangent = { 1, 0, 0 }, .bitangent = { 0, 1, 0 }, .color = { 1.0f, 0.0f, 0.0f }, .uv = { 0.0f, 0.0f } },
+        { .position = { 0.1f, -0.1f, 0 }, .normal = { 0, 0, 1 }, .tangent = { 1, 0, 0 }, .bitangent = { 0, 1, 0 }, .color = { 0.0f, 1.0f, 0.0f }, .uv = { 1.0f, 0.0f } },
+        { .position = { 0.1f, 0.1f, 0 }, .normal = { 0, 0, 1 }, .tangent = { 1, 0, 0 }, .bitangent = { 0, 1, 0 }, .color = { 0.0f, 0.0f, 1.0f }, .uv = { 1.0f, 1.0f } },
+        { .position = { -0.1f, 0.1f, 0 }, .normal = { 0, 0, 1 }, .tangent = { 1, 0, 0 }, .bitangent = { 0, 1, 0 }, .color = { 1.0f, 1.0f, 1.0f }, .uv = { 0.0f, 1.0f } },
     };
 
     const static std::vector<uint32_t> i = {
@@ -439,13 +463,14 @@ VertexObject& Renderer::addCharacter(char c, std::shared_ptr<e172vp::Pipeline> p
     return *r;
 }
 
-VertexObject& Renderer::addObject(const BadgerEngine::Model& model)
+VertexObject& Renderer::addObject(const BadgerEngine::Model& model, RenderingOptions options)
 {
     return std::visit(
         Overloaded {
-            [this, &model](const BSDFMaterial& material) -> VertexObject& {
+            [this, &model, &options](const BSDFMaterial& material) -> VertexObject& {
                 const auto baseColor = uploadMaterialColorChannel(material.baseColor, *m_graphicsObject).transform_error(AsCritical()).value();
                 const auto ambientOclusion = uploadMaterialColorChannel(material.ambientOclusion, *m_graphicsObject).transform_error(AsCritical()).value();
+                const auto normalMap = uploadMaterialColorChannel(material.normalMap, *m_graphicsObject).transform_error(AsCritical()).value();
 
                 const auto result = new BSDFVertexObject(
                     m_graphicsObject,
@@ -453,15 +478,17 @@ VertexObject& Renderer::addObject(const BadgerEngine::Model& model)
                     m_objectDescriptorSetLayout,
                     m_baseColorSamplerDescriptorSetLayout,
                     m_ambientOcclusionDescriptorSetLayout,
+                    m_normalMapDescriptorSetLayout,
                     model.mesh(),
                     std::move(baseColor),
                     std::move(ambientOclusion),
-                    createPipeline(BSDF_vert, BSDF_frag, Geometry::Topology::TriangleList, model.polygonMode()),
+                    std::move(normalMap),
+                    createPipeline(BSDF_vert, BSDF_frag, model.mesh()->topology(), model.polygonMode(), options.backfaceCulling),
                     m_normalDebugPipeline);
                 m_vertexObjects.push_back(result);
                 return *result;
             },
-            [this, &model](const RecursiveMaterial& material) -> VertexObject& {
+            [this, &model, &options](const RecursiveMaterial& material) -> VertexObject& {
                 const auto& frames = m_graphicsObject->swapChain().frames();
                 std::size_t i = 0;
                 assert(i < frames.size());
@@ -472,12 +499,12 @@ VertexObject& Renderer::addObject(const BadgerEngine::Model& model)
                     m_baseColorSamplerDescriptorSetLayout,
                     model.mesh(),
                     frames[i].imageView,
-                    createPipeline(material.vert, material.frag, Geometry::Topology::TriangleList, model.polygonMode()),
+                    createPipeline(material.vert, material.frag, model.mesh()->topology(), model.polygonMode(), options.backfaceCulling),
                     m_normalDebugPipeline);
                 m_vertexObjects.push_back(result);
                 return *result;
             },
-            [this, &model](const CustomMaterial& material) -> VertexObject& {
+            [this, &model, &options](const CustomMaterial& material) -> VertexObject& {
                 if (material.textures.size() > 0) {
 
                     const auto texture = UploadedTexture::upload(
@@ -496,7 +523,7 @@ VertexObject& Renderer::addObject(const BadgerEngine::Model& model)
                         m_baseColorSamplerDescriptorSetLayout,
                         model.mesh(),
                         texture,
-                        createPipeline(material.vert, material.frag, Geometry::Topology::TriangleList, model.polygonMode()),
+                        createPipeline(material.vert, material.frag, model.mesh()->topology(), model.polygonMode(), options.backfaceCulling),
                         m_normalDebugPipeline);
                     m_vertexObjects.push_back(result);
                     return *result;
@@ -509,7 +536,7 @@ VertexObject& Renderer::addObject(const BadgerEngine::Model& model)
                         m_baseColorSamplerDescriptorSetLayout,
                         model.mesh(),
                         m_font->character('N').imageView(),
-                        createPipeline(material.vert, material.frag, Geometry::Topology::TriangleList, model.polygonMode()),
+                        createPipeline(material.vert, material.frag, model.mesh()->topology(), model.polygonMode(), options.backfaceCulling),
                         m_normalDebugPipeline);
                     m_vertexObjects.push_back(result);
                     return *result;

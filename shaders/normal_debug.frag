@@ -16,5 +16,6 @@ layout(binding = 0, set = 0) uniform UniformBufferObject {
 } global;
 
 void main() {
-    outColor = (texture(texSampler, fragTexCoord) * 0.8 + vec4(fragTexCoord, 0.0, 1.0) * 0.2);
+    // outColor = (texture(texSampler, fragTexCoord) * 0.8 + vec4(fragTexCoord, 0.0, 1.0) * 0.2);
+    outColor = vec4(fragColor, 1);
 }

@@ -66,7 +66,7 @@ std::optional<Shared<Mesh>> Mesh::polygonNormalsMesh(float len) const
     std::abort();
 }
 
-std::optional<Shared<Mesh>> Mesh::vertexNormalsMesh(float len) const
+std::optional<Shared<Mesh>> Mesh::vertexNormalsMesh(float len, glm::vec3 color) const
 {
     switch (m_topology) {
     case Topology::LineList:
@@ -77,8 +77,8 @@ std::optional<Shared<Mesh>> Mesh::vertexNormalsMesh(float len) const
 
         for (std::size_t i = 0; i < m_indices.size(); ++i) {
             const auto v = m_vertices[m_indices[i]];
-            vertices.push_back(Vertex { .position = v.position, .normal = v.normal, .color = v.color, .uv = v.uv });
-            vertices.push_back(Vertex { .position = v.position + v.normal * len, .normal = v.normal, .color = v.color, .uv = v.uv });
+            vertices.push_back(Vertex { .position = v.position, .normal = v.normal, .color = color, .uv = v.uv });
+            vertices.push_back(Vertex { .position = v.position + v.normal * len, .normal = v.normal, .color = color, .uv = v.uv });
         }
 
         const auto verticesCount = vertices.size();
@@ -88,7 +88,57 @@ std::optional<Shared<Mesh>> Mesh::vertexNormalsMesh(float len) const
             std::views::iota(0u, numericCast<Index>(verticesCount).value()) | Collect<std::vector>);
     }
     }
-    std::abort();
+    std::unreachable();
+}
+
+std::optional<Shared<Mesh>> Mesh::vertexTangentsMesh(float len, glm::vec3 color) const
+{
+    switch (m_topology) {
+    case Topology::LineList:
+        return std::nullopt;
+    case Topology::TriangleList: {
+        std::vector<Vertex> vertices;
+        vertices.reserve(m_indices.size() * 2);
+
+        for (std::size_t i = 0; i < m_indices.size(); ++i) {
+            const auto v = m_vertices[m_indices[i]];
+            vertices.push_back(Vertex { .position = v.position, .normal = v.normal, .color = color, .uv = v.uv });
+            vertices.push_back(Vertex { .position = v.position + v.tangent * len, .normal = v.normal, .color = color, .uv = v.uv });
+        }
+
+        const auto verticesCount = vertices.size();
+        return Mesh::create(
+            Topology::LineList,
+            std::move(vertices),
+            std::views::iota(0u, numericCast<Index>(verticesCount).value()) | Collect<std::vector>);
+    }
+    }
+    std::unreachable();
+}
+
+std::optional<Shared<Mesh>> Mesh::vertexBitangentsMesh(float len, glm::vec3 color) const
+{
+    switch (m_topology) {
+    case Topology::LineList:
+        return std::nullopt;
+    case Topology::TriangleList: {
+        std::vector<Vertex> vertices;
+        vertices.reserve(m_indices.size() * 2);
+
+        for (std::size_t i = 0; i < m_indices.size(); ++i) {
+            const auto v = m_vertices[m_indices[i]];
+            vertices.push_back(Vertex { .position = v.position, .normal = v.normal, .color = color, .uv = v.uv });
+            vertices.push_back(Vertex { .position = v.position + v.bitangent * len, .normal = v.normal, .color = color, .uv = v.uv });
+        }
+
+        const auto verticesCount = vertices.size();
+        return Mesh::create(
+            Topology::LineList,
+            std::move(vertices),
+            std::views::iota(0u, numericCast<Index>(verticesCount).value()) | Collect<std::vector>);
+    }
+    }
+    std::unreachable();
 }
 
 }

@@ -1,41 +1,58 @@
 #include "Vertex.h"
 
+#define VULKAN_HPP_NO_STRUCT_CONSTRUCTORS
+#include <vulkan/vulkan.hpp>
+
 namespace BadgerEngine::Geometry {
 
-std::array<vk::VertexInputAttributeDescription, 4> Vertex::attributeDescriptions()
+std::array<vk::VertexInputAttributeDescription, 6> Vertex::attributeDescriptions()
 {
-    std::array<vk::VertexInputAttributeDescription, 4> attributeDescriptions;
-
-    attributeDescriptions[0].binding = 0;
-    attributeDescriptions[0].location = 0;
-    attributeDescriptions[0].format = vk::Format::eR32G32B32Sfloat;
-    attributeDescriptions[0].offset = offsetof(Vertex, position);
-
-    attributeDescriptions[1].binding = 0;
-    attributeDescriptions[1].location = 1;
-    attributeDescriptions[1].format = vk::Format::eR32G32B32Sfloat;
-    attributeDescriptions[1].offset = offsetof(Vertex, normal);
-
-    attributeDescriptions[2].binding = 0;
-    attributeDescriptions[2].location = 2;
-    attributeDescriptions[2].format = vk::Format::eR32G32B32Sfloat;
-    attributeDescriptions[2].offset = offsetof(Vertex, color);
-
-    attributeDescriptions[3].binding = 0;
-    attributeDescriptions[3].location = 3;
-    attributeDescriptions[3].format = vk::Format::eR32G32Sfloat;
-    attributeDescriptions[3].offset = offsetof(Vertex, uv);
-
-    return attributeDescriptions;
+    return {
+        vk::VertexInputAttributeDescription {
+            .location = 0,
+            .binding = 0,
+            .format = vk::Format::eR32G32B32Sfloat,
+            .offset = offsetof(Vertex, position),
+        },
+        vk::VertexInputAttributeDescription {
+            .location = 1,
+            .binding = 0,
+            .format = vk::Format::eR32G32B32Sfloat,
+            .offset = offsetof(Vertex, normal),
+        },
+        vk::VertexInputAttributeDescription {
+            .location = 2,
+            .binding = 0,
+            .format = vk::Format::eR32G32B32Sfloat,
+            .offset = offsetof(Vertex, tangent),
+        },
+        vk::VertexInputAttributeDescription {
+            .location = 3,
+            .binding = 0,
+            .format = vk::Format::eR32G32B32Sfloat,
+            .offset = offsetof(Vertex, bitangent),
+        },
+        vk::VertexInputAttributeDescription {
+            .location = 4,
+            .binding = 0,
+            .format = vk::Format::eR32G32B32Sfloat,
+            .offset = offsetof(Vertex, color),
+        },
+        vk::VertexInputAttributeDescription {
+            .location = 5,
+            .binding = 0,
+            .format = vk::Format::eR32G32Sfloat,
+            .offset = offsetof(Vertex, uv),
+        },
+    };
 }
 
 vk::VertexInputBindingDescription Vertex::bindingDescription()
 {
-    vk::VertexInputBindingDescription bindingDescription{};
+    vk::VertexInputBindingDescription bindingDescription {};
     bindingDescription.binding = 0;
     bindingDescription.stride = sizeof(Vertex);
     bindingDescription.inputRate = vk::VertexInputRate::eVertex;
     return bindingDescription;
 }
-
 }

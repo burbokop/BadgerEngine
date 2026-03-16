@@ -12,12 +12,12 @@ public:
     static constexpr auto DefaultFovy = std::numbers::pi_v<float> / 4.f;
 
     PerspectiveCamera(
-        glm::vec3 translation = { 0, 0, 0 },
+        glm::vec3 position = { 0, 0, 0 },
         glm::quat rotation = glm::quat(1.f, 0, 0, 0),
         float fovy = DefaultFovy,
         float near = 0.1f,
         float far = 100.f)
-        : m_translation(std::move(translation))
+        : m_position(std::move(position))
         , m_rotation(std::move(rotation))
         , m_fovy(fovy)
         , m_near(near)
@@ -27,22 +27,22 @@ public:
 
     glm::mat4 transformation(float aspect) const
     {
-        return glm::perspective(m_fovy, aspect, m_near, m_far) * glm::toMat4(m_rotation) * glm::translate(glm::mat4(1.f), m_translation);
+        return glm::perspective(m_fovy, aspect, m_near, m_far) * glm::toMat4(m_rotation) * glm::translate(glm::mat4(1.f), m_position);
     }
 
-    glm::vec3 translation() const
+    glm::vec3 position() const
     {
-        return m_translation;
+        return m_position;
     }
 
-    void setTranslation(const glm::vec3& newTranslation)
+    void setPosition(const glm::vec3& position)
     {
-        m_translation = newTranslation;
+        m_position = position;
     }
 
-    void addTranslation(const glm::vec3& delta)
+    void addPosition(const glm::vec3& delta)
     {
-        m_translation += delta;
+        m_position += delta;
     }
 
     glm::quat rotation() const
@@ -60,7 +60,7 @@ public:
     float far() const { return m_far; }
 
 private:
-    glm::vec3 m_translation;
+    glm::vec3 m_position;
     glm::quat m_rotation;
     float m_fovy;
     float m_near;

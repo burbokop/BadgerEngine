@@ -39,7 +39,9 @@ public:
     const auto& indices() const { return m_indices; }
 
     std::optional<Shared<Mesh>> polygonNormalsMesh(float len) const;
-    std::optional<Shared<Mesh>> vertexNormalsMesh(float len) const;
+    std::optional<Shared<Mesh>> vertexNormalsMesh(float len, glm::vec3 color) const;
+    std::optional<Shared<Mesh>> vertexTangentsMesh(float len, glm::vec3 color) const;
+    std::optional<Shared<Mesh>> vertexBitangentsMesh(float len, glm::vec3 color) const;
 
     Mesh(
         Topology topology,

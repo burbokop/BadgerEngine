@@ -1,4 +1,5 @@
 #include "VertexObject.h"
+#include <glm/ext/matrix_transform.hpp>
 
 namespace BadgerEngine {
 
@@ -24,6 +25,11 @@ VertexObject& VertexObject::setTranslation(const glm::mat4& translation)
     return *this;
 }
 
+VertexObject& VertexObject::setTranslation(const glm::vec3& translation)
+{
+    return setTranslation(glm::translate(glm::mat4(1.f), translation));
+}
+
 glm::mat4 VertexObject::scale() const
 {
     return m_scale;
@@ -33,6 +39,11 @@ VertexObject& VertexObject::setScale(const glm::mat4& scale)
 {
     m_scale = scale;
     return *this;
+}
+
+VertexObject& VertexObject::setScale(const glm::vec3& scale)
+{
+    return setScale(glm::scale(glm::mat4(1.f), scale));
 }
 
 }

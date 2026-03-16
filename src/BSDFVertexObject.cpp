@@ -33,7 +33,7 @@ std::vector<UploadedModel> createModels(Shared<e172vp::GraphicsObject> graphicsO
         PolygonNormals
     };
 
-    const Normals displayNormals = NoNormals;
+    const Normals displayNormals = VertexNormals;
     const float len = 1;
 
     switch (displayNormals) {
@@ -41,7 +41,13 @@ std::vector<UploadedModel> createModels(Shared<e172vp::GraphicsObject> graphicsO
         break;
     case VertexNormals:
         result.push_back(UploadedModel(
-            MeshBuffer::upload(graphicsObject, *mesh->vertexNormalsMesh(len).value()).transform_error(AsCritical()).value(),
+            MeshBuffer::upload(graphicsObject, *mesh->vertexNormalsMesh(len, glm::vec3(0, 0, 1)).value()).transform_error(AsCritical()).value(),
+            nPipeline));
+        result.push_back(UploadedModel(
+            MeshBuffer::upload(graphicsObject, *mesh->vertexTangentsMesh(len, glm::vec3(1, 0, 0)).value()).transform_error(AsCritical()).value(),
+            nPipeline));
+        result.push_back(UploadedModel(
+            MeshBuffer::upload(graphicsObject, *mesh->vertexBitangentsMesh(len, glm::vec3(0, 1, 0)).value()).transform_error(AsCritical()).value(),
             std::move(nPipeline)));
         break;
     case PolygonNormals:
@@ -61,15 +67,18 @@ BSDFVertexObject::BSDFVertexObject(
     const e172vp::DescriptorSetLayout& uniformBufferDescriptorSetLayout,
     const e172vp::DescriptorSetLayout& baseColorDescriptorSetLayout,
     const e172vp::DescriptorSetLayout& ambientOclussionDescriptorSetLayout,
+    const e172vp::DescriptorSetLayout& normalMapDescriptorSetLayout,
     const Shared<Geometry::Mesh>& mesh,
     Shared<UploadedTexture> baseColorTexture,
     Shared<UploadedTexture> ambientOclussionMap,
+    Shared<UploadedTexture> normalMap,
     Shared<e172vp::Pipeline> pipeline,
     Shared<e172vp::Pipeline> nPipeline)
     : m_graphicsObject(std::move(graphicsObject))
     , m_models(createModels(m_graphicsObject, mesh, std::move(pipeline), std::move(nPipeline)))
     , m_baseColorTexture(std::move(baseColorTexture))
     , m_ambientOclussionMap(std::move(ambientOclussionMap))
+    , m_normalMap(std::move(normalMap))
 {
     m_uniformBufferBundles = BufferUtils::createUniformBufferBundle<UniformBufferObject>(
         *m_graphicsObject,
@@ -80,19 +89,29 @@ BSDFVertexObject::BSDFVertexObject(
     BufferUtils::createSamplerDescriptorSets(
         m_graphicsObject->logicalDevice(),
         m_graphicsObject->descriptorPool(),
-        (*m_baseColorTexture)->imageView(),
+        m_baseColorTexture->imageView(),
         m_graphicsObject->sampler(),
         imageCount,
         baseColorDescriptorSetLayout,
         &m_baseColorTextureDescriptorSets);
 
-    BufferUtils::createSamplerDescriptorSets(m_graphicsObject->logicalDevice(),
+    BufferUtils::createSamplerDescriptorSets(
+        m_graphicsObject->logicalDevice(),
         m_graphicsObject->descriptorPool(),
-        (*m_ambientOclussionMap)->imageView(),
+        m_ambientOclussionMap->imageView(),
         m_graphicsObject->sampler(),
         imageCount,
         ambientOclussionDescriptorSetLayout,
         &m_ambientOclussionMapDescriptorSets);
+
+    BufferUtils::createSamplerDescriptorSets(
+        m_graphicsObject->logicalDevice(),
+        m_graphicsObject->descriptorPool(),
+        m_normalMap->imageView(),
+        m_graphicsObject->sampler(),
+        imageCount,
+        normalMapDescriptorSetLayout,
+        &m_normalMapDescriptorSets);
 }
 
 Expected<void> BSDFVertexObject::draw(
@@ -114,6 +133,7 @@ Expected<void> BSDFVertexObject::draw(
                 m_uniformBufferBundles.at(imageIndex).descriptorSet,
                 m_baseColorTextureDescriptorSets.at(imageIndex),
                 m_ambientOclussionMapDescriptorSets.at(imageIndex),
+                m_normalMapDescriptorSets.at(imageIndex),
             },
             {});
 

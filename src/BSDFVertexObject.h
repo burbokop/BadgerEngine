@@ -31,9 +31,11 @@ public:
         const e172vp::DescriptorSetLayout& uniformBufferDescriptorSetLayout,
         const e172vp::DescriptorSetLayout& baseColorDescriptorSetLayout,
         const e172vp::DescriptorSetLayout& ambientOclussionDescriptorSetLayout,
+        const e172vp::DescriptorSetLayout& normalMapDescriptorSetLayout,
         const Shared<BadgerEngine::Geometry::Mesh>& mesh,
         Shared<UploadedTexture> baseColorTexture,
         Shared<UploadedTexture> ambientOclussionMap,
+        Shared<UploadedTexture> normalMap,
         Shared<e172vp::Pipeline> pipeline,
         Shared<e172vp::Pipeline> nPipeline);
 
@@ -59,12 +61,14 @@ protected:
 private:
     Shared<e172vp::GraphicsObject> m_graphicsObject;
     std::vector<UploadedModel> m_models;
-    std::optional<Shared<UploadedTexture>> m_baseColorTexture;
-    std::optional<Shared<UploadedTexture>> m_ambientOclussionMap;
+    Shared<UploadedTexture> m_baseColorTexture;
+    Shared<UploadedTexture> m_ambientOclussionMap;
+    Shared<UploadedTexture> m_normalMap;
 
     std::vector<BadgerEngine::BufferBundle> m_uniformBufferBundles;
     std::vector<vk::DescriptorSet> m_baseColorTextureDescriptorSets;
     std::vector<vk::DescriptorSet> m_ambientOclussionMapDescriptorSets;
+    std::vector<vk::DescriptorSet> m_normalMapDescriptorSets;
 };
 
 }

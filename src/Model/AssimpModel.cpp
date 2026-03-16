@@ -531,6 +531,11 @@ Expected<std::vector<SharedMaterial>> loadMaterials(
         && !std::isnan(vertex.uv.y);
 }
 
+glm::vec3 glmVec3FromAiVector3D(const aiVector3D& vec)
+{
+    return { vec.x, vec.y, vec.z };
+}
+
 [[nodiscard]] Expected<Shared<Mesh>> processMesh(const std::vector<SharedMaterial>& materials, RawPtr<aiMesh> mesh, glm::mat4 transformation)
 {
     std::vector<Geometry::Vertex> vertices;
@@ -539,19 +544,23 @@ Expected<std::vector<SharedMaterial>> loadMaterials(
 
     assert(mesh->mVertices);
 
+    std::cout << mesh->mName.C_Str() << " -> mTangents: " << mesh->mTangents << ", mBitangents: " << mesh->mBitangents << std::endl;
+
     for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
         Geometry::Vertex vertex;
 
-        vertex.position.x = mesh->mVertices[i].x;
-        vertex.position.y = mesh->mVertices[i].y;
-        vertex.position.z = mesh->mVertices[i].z;
-        vertex.position = transformation * glm::vec4(vertex.position, 1.);
+        vertex.position = transformation * glm::vec4(glmVec3FromAiVector3D(mesh->mVertices[i]), 1.);
 
         if (mesh->mNormals) {
-            vertex.normal.x = mesh->mNormals[i].x;
-            vertex.normal.y = mesh->mNormals[i].y;
-            vertex.normal.z = mesh->mNormals[i].z;
-            vertex.normal = transformation * glm::vec4(vertex.normal, 0.);
+            vertex.normal = transformation * glm::vec4(glmVec3FromAiVector3D(mesh->mNormals[i]), 0.);
+        }
+
+        if (mesh->mTangents) {
+            vertex.tangent = transformation * glm::vec4(glmVec3FromAiVector3D(mesh->mTangents[i]), 0.);
+        }
+
+        if (mesh->mBitangents) {
+            vertex.bitangent = transformation * glm::vec4(glmVec3FromAiVector3D(mesh->mBitangents[i]), 0.);
         }
 
         if (mesh->mNumBones > 0) {

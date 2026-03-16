@@ -79,7 +79,9 @@ e172vp::Pipeline::Pipeline(const vk::Device& logicalDevice,
     const std::vector<vk::DescriptorSetLayout>& descriptorSetLayouts,
     std::span<const std::uint8_t> vertexShader,
     std::span<const std::uint8_t> fragmentShader,
-    BadgerEngine::Geometry::Topology topology, BadgerEngine::PolygonMode polygonMode)
+    BadgerEngine::Geometry::Topology topology,
+    BadgerEngine::PolygonMode polygonMode,
+    bool backfaceCulling)
     : m_topology(topology)
 {
     vk::ShaderModule vertShaderModule = createShaderModule(logicalDevice, vertexShader);
@@ -133,7 +135,7 @@ e172vp::Pipeline::Pipeline(const vk::Device& logicalDevice,
     rasterizer.rasterizerDiscardEnable = false;
     rasterizer.polygonMode = polygonModeToVk(polygonMode);
     rasterizer.lineWidth = 1.0f;
-    rasterizer.cullMode = vk::CullModeFlagBits::eBack;
+    rasterizer.cullMode = backfaceCulling ? vk::CullModeFlagBits::eBack : vk::CullModeFlagBits::eNone;
     rasterizer.frontFace = vk::FrontFace::eClockwise;
     rasterizer.depthBiasEnable = false;
 

@@ -4,6 +4,10 @@
 #include "../Utils/Error.h"
 #include "../Utils/NoNull.h"
 
+namespace vk {
+class CommandBuffer;
+}
+
 namespace e172vp {
 class GraphicsObject;
 }
