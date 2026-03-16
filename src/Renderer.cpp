@@ -91,26 +91,30 @@ static_assert(offsetof(GlobalUniformBufferObject, cameraPosition) == 80, "Offset
 
 Expected<Shared<UploadedTexture>> uploadMaterialColorChannel(
     const MaterialColorChannel& channel,
-    const e172vp::GraphicsObject& graphicsObject)
+    const e172vp::GraphicsObject& graphicsObject,
+    UploadedTextureCache& cache)
 {
     return std::visit(
         Overloaded {
-            [&graphicsObject](const SharedTexture& texture) -> Expected<Shared<UploadedTexture>> {
+            [&graphicsObject, &cache](const SharedTexture& texture) -> Expected<Shared<UploadedTexture>> {
                 return UploadedTexture::upload(
                     graphicsObject.logicalDevice(),
                     graphicsObject.physicalDevice(),
                     graphicsObject.commandPool(),
                     // Assuming graphics queue can also do copy. If not then add some check
-                    graphicsObject.graphicsQueue(), texture)
+                    graphicsObject.graphicsQueue(),
+                    cache,
+                    texture)
                     .transform_error(AsReason("Failed to upload a texture"));
             },
-            [&graphicsObject](const Color& color) -> Expected<Shared<UploadedTexture>> {
+            [&graphicsObject, &cache](const Color& color) -> Expected<Shared<UploadedTexture>> {
                 return UploadedTexture::create(
                     graphicsObject.logicalDevice(),
                     graphicsObject.physicalDevice(),
                     graphicsObject.commandPool(),
                     // Assuming graphics queue can also do copy. If not then add some check
                     graphicsObject.graphicsQueue(),
+                    cache,
                     PixFormat::RGBA32,
                     { 1, 1 },
                     color)
@@ -158,6 +162,7 @@ Renderer::Renderer(Shared<Window> window, const std::filesystem::path& fontPath)
       }))
     , m_window(std::move(window))
     , m_camera(std::make_shared<PerspectiveCamera>())
+    , m_textureCache(std::make_shared<UploadedTextureCache>())
 {
 
     if (m_graphicsObject->debugEnabled())
@@ -468,9 +473,9 @@ VertexObject& Renderer::addObject(const BadgerEngine::Model& model, RenderingOpt
     return std::visit(
         Overloaded {
             [this, &model, &options](const BSDFMaterial& material) -> VertexObject& {
-                const auto baseColor = uploadMaterialColorChannel(material.baseColor, *m_graphicsObject).transform_error(AsCritical()).value();
-                const auto ambientOclusion = uploadMaterialColorChannel(material.ambientOclusion, *m_graphicsObject).transform_error(AsCritical()).value();
-                const auto normalMap = uploadMaterialColorChannel(material.normalMap, *m_graphicsObject).transform_error(AsCritical()).value();
+                const auto baseColor = uploadMaterialColorChannel(material.baseColor, *m_graphicsObject, *m_textureCache).transform_error(AsCritical()).value();
+                const auto ambientOclusion = uploadMaterialColorChannel(material.ambientOclusion, *m_graphicsObject, *m_textureCache).transform_error(AsCritical()).value();
+                const auto normalMap = uploadMaterialColorChannel(material.normalMap, *m_graphicsObject, *m_textureCache).transform_error(AsCritical()).value();
 
                 const auto result = new BSDFVertexObject(
                     m_graphicsObject,
@@ -512,7 +517,9 @@ VertexObject& Renderer::addObject(const BadgerEngine::Model& model, RenderingOpt
                         m_graphicsObject->physicalDevice(),
                         m_graphicsObject->commandPool(),
                         // Assuming graphics queue can also do copy. If not then add some check
-                        m_graphicsObject->graphicsQueue(), material.textures.front())
+                        m_graphicsObject->graphicsQueue(),
+                        *m_textureCache,
+                        material.textures.front())
                                              .transform_error(AsCritical())
                                              .value();
 

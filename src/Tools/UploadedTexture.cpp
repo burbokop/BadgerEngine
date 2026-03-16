@@ -351,31 +351,47 @@ Expected<Shared<UploadedTexture>> UploadedTexture::upload(
     const vk::PhysicalDevice& physicalDevice,
     const vk::CommandPool& commandPool,
     const vk::Queue& copyQueue,
-    TextureRef texture) noexcept
+    BadgerEngine::UploadedTextureCache& cache,
+    SharedTexture texture) noexcept
 {
-    const auto imageFormat = pixFormatToVkFormat(texture.format());
+    {
+        const auto it = cache.m_loadedCache.find(texture.nullable());
+        if (it != cache.m_loadedCache.end()) {
+            const auto key = it->first.lock();
+            const auto value = it->second.lock();
+            if (key && value) {
+                return value;
+            } else {
+                cache.m_loadedCache.erase(it);
+            }
+        }
+    }
+
+    const auto imageFormat = pixFormatToVkFormat(texture->format());
     if (!imageFormat) {
         std::ostringstream ss;
-        ss << texture.format();
+        ss << texture->format();
         return unexpected("Unsupported pixel format: " + ss.str());
     }
 
     vk::DeviceMemory imageMemory;
     vk::Image image;
 
-    const auto result = createTextureImage32(
-        logicalDevice,
-        physicalDevice,
-        commandPool,
-        copyQueue,
-        texture.data().nullable(),
-        texture.width(),
-        texture.height(),
-        *imageFormat,
-        &image,
-        &imageMemory);
-    if (!result) {
-        return unexpected("Failed to create texture image", result.error());
+    {
+        const auto result = createTextureImage32(
+            logicalDevice,
+            physicalDevice,
+            commandPool,
+            copyQueue,
+            texture->data().nullable(),
+            texture->width(),
+            texture->height(),
+            *imageFormat,
+            &image,
+            &imageMemory);
+        if (!result) {
+            return unexpected("Failed to create texture image", result.error());
+        }
     }
 
     std::vector<std::string> errs;
@@ -384,9 +400,9 @@ Expected<Shared<UploadedTexture>> UploadedTexture::upload(
         return unexpected("Error creating image view: " + errs.front());
     }
 
-    const auto size = glm::ivec2(texture.width(), texture.height());
+    const auto size = glm::ivec2(texture->width(), texture->height());
 
-    return std::make_shared<UploadedTexture>(
+    const auto result = std::make_shared<UploadedTexture>(
         std::move(logicalDevice),
         std::move(imageMemory),
         std::move(image),
@@ -394,6 +410,10 @@ Expected<Shared<UploadedTexture>> UploadedTexture::upload(
         *std::move(imageFormat),
         std::move(size),
         Private {});
+
+    const auto ok = cache.m_loadedCache.insert({ texture.nullable(), result }).second;
+    assert(ok);
+    return result;
 }
 
 Expected<Shared<UploadedTexture>> UploadedTexture::create(
@@ -401,10 +421,24 @@ Expected<Shared<UploadedTexture>> UploadedTexture::create(
     const vk::PhysicalDevice& physicalDevice,
     const vk::CommandPool& commandPool,
     const vk::Queue& copyQueue,
+    BadgerEngine::UploadedTextureCache& cache,
     PixFormat format,
     Size size,
     Color fillColor) noexcept
 {
+    const auto cacheKey = UploadedTextureCache::CreateKey { format, size, fillColor };
+    {
+        const auto it = cache.m_createdCache.find(cacheKey);
+        if (it != cache.m_createdCache.end()) {
+            const auto value = it->second.lock();
+            if (value) {
+                return value;
+            } else {
+                cache.m_createdCache.erase(it);
+            }
+        }
+    }
+
     const auto imageFormat = pixFormatToVkFormat(format);
     if (!imageFormat) {
         std::ostringstream ss;
@@ -417,19 +451,21 @@ Expected<Shared<UploadedTexture>> UploadedTexture::create(
 
     const auto data = textureBytesFilledWithColor(format, size, fillColor);
 
-    const auto result = createTextureImage32(
-        logicalDevice,
-        physicalDevice,
-        commandPool,
-        copyQueue,
-        data.data(),
-        size.x,
-        size.y,
-        *imageFormat,
-        &image,
-        &imageMemory);
-    if (!result) {
-        return unexpected("Failed to create texture image", result.error());
+    {
+        const auto result = createTextureImage32(
+            logicalDevice,
+            physicalDevice,
+            commandPool,
+            copyQueue,
+            data.data(),
+            size.x,
+            size.y,
+            *imageFormat,
+            &image,
+            &imageMemory);
+        if (!result) {
+            return unexpected("Failed to create texture image", result.error());
+        }
     }
 
     std::vector<std::string> errs;
@@ -438,7 +474,7 @@ Expected<Shared<UploadedTexture>> UploadedTexture::create(
         return unexpected("Error creating image view: " + errs.front());
     }
 
-    return std::make_shared<UploadedTexture>(
+    const auto result = std::make_shared<UploadedTexture>(
         std::move(logicalDevice),
         std::move(imageMemory),
         std::move(image),
@@ -446,6 +482,11 @@ Expected<Shared<UploadedTexture>> UploadedTexture::create(
         *std::move(imageFormat),
         std::move(size),
         Private {});
+
+    const auto ok = cache.m_createdCache.insert({ cacheKey, result }).second;
+    assert(ok);
+
+    return result;
 }
 
 UploadedTexture::~UploadedTexture()

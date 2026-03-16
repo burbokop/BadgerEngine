@@ -216,6 +216,16 @@ public:
         return m_meta.blueMask();
     }
 
+    constexpr RawPtr<std::uint8_t> data()
+    {
+        return m_data.data();
+    }
+
+    constexpr RawPtr<const std::uint8_t> data() const
+    {
+        return m_data.data();
+    }
+
 private:
     std::vector<std::uint8_t> m_data;
     TextureMetaData m_meta;

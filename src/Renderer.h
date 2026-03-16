@@ -16,6 +16,7 @@ class Window;
 struct PointLight;
 class UploadedTexture;
 class VertexObject;
+class UploadedTextureCache;
 
 struct RenderingOptions {
     bool backfaceCulling = true;
@@ -125,6 +126,7 @@ private:
 
     Shared<Window> m_window;
     Shared<PerspectiveCamera> m_camera;
+    Shared<UploadedTextureCache> m_textureCache;
 };
 
 }
