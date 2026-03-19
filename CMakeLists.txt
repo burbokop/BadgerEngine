@@ -12,7 +12,6 @@ option(ENABLE_BADGER_ENGINE_PEDANTIC_DIAGNOSTIC
 
 find_package(Vulkan REQUIRED COMPONENTS glslc)
 find_package(Freetype REQUIRED)
-find_package(assimp REQUIRED)
 find_program(
     GLSLC_EXECUTABLE
     NAMES glslc
@@ -28,10 +27,12 @@ endif ()
 
 set(BIN2H_SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/build_tools/bin2h)
 set(BIN2H_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/build_tools/bin2h)
+include(ExternalProject)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/bin2h.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/shaders.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/utils.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/diagnostic.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/assimp.cmake)
 set(BIN2H_EXECUTABLE
     ${BIN2H_EXECUTABLE}
     PARENT_SCOPE)

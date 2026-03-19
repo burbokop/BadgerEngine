@@ -71,6 +71,10 @@ const char* textureTypeToString(aiTextureType type) noexcept
         return "MayaSpecularColor";
     case aiTextureType_MAYA_SPECULAR_ROUGHNESS:
         return "MayaSpecularRoughness";
+    case aiTextureType_ANISOTROPY:
+        return "Anisotropy";
+    case aiTextureType_GLTF_METALLIC_ROUGHNESS:
+        return "GLTFMetallicRoughness";
     case _aiTextureType_Force32Bit:
         return "_aiTextureType_Force32Bit";
     }
