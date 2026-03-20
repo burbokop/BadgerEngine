@@ -2,6 +2,7 @@
 
 #include "Buffers/BufferUtils.h"
 #include "Geometry/Mesh.h"
+#include "RenderingOptions.h"
 #include "Tools/UploadedTexture.h"
 #include "Utils/Collections.h"
 #include "Utils/NumericCast.h"
@@ -19,7 +20,12 @@ struct UniformBufferObject {
 
 static_assert(offsetof(UniformBufferObject, model) == 0, "Offset must comply with std140");
 
-std::vector<UploadedModel> createModels(Shared<e172vp::GraphicsObject> graphicsObject, const Shared<Geometry::Mesh>& mesh, Shared<e172vp::Pipeline> pipeline, Shared<e172vp::Pipeline> nPipeline)
+std::vector<UploadedModel> createModels(
+    Shared<e172vp::GraphicsObject> graphicsObject,
+    const Shared<Geometry::Mesh>& mesh,
+    Shared<e172vp::Pipeline> pipeline,
+    Shared<e172vp::Pipeline> nPipeline,
+    DisplayNormals displayNormals)
 {
     std::list<UploadedModel> result = {
         UploadedModel(
@@ -27,19 +33,12 @@ std::vector<UploadedModel> createModels(Shared<e172vp::GraphicsObject> graphicsO
             std::move(pipeline))
     };
 
-    enum Normals {
-        NoNormals,
-        VertexNormals,
-        PolygonNormals
-    };
-
-    const Normals displayNormals = VertexNormals;
-    const float len = 1;
+    const float len = 0.02f;
 
     switch (displayNormals) {
-    case NoNormals:
+    case DisplayNormals::NoNormals:
         break;
-    case VertexNormals:
+    case DisplayNormals::VertexNormals:
         result.push_back(UploadedModel(
             MeshBuffer::upload(graphicsObject, *mesh->vertexNormalsMesh(len, glm::vec3(0, 0, 1)).value()).transform_error(AsCritical()).value(),
             nPipeline));
@@ -50,7 +49,7 @@ std::vector<UploadedModel> createModels(Shared<e172vp::GraphicsObject> graphicsO
             MeshBuffer::upload(graphicsObject, *mesh->vertexBitangentsMesh(len, glm::vec3(0, 1, 0)).value()).transform_error(AsCritical()).value(),
             std::move(nPipeline)));
         break;
-    case PolygonNormals:
+    case DisplayNormals::PolygonNormals:
         result.push_back(UploadedModel(
             MeshBuffer::upload(graphicsObject, *mesh->polygonNormalsMesh(len).value()).transform_error(AsCritical()).value(),
             std::move(nPipeline)));
@@ -73,9 +72,10 @@ BSDFVertexObject::BSDFVertexObject(
     Shared<UploadedTexture> ambientOclussionMap,
     Shared<UploadedTexture> normalMap,
     Shared<e172vp::Pipeline> pipeline,
-    Shared<e172vp::Pipeline> nPipeline)
+    Shared<e172vp::Pipeline> nPipeline,
+    DisplayNormals displayNormals)
     : m_graphicsObject(std::move(graphicsObject))
-    , m_models(createModels(m_graphicsObject, mesh, std::move(pipeline), std::move(nPipeline)))
+    , m_models(createModels(m_graphicsObject, mesh, std::move(pipeline), std::move(nPipeline), displayNormals))
     , m_baseColorTexture(std::move(baseColorTexture))
     , m_ambientOclussionMap(std::move(ambientOclussionMap))
     , m_normalMap(std::move(normalMap))

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../Window.h"
 #include "../Utils/NoNull.h"
+#include "../Window.h"
 
 namespace BadgerEngine {
 
@@ -14,7 +14,7 @@ public:
     bool shouldClose() const;
     glm::vec2 mousePosition() const;
     void setMousePosition(const glm::vec2& pos);
-    void setCursorVisible(bool v);
+    [[nodiscard]] Expected<void> setCursorVisible(bool v) noexcept;
 
     // Window interface
 public:

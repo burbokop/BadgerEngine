@@ -355,6 +355,8 @@ e172vp::SwapChain::SwapChain(
         if (m_isValid) {
             m_settings = settings;
 
+            assert(!images.empty());
+
             assert(images.size() == imageViewes.size());
 
             m_frames = std::views::zip(images, imageViewes) | std::views::transform([renderPass, settings, logicalDevice, physicalDevice](auto&& x) {
@@ -412,6 +414,8 @@ e172vp::SwapChain::SwapChain(
                     .framebuffer = frameBuffer,
                 };
             }) | BadgerEngine::Collect<std::vector>;
+
+            assert(!m_frames.empty());
         }
     }
 

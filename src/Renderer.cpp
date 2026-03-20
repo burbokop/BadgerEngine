@@ -144,7 +144,7 @@ void createSyncObjects(const vk::Device& logicDevice, vk::Semaphore* imageAvaila
 
 }
 
-Renderer::Renderer(Shared<Window> window, const std::filesystem::path& fontPath)
+Renderer::Renderer(Shared<Window> window, Shared<Camera> camera, const std::filesystem::path& fontPath)
     : m_graphicsObject(std::make_shared<e172vp::GraphicsObject>(e172vp::GraphicsObjectCreateInfo {
           .applicationName = "badger_engine_app",
           .applicationVersion = 1,
@@ -161,7 +161,7 @@ Renderer::Renderer(Shared<Window> window, const std::filesystem::path& fontPath)
 #endif
       }))
     , m_window(std::move(window))
-    , m_camera(std::make_shared<PerspectiveCamera>())
+    , m_camera(std::move(camera))
     , m_textureCache(std::make_shared<UploadedTextureCache>())
 {
 
@@ -223,7 +223,7 @@ Renderer::Renderer(Shared<Window> window, const std::filesystem::path& fontPath)
 
 Expected<void> Renderer::proceedCommandBuffers(const vk::RenderPass& renderPass,
     const vk::Extent2D& extent,
-    const PerspectiveCamera& camera,
+    const Camera& camera,
     const std::vector<vk::Framebuffer>& swapChainFramebuffers,
     const std::vector<vk::CommandBuffer>& commandBuffers,
     const std::vector<BufferBundle>& commonGlobalUniformBufferBundles,
@@ -489,7 +489,8 @@ VertexObject& Renderer::addObject(const BadgerEngine::Model& model, RenderingOpt
                     std::move(ambientOclusion),
                     std::move(normalMap),
                     createPipeline(BSDF_vert, BSDF_frag, model.mesh()->topology(), model.polygonMode(), options.backfaceCulling),
-                    m_normalDebugPipeline);
+                    m_normalDebugPipeline,
+                    options.displayNormals);
                 m_vertexObjects.push_back(result);
                 return *result;
             },

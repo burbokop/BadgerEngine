@@ -1,4 +1,4 @@
-#include "AssimpModel.h"
+#include "AssimpImporter.h"
 
 #include "../Utils/NumericCast.h"
 #include <assimp/DefaultLogger.hpp>
@@ -8,9 +8,9 @@
 #include <assimp/scene.h>
 #include <iostream>
 
-// #define BADGER_ENGINE_ASSIMP_LOGS
+#define BADGER_ENGINE_ASSIMP_LOGS
 
-namespace BadgerEngine::Assimp {
+namespace BadgerEngine::Import {
 
 namespace {
 
@@ -227,6 +227,23 @@ Expected<std::optional<float>> materialFloatProperty(const aiMaterial& material,
     std::unreachable();
 }
 
+Expected<std::optional<aiUVTransform>> materialUVTransformProperty(const aiMaterial& material, const char* key, unsigned int type, unsigned int idx) noexcept
+{
+    aiUVTransform tr;
+    const auto result = aiGetMaterialUVTransform(&material, key, type, idx, &tr);
+    switch (result) {
+    case aiReturn_SUCCESS:
+        return tr;
+    case aiReturn_FAILURE:
+        return std::nullopt;
+    case aiReturn_OUTOFMEMORY:
+        return unexpected("Out of memory");
+    case _AI_ENFORCE_ENUM_SIZE:
+        break;
+    }
+    std::unreachable();
+}
+
 [[nodiscard]] Expected<SharedTexture> loadEmbeddedTexture(const aiTexture* embeddedTexture) noexcept
 {
     (void)embeddedTexture;
@@ -358,6 +375,13 @@ Expected<std::optional<float>> materialFloatProperty(const aiMaterial& material,
     if (!diffuseMaps) {
         return unexpected("Failde to load aiTextureType_NORMALS maps", diffuseMaps.error());
     }
+
+    const auto normalsMapsUVTransform = materialUVTransformProperty(*material, AI_MATKEY_UVTRANSFORM(aiTextureType_NORMALS, 0));
+    if (!normalsMapsUVTransform) {
+        return unexpected("Failde to load aiTextureType_NORMALS maps", diffuseMaps.error());
+    }
+
+    std::cout << "normalsMapsUVTransform: " << normalsMapsUVTransform.value().has_value() << std::endl;
 
     const auto shininessMaps = loadMaterialTextures(textureLoader, material, aiTextureType_SHININESS, scene, sceneSourcePath);
     if (!diffuseMaps) {
@@ -520,7 +544,7 @@ Expected<std::vector<SharedMaterial>> loadMaterials(
     return result;
 }
 
-[[nodiscard]] bool isVertexValid(const Geometry::Vertex& vertex)
+[[nodiscard]] bool isVertexValid(const Geometry::Vertex& vertex) noexcept
 {
     return !std::isnan(vertex.position.x)
         && !std::isnan(vertex.position.y)
@@ -528,6 +552,12 @@ Expected<std::vector<SharedMaterial>> loadMaterials(
         && !std::isnan(vertex.normal.x)
         && !std::isnan(vertex.normal.y)
         && !std::isnan(vertex.normal.z)
+        && !std::isnan(vertex.tangent.x)
+        && !std::isnan(vertex.tangent.y)
+        && !std::isnan(vertex.tangent.z)
+        && !std::isnan(vertex.bitangent.x)
+        && !std::isnan(vertex.bitangent.y)
+        && !std::isnan(vertex.bitangent.z)
         && !std::isnan(vertex.color.x)
         && !std::isnan(vertex.color.y)
         && !std::isnan(vertex.color.z)
@@ -535,12 +565,19 @@ Expected<std::vector<SharedMaterial>> loadMaterials(
         && !std::isnan(vertex.uv.y);
 }
 
-glm::vec3 glmVec3FromAiVector3D(const aiVector3D& vec)
+glm::vec3 glmVec3FromAiVector3D(const aiVector3D& vec) noexcept
 {
     return { vec.x, vec.y, vec.z };
 }
 
-[[nodiscard]] Expected<Shared<Mesh>> processMesh(const std::vector<SharedMaterial>& materials, RawPtr<aiMesh> mesh, glm::mat4 transformation)
+std::string aiVector3DToString(const aiVector3D& vec) noexcept
+{
+    std::ostringstream ss;
+    ss << "[ " << vec.x << ", " << vec.y << ", " << vec.z << " ]";
+    return ss.str();
+}
+
+[[nodiscard]] Expected<Shared<Mesh>> processMesh(const std::vector<SharedMaterial>& materials, RawPtr<aiMesh> mesh, glm::mat4 transformation) noexcept
 {
     std::vector<Geometry::Vertex> vertices;
     std::vector<Geometry::Mesh::Index> indices;
@@ -548,7 +585,7 @@ glm::vec3 glmVec3FromAiVector3D(const aiVector3D& vec)
 
     assert(mesh->mVertices);
 
-    std::cout << mesh->mName.C_Str() << " -> mTangents: " << mesh->mTangents << ", mBitangents: " << mesh->mBitangents << std::endl;
+    // std::cout << mesh->mName.C_Str() << " -> mTangents: " << mesh->mTangents << ", mBitangents: " << mesh->mBitangents << std::endl;
 
     for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
         Geometry::Vertex vertex;
@@ -578,14 +615,20 @@ glm::vec3 glmVec3FromAiVector3D(const aiVector3D& vec)
             // vertex.color.a = (float)mesh->mColors[0][i].a;
         }
 
-        if (mesh->mTextureCoords[0]) {
-            vertex.uv.x = (float)mesh->mTextureCoords[0][i].x;
-            vertex.uv.y = (float)mesh->mTextureCoords[0][i].y;
+        if (mesh->HasTextureCoords(0)) {
+            vertex.uv = glmVec3FromAiVector3D(mesh->mTextureCoords[0][i]);
+
+            if (mesh->mName.C_Str() == std::string("Main Body")) {
+                // std::cout << "uv: " << vertex.uv.x << ", " << vertex.uv.y << std::endl;
+            }
         }
 
+        // if (mesh->HasTextureCoords(1)) {
+        //     vertex.uv = transformation * glm::vec4(glmVec3FromAiVector3D(mesh->mTextureCoords[1][i]), 0.);
+        // }
+
         if (!isVertexValid(vertex)) {
-            std::cerr << "Vertex " << i << " has NANs in it" << std::endl;
-            std::abort();
+            return unexpected("Vertex " + std::to_string(i) + " has NANs in it");
         }
 
         vertices.push_back(vertex);
@@ -606,16 +649,96 @@ glm::vec3 glmVec3FromAiVector3D(const aiVector3D& vec)
         material = materials[mesh->mMaterialIndex];
     }
 
-    return Mesh::create(Geometry::Mesh::create(Geometry::Topology::TriangleList, std::move(vertices), std::move(indices)), std::move(material));
+    return Mesh::create(
+        mesh->mName.C_Str(),
+        Geometry::Mesh::create(Geometry::Topology::TriangleList, std::move(vertices), std::move(indices)),
+        std::move(material));
 }
 
-[[nodiscard]] glm::mat4 glmMat4FromAiMatrix4x4(const aiMatrix4x4& m)
+[[nodiscard]] glm::mat4 glmMat4FromAiMatrix4x4(const aiMatrix4x4& m) noexcept
 {
     return glm::transpose(glm::mat4 {
         m.a1, m.a2, m.a3, m.a4,
         m.b1, m.b2, m.b3, m.b4,
         m.c1, m.c2, m.c3, m.c4,
         m.d1, m.d2, m.d3, m.d4 });
+}
+
+std::string metadataTypeTpString(aiMetadataType tp) noexcept
+{
+    switch (tp) {
+    case AI_BOOL:
+        return "bool";
+    case AI_INT32:
+        return "int32";
+    case AI_UINT64:
+        return "uint64";
+    case AI_FLOAT:
+        return "float";
+    case AI_DOUBLE:
+        return "double";
+    case AI_AISTRING:
+        return "string";
+    case AI_AIVECTOR3D:
+        return "vec3";
+    case AI_AIMETADATA:
+        return "metadata";
+    case AI_INT64:
+        return "int64";
+    case AI_UINT32:
+        return "uint32";
+    case AI_META_MAX:
+        return "AI_META_MAX";
+    case FORCE_32BIT:
+        return "FORCE_32BIT";
+    }
+    std::unreachable();
+}
+
+template<typename T>
+T metadataEntryValue(const aiMetadataEntry& entry)
+{
+    assert(GetAiType(T()) != entry.mType);
+    return *static_cast<T*>(entry.mData);
+};
+
+std::string metadataValueToString(const aiMetadataEntry& entry) noexcept
+{
+    std::ostringstream ss;
+    switch (entry.mType) {
+    case AI_BOOL:
+        ss << metadataEntryValue<bool>(entry);
+        return ss.str();
+    case AI_INT32:
+        ss << metadataEntryValue<std::int32_t>(entry);
+        return ss.str();
+    case AI_UINT64:
+        ss << metadataEntryValue<std::uint64_t>(entry);
+        return ss.str();
+    case AI_FLOAT:
+        ss << metadataEntryValue<float>(entry);
+        return ss.str();
+    case AI_DOUBLE:
+        ss << metadataEntryValue<double>(entry);
+        return ss.str();
+    case AI_AISTRING:
+        return metadataEntryValue<aiString>(entry).C_Str();
+    case AI_AIVECTOR3D:
+        return aiVector3DToString(metadataEntryValue<aiVector3D>(entry));
+    case AI_AIMETADATA:
+        return "AIMETADATA";
+    case AI_INT64:
+        ss << metadataEntryValue<std::int64_t>(entry);
+        return ss.str();
+    case AI_UINT32:
+        ss << metadataEntryValue<std::uint32_t>(entry);
+        return ss.str();
+    case AI_META_MAX:
+        return "AI_META_MAX";
+    case FORCE_32BIT:
+        return "FORCE_32BIT";
+    }
+    std::unreachable();
 }
 
 [[nodiscard]] Expected<void> processNode(
@@ -625,6 +748,18 @@ glm::vec3 glmVec3FromAiVector3D(const aiVector3D& vec)
     RawPtr<const aiScene> scene,
     glm::mat4 transformation)
 {
+
+    std::cout << "Entering node: " << node->mName.C_Str() << std::endl;
+
+    if (node->mMetaData) {
+        std::cout << "The node metadata has " << node->mMetaData->mNumProperties << " properties:" << std::endl;
+        for (unsigned int i = 0; i < node->mMetaData->mNumProperties; ++i) {
+            std::cout << "\t" << node->mMetaData->mKeys[i].C_Str() << ": " << metadataTypeTpString(node->mMetaData->mValues[i].mType) << " = " << metadataValueToString(node->mMetaData->mValues[i]) << std::endl;
+        }
+    } else {
+        std::cout << "The node has no metadata." << std::endl;
+    }
+
     transformation = transformation * glmMat4FromAiMatrix4x4(node->mTransformation);
 
     for (unsigned int i = 0; i < node->mNumMeshes; i++) {
@@ -648,21 +783,20 @@ glm::vec3 glmVec3FromAiVector3D(const aiVector3D& vec)
     return {};
 }
 
+constexpr unsigned int ImportFlags
+    = aiProcess_Triangulate
+    | aiProcess_TransformUVCoords
+    | aiProcess_ConvertToLeftHanded;
 }
 
-Expected<Model> Model::load(
-    const TextureLoader& textureLoader,
-    const std::filesystem::path& path,
-    const std::map<std::pair<MaterialIndex, TextureRole>, TextureLoader::VirtualTexturePath>& additionalTextures)
+Expected<Model> AssimpImporter::load(const TextureLoader& textureLoader, const std::filesystem::path& path) const noexcept
 {
-    (void)additionalTextures;
-
     if (!std::filesystem::exists(path)) {
         return unexpected("File `" + path.string() + "` does not exist.");
     }
 
     ::Assimp::Importer importer;
-    const aiScene* scene = importer.ReadFile(path.string().c_str(), aiProcess_Triangulate | aiProcess_ConvertToLeftHanded);
+    const aiScene* scene = importer.ReadFile(path.string().c_str(), ImportFlags);
 
     if (scene == nullptr) {
         return unexpected("Failed to read the file `" + path.string() + "`: " + importer.GetErrorString());
@@ -698,12 +832,10 @@ Expected<Model> Model::load(
     return Model(std::move(meshes));
 }
 
-Expected<Model> Model::parse(const TextureLoader& textureLoader, std::span<uint8_t> data, const std::string& hint, const std::map<std::pair<MaterialIndex, TextureRole>, TextureLoader::VirtualTexturePath>& additionalTextures)
+Expected<Model> AssimpImporter::parse(const TextureLoader& textureLoader, std::span<std::uint8_t> data, const std::string& hint) const noexcept
 {
-    (void)additionalTextures;
-
     ::Assimp::Importer importer;
-    const aiScene* scene = importer.ReadFileFromMemory(data.data(), data.size(), aiProcess_Triangulate | aiProcess_ConvertToLeftHanded, hint.c_str());
+    const aiScene* scene = importer.ReadFileFromMemory(data.data(), data.size(), ImportFlags, hint.c_str());
 
     if (scene == nullptr) {
         return unexpected("Failed to read the data");

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Buffers/BufferUtils.h"
+#include "RenderingOptions.h"
 #include "descriptorsetlayout.h"
 #include "font.h"
 #include "graphicsobject.h"
@@ -11,16 +12,12 @@
 namespace BadgerEngine {
 
 class Model;
-class PerspectiveCamera;
+class Camera;
 class Window;
 struct PointLight;
 class UploadedTexture;
 class VertexObject;
 class UploadedTextureCache;
-
-struct RenderingOptions {
-    bool backfaceCulling = true;
-};
 
 class Renderer {
 
@@ -34,16 +31,16 @@ public:
 
     bool removeVertexObject(VertexObject* vertexObject);
 
-    Renderer(Shared<Window> window, const std::filesystem::path& fontPath);
+    Renderer(Shared<Window> window, Shared<Camera> camera, const std::filesystem::path& fontPath);
 
     [[nodiscard]] Expected<void> applyPresentation() noexcept;
 
-    Shared<const PerspectiveCamera> camera() const
+    Shared<const Camera> camera() const
     {
         return m_camera;
     }
 
-    Shared<PerspectiveCamera> camera()
+    Shared<Camera> camera()
     {
         return m_camera;
     }
@@ -76,7 +73,7 @@ private:
 
     Expected<void> proceedCommandBuffers(const vk::RenderPass& renderPass,
         const vk::Extent2D& extent,
-        const PerspectiveCamera& camera,
+        const Camera& camera,
         const std::vector<vk::Framebuffer>& swapChainFramebuffers,
         const std::vector<vk::CommandBuffer>& commandBuffers,
         const std::vector<BufferBundle>& commonGlobalUniformBufferBundles,
@@ -125,7 +122,7 @@ private:
     float m_directionalLightIntensity = 0.f;
 
     Shared<Window> m_window;
-    Shared<PerspectiveCamera> m_camera;
+    Shared<Camera> m_camera;
     Shared<UploadedTextureCache> m_textureCache;
 };
 

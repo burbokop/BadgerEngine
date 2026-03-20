@@ -1,12 +1,11 @@
 #pragma once
 
 #include "../Geometry/Mesh.h"
+#include "../Model/TextureLoader.h"
 #include "../Utils/Visit.h"
-#include "TextureLoader.h"
-#include <filesystem>
 #include <vector>
 
-namespace BadgerEngine::Assimp {
+namespace BadgerEngine::Import {
 
 enum class TextureRole {
     Unknown,
@@ -168,55 +167,36 @@ public:
     Mesh(const Mesh&) = delete;
 
     static Shared<Mesh> create(
+        std::string name,
         Shared<Geometry::Mesh> mesh,
         SharedMaterial material)
     {
-        return std::make_shared<Mesh>(std::move(mesh), std::move(material), Private {});
+        return std::make_shared<Mesh>(std::move(name), std::move(mesh), std::move(material), Private {});
     }
 
+    const auto& name() const { return m_name; }
     const auto& mesh() const { return m_mesh; }
     const auto& material() const { return m_material; }
 
     Mesh(
+        std::string name,
         Shared<Geometry::Mesh> mesh,
         SharedMaterial material,
         Private)
-        : m_mesh(std::move(mesh))
+        : m_name(std::move(name))
+        , m_mesh(std::move(mesh))
         , m_material(std::move(material))
     {
     }
 
 private:
+    std::string m_name;
     Shared<Geometry::Mesh> m_mesh;
     SharedMaterial m_material;
 };
 
 class Model {
 public:
-    /**
-     * @brief load
-     * @param path
-     * @param additionalTextures - to be used when model file is broken and materials don't have links to the textures
-     * @return
-     */
-    static Expected<Model> load(
-        const TextureLoader&,
-        const std::filesystem::path& path,
-        const std::map<std::pair<MaterialIndex, TextureRole>, TextureLoader::VirtualTexturePath>& additionalTextures = {});
-
-    /**
-     * @brief parse
-     * @param data
-     * @param hint
-     * @param additionalTextures - to be used when model file is broken and materials don't have links to the textures
-     * @return
-     */
-    static Expected<Model> parse(
-        const TextureLoader&,
-        std::span<std::uint8_t> data,
-        const std::string& hint,
-        const std::map<std::pair<MaterialIndex, TextureRole>, TextureLoader::VirtualTexturePath>& additionalTextures = {});
-
     const auto& meshes() const { return m_meshes; }
 
     Model(std::vector<Shared<Mesh>> meshes)

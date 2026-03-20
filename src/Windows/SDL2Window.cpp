@@ -334,12 +334,18 @@ std::optional<Window::Key> windowKeyFromSDLScancode(SDL_Scancode scancode)
     case SDL_SCANCODE_KP_DECIMAL:
     case SDL_SCANCODE_KP_HEXADECIMAL:
     case SDL_SCANCODE_LCTRL:
+        return Window::Key::LEFT_CONTROL;
     case SDL_SCANCODE_LSHIFT:
+        return Window::Key::LEFT_SHIFT;
     case SDL_SCANCODE_LALT:
+        return Window::Key::LEFT_ALT;
     case SDL_SCANCODE_LGUI:
     case SDL_SCANCODE_RCTRL:
+        return Window::Key::RIGHT_CONTROL;
     case SDL_SCANCODE_RSHIFT:
+        return Window::Key::RIGHT_SHIFT;
     case SDL_SCANCODE_RALT:
+        return Window::Key::RIGHT_ALT;
     case SDL_SCANCODE_RGUI:
     case SDL_SCANCODE_MODE:
     case SDL_SCANCODE_AUDIONEXT:
@@ -427,12 +433,16 @@ public:
 
     glm::vec2 mousePosition() const
     {
-        int x = 0, y = 0;
-        ::SDL_GetMouseState(&x, &y);
-        return {
-            static_cast<float>(x),
-            static_cast<float>(y)
-        };
+        if (SDL_GetRelativeMouseMode() == SDL_TRUE) {
+            return m_relativeMousePosition;
+        } else {
+            int x = 0, y = 0;
+            ::SDL_GetMouseState(&x, &y);
+            return {
+                static_cast<float>(x),
+                static_cast<float>(y)
+            };
+        }
     }
 
     bool isPressed(Key key) const
@@ -447,11 +457,12 @@ public:
         return m_shouldClose;
     }
 
-    void setCursorVisible(bool v)
+    [[nodiscard]] Expected<void> setCursorVisible(bool v) noexcept
     {
-        if (::SDL_ShowCursor(v ? SDL_ENABLE : SDL_DISABLE) < 0) {
-            std::cerr << "Failed to change viability of SDL2 window cursor: " << ::SDL_GetError() << std::endl;
+        if (::SDL_SetRelativeMouseMode(v ? SDL_FALSE : SDL_TRUE) < 0) {
+            return unexpected(std::string("Failed to SDL_SetRelativeMouseMode: ") + ::SDL_GetError());
         }
+        return {};
     }
 
     void setMousePosition(const glm::vec2& pos)
@@ -516,6 +527,13 @@ private:
                 } else {
                     std::cerr << "Unknown SDL scancode: " << event.key.keysym.scancode << std::endl;
                 }
+            } else if (event.type == SDL_MOUSEMOTION && SDL_GetRelativeMouseMode() == SDL_TRUE) {
+                int x = 0, y = 0;
+                ::SDL_GetRelativeMouseState(&x, &y);
+                m_relativeMousePosition += glm::vec2 {
+                    static_cast<float>(x),
+                    static_cast<float>(y)
+                };
             }
         }
     }
@@ -524,6 +542,7 @@ private:
     RawPtr<SDL_Window> m_window;
     mutable std::atomic_bool m_shouldClose = false;
     mutable std::map<Key, bool> m_pressedKeys;
+    mutable glm::vec2 m_relativeMousePosition;
 };
 
 SDL2Window::SDL2Window(const std::string& title, std::size_t w, std::size_t h)
@@ -558,9 +577,9 @@ void SDL2Window::setMousePosition(const glm::vec2& pos)
     m_impl->setMousePosition(pos);
 }
 
-void SDL2Window::setCursorVisible(bool v)
+Expected<void> SDL2Window::setCursorVisible(bool v) noexcept
 {
-    m_impl->setCursorVisible(v);
+    return m_impl->setCursorVisible(v);
 }
 
 Expected<vk::SurfaceKHR> SDL2Window::createVulkanSurface(vk::Instance i)

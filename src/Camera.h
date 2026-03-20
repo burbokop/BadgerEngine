@@ -7,7 +7,15 @@
 
 namespace BadgerEngine {
 
-class PerspectiveCamera {
+class Camera {
+public:
+    virtual glm::mat4 transformation(float aspect) const = 0;
+    virtual glm::vec3 position() const = 0;
+    virtual float near() const = 0;
+    virtual float far() const = 0;
+};
+
+class PerspectiveCamera : public Camera {
 public:
     static constexpr auto DefaultFovy = std::numbers::pi_v<float> / 4.f;
 
@@ -25,12 +33,12 @@ public:
     {
     }
 
-    glm::mat4 transformation(float aspect) const
+    glm::mat4 transformation(float aspect) const override
     {
         return glm::perspective(m_fovy, aspect, m_near, m_far) * glm::toMat4(m_rotation) * glm::translate(glm::mat4(1.f), m_position);
     }
 
-    glm::vec3 position() const
+    glm::vec3 position() const override
     {
         return m_position;
     }
@@ -56,8 +64,8 @@ public:
     }
 
     float fovy() const { return m_fovy; }
-    float near() const { return m_near; }
-    float far() const { return m_far; }
+    float near() const override { return m_near; }
+    float far() const override { return m_far; }
 
 private:
     glm::vec3 m_position;

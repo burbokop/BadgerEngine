@@ -22,6 +22,8 @@ namespace Geometry {
 class Mesh;
 }
 
+enum class DisplayNormals : std::uint8_t;
+
 class BSDFVertexObject : public VertexObject {
 public:
     ~BSDFVertexObject();
@@ -37,13 +39,11 @@ public:
         Shared<UploadedTexture> ambientOclussionMap,
         Shared<UploadedTexture> normalMap,
         Shared<e172vp::Pipeline> pipeline,
-        Shared<e172vp::Pipeline> nPipeline);
+        Shared<e172vp::Pipeline> nPipeline,
+        DisplayNormals displayNormals);
 
 public:
-    const auto& graphicsObject() const
-    {
-        return m_graphicsObject;
-    }
+    const auto& graphicsObject() const { return m_graphicsObject; }
 
     std::vector<BadgerEngine::BufferBundle> bufferBundles() const
     {
@@ -70,5 +70,4 @@ private:
     std::vector<vk::DescriptorSet> m_ambientOclussionMapDescriptorSets;
     std::vector<vk::DescriptorSet> m_normalMapDescriptorSets;
 };
-
 }
