@@ -6,15 +6,16 @@
 #include <assimp/LogStream.hpp>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
+#include <glm/gtx/string_cast.hpp>
 #include <iostream>
 
-#define BADGER_ENGINE_ASSIMP_LOGS
+// #define BADGER_ENGINE_ASSIMP_LOGS
 
 namespace BadgerEngine::Import {
 
 namespace {
 
-static const auto EmptyMaterial = std::make_shared<Material>();
+const auto EmptyMaterial = std::make_shared<Material>();
 
 const char* textureTypeToString(aiTextureType type) noexcept
 {
@@ -381,7 +382,9 @@ Expected<std::optional<aiUVTransform>> materialUVTransformProperty(const aiMater
         return unexpected("Failde to load aiTextureType_NORMALS maps", diffuseMaps.error());
     }
 
+#ifdef BADGER_ENGINE_ASSIMP_LOGS
     std::cout << "normalsMapsUVTransform: " << normalsMapsUVTransform.value().has_value() << std::endl;
+#endif
 
     const auto shininessMaps = loadMaterialTextures(textureLoader, material, aiTextureType_SHININESS, scene, sceneSourcePath);
     if (!diffuseMaps) {
@@ -664,7 +667,7 @@ std::string aiVector3DToString(const aiVector3D& vec) noexcept
         m.d1, m.d2, m.d3, m.d4 });
 }
 
-std::string metadataTypeTpString(aiMetadataType tp) noexcept
+[[maybe_unused]] std::string metadataTypeTpString(aiMetadataType tp) noexcept
 {
     switch (tp) {
     case AI_BOOL:
@@ -702,7 +705,7 @@ T metadataEntryValue(const aiMetadataEntry& entry)
     return *static_cast<T*>(entry.mData);
 };
 
-std::string metadataValueToString(const aiMetadataEntry& entry) noexcept
+[[maybe_unused]] std::string metadataValueToString(const aiMetadataEntry& entry) noexcept
 {
     std::ostringstream ss;
     switch (entry.mType) {
@@ -748,7 +751,7 @@ std::string metadataValueToString(const aiMetadataEntry& entry) noexcept
     RawPtr<const aiScene> scene,
     glm::mat4 transformation)
 {
-
+#ifdef BADGER_ENGINE_ASSIMP_LOGS
     std::cout << "Entering node: " << node->mName.C_Str() << std::endl;
 
     if (node->mMetaData) {
@@ -759,8 +762,9 @@ std::string metadataValueToString(const aiMetadataEntry& entry) noexcept
     } else {
         std::cout << "The node has no metadata." << std::endl;
     }
+#endif
 
-    transformation = transformation * glmMat4FromAiMatrix4x4(node->mTransformation);
+    transformation *= glmMat4FromAiMatrix4x4(node->mTransformation);
 
     for (unsigned int i = 0; i < node->mNumMeshes; i++) {
         aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];

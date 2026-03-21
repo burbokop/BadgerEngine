@@ -1,12 +1,21 @@
 #include "TinyGLTFImporter.h"
 
+#define GLM_ENABLE_EXPERIMENTAL
 #include "../Utils/NumericCast.h"
+#include <glm/ext/matrix_transform.hpp>
+#include <glm/glm.hpp>
+#include <glm/gtx/quaternion.hpp>
+#include <glm/gtx/string_cast.hpp>
 #include <iostream>
 #include <tiny_gltf.h>
+
+// #define BADGER_ENGINE_TINY_GLTF_LOGS
 
 namespace BadgerEngine::Import {
 
 namespace {
+
+const auto EmptyMaterial = std::make_shared<Material>();
 
 [[nodiscard, maybe_unused]] std::size_t sz(int mode) noexcept
 {
@@ -217,7 +226,7 @@ namespace {
     return s;
 }
 
-[[nodiscard]] std::string valueToString(
+[[nodiscard, maybe_unused]] std::string valueToString(
     const std::string& name,
     const tinygltf::Value& value, const int indent,
     const bool tag = true) noexcept
@@ -273,77 +282,262 @@ namespace {
     return ss.str();
 }
 
-using ParseAttributeBuffer = Expected<void> (*)(std::vector<Geometry::Vertex>& vertices, const tinygltf::Model& model, const tinygltf::Accessor& accessor);
-
-[[nodiscard]] Expected<void> parsePositionAttributeBuffer(std::vector<Geometry::Vertex>& vertices, const tinygltf::Model& model, const tinygltf::Accessor& accessor) noexcept
+[[nodiscard]] Expected<void> parseIndexBuffer(std::vector<Geometry::Mesh::Index>& indices, const tinygltf::Model& model, const tinygltf::Accessor& accessor) noexcept
 {
-    vertices.resize(accessor.count);
+    if (indices.size() < accessor.count) {
+        indices.resize(accessor.count);
+    }
+
     const auto bufferView = model.bufferViews[sz(accessor.bufferView)];
     const auto buffer = model.buffers[sz(bufferView.buffer)];
     const auto byteStride = accessor.ByteStride(bufferView);
 
-    (void)byteStride;
+    if (accessor.componentType != TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) {
+        return unexpected("Unsupported component type `" + componentTypeToString(accessor.componentType) + "`");
+    }
 
-    return unexpected("TODO");
+    if (accessor.type != TINYGLTF_TYPE_SCALAR) {
+        return unexpected("Unsupported type `" + typeToString(accessor.type) + "`");
+    }
+
+    const std::span<const std::uint8_t> bs = std::span(
+        buffer.data.data() + bufferView.byteOffset,
+        bufferView.byteLength);
+
+    std::size_t i = 0;
+    for (const std::uint8_t* elem = bs.data(); elem < bs.data() + bs.size(); elem += byteStride) {
+        indices[i] = *reinterpret_cast<const std::uint16_t*>(elem);
+        ++i;
+    }
+
+    return {};
 }
 
-[[nodiscard]] Expected<void> parseColorAttributeBuffer(std::vector<Geometry::Vertex>& vertices, const tinygltf::Model& model, const tinygltf::Accessor& accessor) noexcept
+using ParseAttributeBufferFunction = Expected<void> (*)(std::vector<Geometry::Vertex>& vertices, const tinygltf::Model& model, const tinygltf::Accessor& accessor, const glm::mat4& transformation);
+
+[[nodiscard]] Expected<void> parsePositionAttributeBuffer(std::vector<Geometry::Vertex>& vertices, const tinygltf::Model& model, const tinygltf::Accessor& accessor, const glm::mat4& transformation) noexcept
 {
-    vertices.resize(accessor.count);
+    if (vertices.size() < accessor.count) {
+        vertices.resize(accessor.count);
+    }
+
     const auto bufferView = model.bufferViews[sz(accessor.bufferView)];
     const auto buffer = model.buffers[sz(bufferView.buffer)];
     const auto byteStride = accessor.ByteStride(bufferView);
 
-    (void)byteStride;
-    return unexpected("TODO");
+    if (accessor.componentType != TINYGLTF_COMPONENT_TYPE_FLOAT) {
+        return unexpected("Unsupported component type `" + componentTypeToString(accessor.componentType) + "`");
+    }
+
+    if (accessor.type != TINYGLTF_TYPE_VEC3) {
+        return unexpected("Unsupported type `" + typeToString(accessor.type) + "`");
+    }
+
+    const std::span<const std::uint8_t> bs = std::span(
+        buffer.data.data() + bufferView.byteOffset,
+        bufferView.byteLength);
+
+    std::size_t i = 0;
+    for (const std::uint8_t* elem = bs.data(); elem < bs.data() + bs.size(); elem += byteStride) {
+        const auto e = reinterpret_cast<const float*>(elem);
+
+        const float x = e[0];
+        const float y = e[1];
+        const float z = e[2];
+
+        vertices[i].position = transformation * glm::vec4 { x, y, z, 1 };
+        ++i;
+    }
+
+    return {};
 }
 
-[[nodiscard]] Expected<void> parseNormalAttributeBuffer(std::vector<Geometry::Vertex>& vertices, const tinygltf::Model& model, const tinygltf::Accessor& accessor) noexcept
+[[nodiscard]] Expected<void> parseColorAttributeBuffer(std::vector<Geometry::Vertex>& vertices, const tinygltf::Model& model, const tinygltf::Accessor& accessor, const glm::mat4&) noexcept
 {
-    vertices.resize(accessor.count);
+    if (vertices.size() < accessor.count) {
+        vertices.resize(accessor.count);
+    }
+
     const auto bufferView = model.bufferViews[sz(accessor.bufferView)];
     const auto buffer = model.buffers[sz(bufferView.buffer)];
     const auto byteStride = accessor.ByteStride(bufferView);
 
-    (void)byteStride;
-    return unexpected("TODO");
+    if (accessor.componentType != TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE) {
+        return unexpected("Unsupported component type `" + componentTypeToString(accessor.componentType) + "`");
+    }
+
+    if (accessor.type != TINYGLTF_TYPE_VEC4) {
+        return unexpected("Unsupported type `" + typeToString(accessor.type) + "`");
+    }
+
+    const std::span<const std::uint8_t> bs = std::span(
+        buffer.data.data() + bufferView.byteOffset,
+        bufferView.byteLength);
+
+    std::size_t i = 0;
+    for (const std::uint8_t* elem = bs.data(); elem < bs.data() + bs.size(); elem += byteStride) {
+        const std::uint8_t r = elem[0];
+        const std::uint8_t g = elem[1];
+        const std::uint8_t b = elem[2];
+        const std::uint8_t a = elem[3];
+
+        vertices[i].color = glm::vec4 {
+            static_cast<float>(r) / 255.f,
+            static_cast<float>(g) / 255.f,
+            static_cast<float>(b) / 255.f,
+            static_cast<float>(a) / 255.f,
+        };
+        ++i;
+    }
+
+    return {};
 }
 
-[[nodiscard]] Expected<void> parseTangentAttributeBuffer(std::vector<Geometry::Vertex>& vertices, const tinygltf::Model& model, const tinygltf::Accessor& accessor) noexcept
+[[nodiscard]] Expected<void> parseNormalAttributeBuffer(std::vector<Geometry::Vertex>& vertices, const tinygltf::Model& model, const tinygltf::Accessor& accessor, const glm::mat4& transformation) noexcept
 {
-    vertices.resize(accessor.count);
+    if (vertices.size() < accessor.count) {
+        vertices.resize(accessor.count);
+    }
+
     const auto bufferView = model.bufferViews[sz(accessor.bufferView)];
     const auto buffer = model.buffers[sz(bufferView.buffer)];
     const auto byteStride = accessor.ByteStride(bufferView);
 
-    (void)byteStride;
-    return unexpected("TODO");
+    if (accessor.componentType != TINYGLTF_COMPONENT_TYPE_FLOAT) {
+        return unexpected("Unsupported component type `" + componentTypeToString(accessor.componentType) + "`");
+    }
+
+    if (accessor.type != TINYGLTF_TYPE_VEC3) {
+        return unexpected("Unsupported type `" + typeToString(accessor.type) + "`");
+    }
+
+    const std::span<const std::uint8_t> bs = std::span(
+        buffer.data.data() + bufferView.byteOffset,
+        bufferView.byteLength);
+
+    std::size_t i = 0;
+    for (const std::uint8_t* elem = bs.data(); elem < bs.data() + bs.size(); elem += byteStride) {
+        const auto e = reinterpret_cast<const float*>(elem);
+
+        const float x = e[0];
+        const float y = e[1];
+        const float z = e[2];
+
+        vertices[i].normal = glm::normalize(transformation * glm::vec4 { x, y, z, 0 });
+        ++i;
+    }
+
+    return {};
 }
 
-[[nodiscard]] Expected<void> parseUVAttributeBuffer(std::vector<Geometry::Vertex>& vertices, const tinygltf::Model& model, const tinygltf::Accessor& accessor) noexcept
+[[nodiscard]] Expected<void> parseTangentAttributeBuffer(std::vector<Geometry::Vertex>& vertices, const tinygltf::Model& model, const tinygltf::Accessor& accessor, const glm::mat4& transformation) noexcept
 {
-    vertices.resize(accessor.count);
+    if (vertices.size() < accessor.count) {
+        vertices.resize(accessor.count);
+    }
+
     const auto bufferView = model.bufferViews[sz(accessor.bufferView)];
     const auto buffer = model.buffers[sz(bufferView.buffer)];
     const auto byteStride = accessor.ByteStride(bufferView);
 
-    (void)byteStride;
-    return unexpected("TODO");
+    if (accessor.componentType != TINYGLTF_COMPONENT_TYPE_FLOAT) {
+        return unexpected("Unsupported component type `" + componentTypeToString(accessor.componentType) + "`");
+    }
+
+    if (accessor.type != TINYGLTF_TYPE_VEC4) {
+        return unexpected("Unsupported type `" + typeToString(accessor.type) + "`");
+    }
+
+    const std::span<const std::uint8_t> bs = std::span(
+        buffer.data.data() + bufferView.byteOffset,
+        bufferView.byteLength);
+
+    std::size_t i = 0;
+    for (const std::uint8_t* elem = bs.data(); elem < bs.data() + bs.size(); elem += byteStride) {
+        const auto e = reinterpret_cast<const float*>(elem);
+
+        const float x = e[0];
+        const float y = e[1];
+        const float z = e[2];
+        const float w = e[3];
+
+        if (std::abs(vertices[i].normal.x) <= std::numeric_limits<float>::epsilon()
+            && std::abs(vertices[i].normal.y) <= std::numeric_limits<float>::epsilon()
+            && std::abs(vertices[i].normal.z) <= std::numeric_limits<float>::epsilon()) {
+            return unexpected("Can not calculate bitangent without a normal");
+        }
+
+        vertices[i].tangent = glm::normalize(transformation * glm::vec4 { x, y, z, 0 });
+        vertices[i].bitangent = glm::normalize(glm::cross(vertices[i].normal, vertices[i].tangent) * w);
+        ++i;
+    }
+
+    return {};
 }
 
-[[nodiscard]] Expected<Shared<Mesh>> parsePrimitive(const tinygltf::Model& model, const tinygltf::Primitive& primitive) noexcept
+[[nodiscard]] Expected<void> parseUVAttributeBuffer(std::vector<Geometry::Vertex>& vertices, const tinygltf::Model& model, const tinygltf::Accessor& accessor, const glm::mat4&) noexcept
 {
+    if (vertices.size() < accessor.count) {
+        vertices.resize(accessor.count);
+    }
+
+    const auto bufferView = model.bufferViews[sz(accessor.bufferView)];
+    const auto buffer = model.buffers[sz(bufferView.buffer)];
+    const auto byteStride = accessor.ByteStride(bufferView);
+
+    if (accessor.componentType != TINYGLTF_COMPONENT_TYPE_FLOAT) {
+        return unexpected("Unsupported component type `" + componentTypeToString(accessor.componentType) + "`");
+    }
+
+    if (accessor.type != TINYGLTF_TYPE_VEC2) {
+        return unexpected("Unsupported type `" + typeToString(accessor.type) + "`");
+    }
+
+    const std::span<const std::uint8_t> bs = std::span(
+        buffer.data.data() + bufferView.byteOffset,
+        bufferView.byteLength);
+
+    std::size_t i = 0;
+    for (const std::uint8_t* elem = bs.data(); elem < bs.data() + bs.size(); elem += byteStride) {
+        const auto e = reinterpret_cast<const float*>(elem);
+
+        const float x = e[0];
+        const float y = e[1];
+
+        vertices[i].uv = glm::vec2 { x, y };
+        ++i;
+    }
+
+    return {};
+}
+
+[[nodiscard]] Expected<std::pair<Shared<Geometry::Mesh>, SharedMaterial>> parsePrimitive(
+    const tinygltf::Model& model,
+    const tinygltf::Primitive& primitive,
+    const std::vector<SharedMaterial>& materials,
+    const glm::mat4& transformation) noexcept
+{
+#ifdef BADGER_ENGINE_TINY_GLTF_LOGS
     std::cout << "\tPrimitive:" << std::endl;
+#endif
 
     const tinygltf::Accessor indexAccessor = model.accessors[sz(primitive.indices)];
-    const auto indexBufferView = model.bufferViews[sz(indexAccessor.bufferView)];
-    const auto indexBuffer = model.buffers[sz(indexBufferView.buffer)];
 
-    std::cout << "\t\tIndexAccessor: " << typeToString(indexAccessor.type) << "<" << componentTypeToString(indexAccessor.componentType) << ">" << "[" << indexAccessor.count << "]" << " " << indexBufferView.byteLength << " (" << indexBuffer.data.size() << ")" << std::endl;
+#ifdef BADGER_ENGINE_TINY_GLTF_LOGS
+    std::cout << "\t\tIndexAccessor: " << typeToString(indexAccessor.type) << "<" << componentTypeToString(indexAccessor.componentType) << ">" << "[" << indexAccessor.count << "]" << std::endl;
+#endif
 
+    std::vector<Geometry::Mesh::Index> indices;
     std::vector<Geometry::Vertex> vertices;
 
-    std::map<std::string, ParseAttributeBuffer> attributesBufferParseFunctions = {
+    {
+        const auto result = parseIndexBuffer(indices, model, indexAccessor);
+        if (!result) {
+            return unexpected("Failed to parse index buffer", result.error());
+        }
+    }
+
+    std::map<std::string, ParseAttributeBufferFunction> attributesBufferParseFunctions = {
         { "POSITION", parsePositionAttributeBuffer },
         { "COLOR_0", parseColorAttributeBuffer },
         { "NORMAL", parseNormalAttributeBuffer },
@@ -354,105 +548,104 @@ using ParseAttributeBuffer = Expected<void> (*)(std::vector<Geometry::Vertex>& v
     for (auto& attrib : primitive.attributes) {
         tinygltf::Accessor accessor = model.accessors[sz(attrib.second)];
 
+#ifdef BADGER_ENGINE_TINY_GLTF_LOGS
         std::cout << "\t\tAttribute: " << attrib.first << " " << typeToString(accessor.type) << "<" << componentTypeToString(accessor.componentType) << ">" << "[" << accessor.count << "]" << std::endl;
+#endif
 
-        const auto result = attributesBufferParseFunctions.at(attrib.first)(vertices, model, accessor);
-        if (!result) {
-            return unexpected("Failed to parse attribute buffer `" + attrib.first + "`", result.error());
+        const auto it = attributesBufferParseFunctions.find(attrib.first);
+        if (it != attributesBufferParseFunctions.end()) {
+            const auto result = it->second(vertices, model, accessor, transformation);
+            if (!result) {
+                return unexpected("Failed to parse attribute buffer `" + attrib.first + "`", result.error());
+            }
         }
-
-        // glBindBuffer(GL_ARRAY_BUFFER, vbos[accessor.bufferView]);
-
-        // int size = 1;
-        // if (accessor.type != TINYGLTF_TYPE_SCALAR) {
-        //     size = accessor.type;
-        // }
-
-        // int vaa = -1;
-        // if (attrib.first.compare("POSITION") == 0)
-        //     vaa = 0;
-        // if (attrib.first.compare("NORMAL") == 0)
-        //     vaa = 1;
-        // if (attrib.first.compare("TEXCOORD_0") == 0)
-        //     vaa = 2;
-        // if (vaa > -1) {
-        //     glEnableVertexAttribArray(vaa);
-        //     glVertexAttribPointer(vaa, size, accessor.componentType,
-        //         accessor.normalized ? GL_TRUE : GL_FALSE,
-        //         byteStride, BUFFER_OFFSET(accessor.byteOffset));
-        // } else
-        //     std::cout << "vaa missing: " << attrib.first << std::endl;
     }
 
-    // TODO
-    // if (model.textures.size() > 0) {
-    //     // fixme: Use material's baseColor
-    //     tinygltf::Texture& tex = model.textures[0];
+    SharedMaterial material = EmptyMaterial;
+    if (primitive.material >= 0) {
+        material = materials[sz(primitive.material)];
+    }
 
-    //     if (tex.source > -1) {
-
-    //         GLuint texid;
-    //         glGenTextures(1, &texid);
-
-    //         tinygltf::Image& image = model.images[tex.source];
-
-    //         glBindTexture(GL_TEXTURE_2D, texid);
-    //         glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    //         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    //         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    //         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    //         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-
-    //         GLenum format = GL_RGBA;
-
-    //         if (image.component == 1) {
-    //             format = GL_RED;
-    //         } else if (image.component == 2) {
-    //             format = GL_RG;
-    //         } else if (image.component == 3) {
-    //             format = GL_RGB;
-    //         } else {
-    //             // ???
-    //         }
-
-    //         GLenum type = GL_UNSIGNED_BYTE;
-    //         if (image.bits == 8) {
-    //             // ok
-    //         } else if (image.bits == 16) {
-    //             type = GL_UNSIGNED_SHORT;
-    //         } else {
-    //             // ???
-    //         }
-
-    //         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.width, image.height, 0,
-    //             format, type, &image.image.at(0));
-    //     }
-    // }
-
-    return unexpected("TODO");
+    return std::pair {
+        Geometry::Mesh::create(Geometry::Topology::TriangleList, std::move(vertices), std::move(indices)),
+        material
+    };
 }
 
-[[nodiscard]] Expected<void> parseMesh(std::vector<Shared<Mesh>>& meshes, const tinygltf::Model& model, const tinygltf::Mesh& mesh) noexcept
+[[nodiscard]] Expected<void> parseMesh(
+    std::vector<Shared<Mesh>>& meshes,
+    const tinygltf::Model& model,
+    const tinygltf::Mesh& mesh,
+    const std::vector<SharedMaterial>& materials,
+    const glm::mat4& transformation) noexcept
 {
+#ifdef BADGER_ENGINE_TINY_GLTF_LOGS
     std::cout << "Mesh: " << mesh.name << std::endl;
+#endif
 
     for (std::size_t i = 0; i < mesh.primitives.size(); ++i) {
-        const auto result = parsePrimitive(model, mesh.primitives[i]);
+        const auto result = parsePrimitive(model, mesh.primitives[i], materials, transformation);
         if (!result) {
             return unexpected("Failed to parse primitive", result.error());
         }
 
-        meshes.push_back(*result);
+        meshes.push_back(Mesh::create(
+            mesh.name,
+            result->first,
+            result->second));
     }
 
     return {};
 }
 
-[[nodiscard]] Expected<void> parseNode(std::vector<Shared<Mesh>>& meshes, const tinygltf::Model& model,
-    const tinygltf::Node& node) noexcept
+[[nodiscard]] glm::mat4 nodeTransformation(const tinygltf::Node& node)
 {
+    if (!node.matrix.empty()) {
+        assert(false && "Check that the matrix is correct. maybe it needs to be transposed");
+        assert(node.matrix.size() == 16);
+        const auto& m = node.matrix;
+        return glm::mat4(m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8], m[9], m[10], m[11], m[12], m[13], m[14], m[15]);
+    } else {
+        glm::mat4 result = glm::mat4(1);
+
+        if (!node.translation.empty()) {
+            assert(node.translation.size() == 3);
+            result = glm::translate(result, glm::vec3(node.translation[0], node.translation[1], node.translation[2]));
+        }
+
+        if (!node.rotation.empty()) {
+            assert(node.rotation.size() == 4);
+
+            const auto quat = glm::quat {
+                static_cast<float>(node.rotation[3]),
+                static_cast<float>(node.rotation[0]),
+                static_cast<float>(node.rotation[1]),
+                static_cast<float>(node.rotation[2]),
+            };
+
+            result = result * glm::toMat4(quat);
+        }
+
+        if (!node.scale.empty()) {
+            assert(node.scale.size() == 3);
+            result = glm::scale(result, glm::vec3(node.scale[0], node.scale[1], node.scale[2]));
+        }
+
+        return result;
+    }
+}
+
+[[nodiscard]] Expected<void> parseNode(
+    std::vector<Shared<Mesh>>& meshes,
+    const tinygltf::Model& model,
+    const tinygltf::Node& node,
+    const std::vector<SharedMaterial>& materials,
+    glm::mat4 transformation) noexcept
+{
+    transformation *= nodeTransformation(node);
+
     if (node.mesh >= 0 && std::cmp_less(node.mesh, model.meshes.size())) {
-        const auto result = parseMesh(meshes, model, model.meshes[numericCast<std::size_t>(node.mesh).value()]);
+        const auto result = parseMesh(meshes, model, model.meshes[numericCast<std::size_t>(node.mesh).value()], materials, transformation);
         if (!result) {
             return unexpected("Failed to parse mesh", result.error());
         }
@@ -460,7 +653,7 @@ using ParseAttributeBuffer = Expected<void> (*)(std::vector<Geometry::Vertex>& v
 
     for (std::size_t i = 0; i < node.children.size(); i++) {
         assert(node.children[i] >= 0 && std::cmp_less(node.children[i], model.nodes.size()));
-        const auto result = parseNode(meshes, model, model.nodes[numericCast<std::size_t>(node.children[i]).value()]);
+        const auto result = parseNode(meshes, model, model.nodes[numericCast<std::size_t>(node.children[i]).value()], materials, transformation);
         if (!result) {
             return unexpected("Failed to parse node", result.error());
         }
@@ -469,63 +662,180 @@ using ParseAttributeBuffer = Expected<void> (*)(std::vector<Geometry::Vertex>& v
     return {};
 }
 
-[[nodiscard]] Expected<void> parseModel(std::vector<Shared<Mesh>>& meshes, const tinygltf::Model& model) noexcept
+[[nodiscard]] Expected<SharedTexture> parseTexture(
+    const TextureLoader& textureLoader,
+    const tinygltf::Texture& texture,
+    const tinygltf::Model& model)
 {
-    for (size_t i = 0; i < model.bufferViews.size(); ++i) {
-        const tinygltf::BufferView& bufferView = model.bufferViews[i];
-        if (bufferView.target == 0) { // TODO impl drawarrays
-            std::cout << "WARN: bufferView.target is zero" << std::endl;
-            continue; // Unsupported bufferView.
-            /*
-              From spec2.0 readme:
-              https://github.com/KhronosGroup/glTF/tree/master/specification/2.0
-                       ... drawArrays function should be used with a count equal to
-              the count            property of any of the accessors referenced by the
-              attributes            property            (they are all equal for a given
-              primitive).
-            */
+    const auto image = model.images[sz(texture.source)];
+    const auto result = textureLoader.texture(image.uri);
+    if (!result) {
+        return unexpected("Texture `" + image.uri + "` not found");
+    }
+
+    return *result;
+}
+
+[[nodiscard]] Expected<std::vector<SharedTexture>> parseTextures(
+    const TextureLoader& textureLoader,
+    const std::vector<tinygltf::Texture>& textures,
+    const tinygltf::Model& model)
+{
+    std::vector<SharedTexture> result;
+    result.reserve(textures.size());
+
+    for (const auto& texture : textures) {
+        const auto t = parseTexture(textureLoader, texture, model);
+        if (!t) {
+            return unexpected("Failed to parse texture", t.error());
         }
 
-        const tinygltf::Buffer& buffer = model.buffers[numericCast<std::size_t>(bufferView.buffer).value()];
-        std::cout << "bufferview `" << bufferView.name
-                  << "` target: " << targetToString(bufferView.target)
-                  << ", buffer.data.size = " << buffer.data.size()
-                  << ", bufferview.byteOffset = " << bufferView.byteOffset
-                  << std::endl;
+        result.push_back(*t);
+    }
 
-        // TODO
-        // glBufferData(bufferView.target, bufferView.byteLength,
-        //     &buffer.data.at(0) + bufferView.byteOffset, GL_STATIC_DRAW);
+    return result;
+}
+
+Expected<glm::vec3> parseVec3(const std::vector<double>& vec) noexcept
+{
+    if (vec.size() == 3) {
+        return glm::vec3 { vec[0], vec[1], vec[2] };
+    } else {
+        return unexpected("Vec size doesn't match");
+    }
+}
+
+Expected<glm::vec4> parseVec4(const std::vector<double>& vec) noexcept
+{
+    if (vec.size() == 4) {
+        return glm::vec4 { vec[0], vec[1], vec[2], vec[3] };
+    } else {
+        return unexpected("Vec size doesn't match");
+    }
+}
+
+[[nodiscard]] Expected<SharedMaterial> parseMaterial(
+    const tinygltf::Material& material,
+    const std::vector<SharedTexture>& textures)
+{
+    const auto baseColor = parseVec4(material.pbrMetallicRoughness.baseColorFactor);
+    if (!baseColor) {
+        return unexpected("Failed to parse base color", baseColor.error());
+    }
+
+    const auto emissiveColor = parseVec3(material.emissiveFactor);
+    if (!emissiveColor) {
+        return unexpected("Failed to parse emissive color", emissiveColor.error());
+    }
+
+    const auto metallness = material.pbrMetallicRoughness.metallicFactor;
+    const auto roughness = material.pbrMetallicRoughness.roughnessFactor;
+
+    std::vector<SharedTexture> normalsMaps;
+    if (material.normalTexture.index >= 0) {
+        normalsMaps.push_back(textures[sz(material.normalTexture.index)]);
+    }
+
+    std::vector<SharedTexture> baseColorMaps;
+    if (material.pbrMetallicRoughness.baseColorTexture.index >= 0) {
+        baseColorMaps.push_back(textures[sz(material.pbrMetallicRoughness.baseColorTexture.index)]);
+    }
+
+    std::vector<SharedTexture> metalnessMaps;
+    if (material.pbrMetallicRoughness.metallicRoughnessTexture.index >= 0) {
+        metalnessMaps.push_back(textures[sz(material.pbrMetallicRoughness.metallicRoughnessTexture.index)]);
+    }
+
+    std::vector<SharedTexture> ambientOcclusionMaps;
+    if (material.occlusionTexture.index >= 0) {
+        ambientOcclusionMaps.push_back(textures[sz(material.occlusionTexture.index)]);
+    }
+
+    return std::make_shared<Material>(Material {
+        .name = material.name,
+        .baseColor = *std::move(baseColor),
+        .diffuseColor = std::nullopt,
+        .emissiveColor = glm::vec4(*emissiveColor, 1),
+        .specularColor = std::nullopt,
+        .metallness = std::move(metallness),
+        .roughness = std::move(roughness),
+        .shininess = std::nullopt,
+        .specularFactor = std::nullopt,
+        .diffuseMaps = {},
+        .specularMaps = {},
+        .ambientMaps = {},
+        .emissiveMaps = {},
+        .heightMaps = {},
+        .normalsMaps = std::move(normalsMaps),
+        .shininessMaps = {},
+        .opacityMaps = {},
+        .displacementMaps = {},
+        .lightmapMaps = {},
+        .reflectionMaps = {},
+        .baseColorMaps = std::move(baseColorMaps),
+        .normalCameraMaps = {},
+        .emissionColorMaps = {},
+        .metalnessMaps = std::move(metalnessMaps),
+        .diffuseRoughnessMaps = {},
+        .ambientOcclusionMaps = std::move(ambientOcclusionMaps),
+        .unknownTextures = {},
+        .sheenMaps = {},
+        .clearcoatMaps = {},
+        .transmissionMaps = {},
+        .mayaBaseMaps = {},
+        .mayaSpecularMaps = {},
+        .mayaSpecularColorMaps = {},
+        .mayaSpecularRoughnessMaps = {},
+    });
+}
+
+Expected<std::vector<SharedMaterial>> parseMaterials(
+    const std::vector<tinygltf::Material>& materials,
+    const std::vector<SharedTexture>& textures) noexcept
+{
+    std::vector<SharedMaterial> result;
+    result.reserve(materials.size());
+
+    for (const auto& material : materials) {
+        const auto m = parseMaterial(material, textures);
+        if (!m) {
+            return unexpected("Failed to load scene material", m.error());
+        }
+
+        result.push_back(*m);
+    }
+
+    return result;
+}
+
+[[nodiscard]] Expected<void> parseModel(std::vector<Shared<Mesh>>& meshes, const TextureLoader& textureLoader, const tinygltf::Model& model) noexcept
+{
+
+    const auto textures = parseTextures(textureLoader, model.textures, model);
+    if (!textures) {
+        return unexpected("Failed to load scene textures", textures.error());
+    }
+
+    const auto materials = parseMaterials(model.materials, *textures);
+    if (!materials) {
+        return unexpected("Failed to load scene materials", materials.error());
     }
 
     const tinygltf::Scene& scene = model.scenes[numericCast<std::size_t>(model.defaultScene).value()];
 
     for (size_t i = 0; i < scene.nodes.size(); ++i) {
         assert((scene.nodes[i] >= 0) && std::cmp_less(scene.nodes[i], model.nodes.size()));
-        const auto result = parseNode(meshes, model, model.nodes[numericCast<std::size_t>(scene.nodes[i]).value()]);
+        const auto result = parseNode(meshes, model, model.nodes[numericCast<std::size_t>(scene.nodes[i]).value()], *materials, glm::mat4(1));
         if (!result) {
             return unexpected("Failed to parse root nodes", result.error());
         }
     }
 
-    // glBindVertexArray(0);
-    // // cleanup vbos but do not delete index buffers yet
-    // for (auto it = vbos.cbegin(); it != vbos.cend();) {
-    //     tinygltf::BufferView bufferView = model.bufferViews[it->first];
-    //     if (bufferView.target != GL_ELEMENT_ARRAY_BUFFER) {
-    //         glDeleteBuffers(1, &vbos[it->first]);
-    //         vbos.erase(it++);
-    //     } else {
-    //         ++it;
-    //     }
-    // }
-
     return {};
 }
-
 }
 
-Expected<Model> TinyGLTFImporter::load(const TextureLoader&, const std::filesystem::path& path) const noexcept
+Expected<Model> TinyGLTFImporter::load(const TextureLoader& textureLoader, const std::filesystem::path& path) const noexcept
 {
     tinygltf::TinyGLTF loader;
 
@@ -549,7 +859,7 @@ Expected<Model> TinyGLTFImporter::load(const TextureLoader&, const std::filesyst
     std::vector<Shared<Mesh>> meshes;
 
     {
-        const auto result = parseModel(meshes, model);
+        const auto result = parseModel(meshes, textureLoader, model);
         if (!result) {
             return unexpected("Failed to parse model", result.error());
         }

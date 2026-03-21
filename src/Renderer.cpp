@@ -463,7 +463,8 @@ VertexObject& Renderer::addCharacter(char c, std::shared_ptr<e172vp::Pipeline> p
         Geometry::Mesh::create(Geometry::Topology::TriangleList, v, i),
         m_font->character(c).imageView(),
         pipeline,
-        m_normalDebugPipeline);
+        m_normalDebugPipeline,
+        DisplayNormals::NoNormals);
     m_vertexObjects.push_back(r);
     return *r;
 }
@@ -506,7 +507,8 @@ VertexObject& Renderer::addObject(const BadgerEngine::Model& model, RenderingOpt
                     model.mesh(),
                     frames[i].imageView,
                     createPipeline(material.vert, material.frag, model.mesh()->topology(), model.polygonMode(), options.backfaceCulling),
-                    m_normalDebugPipeline);
+                    m_normalDebugPipeline,
+                    options.displayNormals);
                 m_vertexObjects.push_back(result);
                 return *result;
             },
@@ -532,7 +534,8 @@ VertexObject& Renderer::addObject(const BadgerEngine::Model& model, RenderingOpt
                         model.mesh(),
                         texture,
                         createPipeline(material.vert, material.frag, model.mesh()->topology(), model.polygonMode(), options.backfaceCulling),
-                        m_normalDebugPipeline);
+                        m_normalDebugPipeline,
+                        options.displayNormals);
                     m_vertexObjects.push_back(result);
                     return *result;
 
@@ -545,7 +548,8 @@ VertexObject& Renderer::addObject(const BadgerEngine::Model& model, RenderingOpt
                         model.mesh(),
                         m_font->character('N').imageView(),
                         createPipeline(material.vert, material.frag, model.mesh()->topology(), model.polygonMode(), options.backfaceCulling),
-                        m_normalDebugPipeline);
+                        m_normalDebugPipeline,
+                        options.displayNormals);
                     m_vertexObjects.push_back(result);
                     return *result;
                 }

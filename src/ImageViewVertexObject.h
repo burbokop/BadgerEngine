@@ -2,6 +2,7 @@
 
 #include "Buffers/BufferUtils.h"
 #include "Buffers/MeshBuffer.h"
+#include "RenderingOptions.h"
 #include "Tools/UploadedModel.h"
 #include "VertexObject.h"
 #include "descriptorsetlayout.h"
@@ -35,7 +36,8 @@ public:
         const Shared<BadgerEngine::Geometry::Mesh>& mesh,
         const vk::ImageView& imageView,
         Shared<e172vp::Pipeline> pipeline,
-        Shared<e172vp::Pipeline> nPipeline);
+        Shared<e172vp::Pipeline> nPipeline,
+        DisplayNormals displayNormals);
 
     ImageViewVertexObject(
         Shared<e172vp::GraphicsObject> graphicsObject,
@@ -45,7 +47,8 @@ public:
         const Shared<BadgerEngine::Geometry::Mesh>& mesh,
         Shared<UploadedTexture> texture,
         Shared<e172vp::Pipeline> pipeline,
-        Shared<e172vp::Pipeline> nPipeline);
+        Shared<e172vp::Pipeline> nPipeline,
+        DisplayNormals displayNormals);
 
 public:
     const auto& graphicsObject() const
