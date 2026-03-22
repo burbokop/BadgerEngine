@@ -836,8 +836,14 @@ Expected<Model> AssimpImporter::load(const TextureLoader& textureLoader, const s
     return Model(std::move(meshes));
 }
 
-Expected<Model> AssimpImporter::parse(const TextureLoader& textureLoader, std::span<std::uint8_t> data, const std::string& hint) const noexcept
+Expected<Model> AssimpImporter::parse(
+    const TextureLoader& textureLoader,
+    std::span<const std::uint8_t> data,
+    const std::map<std::string, std::span<const std::uint8_t>>& additionalData,
+    const std::string& hint) const noexcept
 {
+    (void)additionalData;
+
     ::Assimp::Importer importer;
     const aiScene* scene = importer.ReadFileFromMemory(data.data(), data.size(), ImportFlags, hint.c_str());
 

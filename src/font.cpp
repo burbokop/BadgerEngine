@@ -224,7 +224,7 @@ e172vp::Font::Font(
     const vk::PhysicalDevice& physicalDevice,
     const vk::CommandPool& commandPool,
     const vk::Queue& copyQueue,
-    const std::filesystem::path& path,
+    std::span<const std::uint8_t> fontBytes,
     std::size_t size)
 {
     m_logicalDevice = logicalDevice;
@@ -235,11 +235,11 @@ e172vp::Font::Font(
     }
 
     FT_Face face;
-    if (FT_New_Face(ft, path.string().c_str(), 0, &face)) {
-        throw std::runtime_error("Failed to load font: " + path.string());
+    if (::FT_New_Memory_Face(ft, fontBytes.data(), BadgerEngine::numericCast<FT_Long>(fontBytes.size()).value(), 0, &face)) {
+        throw std::runtime_error("Failed to load font");
     }
 
-    FT_Set_Pixel_Sizes(face, 0, BadgerEngine::numericCast<FT_UInt>(size).value());
+    ::FT_Set_Pixel_Sizes(face, 0, BadgerEngine::numericCast<FT_UInt>(size).value());
 
     for (unsigned char c = 0; c < 128; c++) {
         if (FT_Load_Char(face, c, FT_LOAD_RENDER)) {

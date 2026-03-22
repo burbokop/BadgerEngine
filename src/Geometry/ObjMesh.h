@@ -17,6 +17,7 @@ public:
     };
 
     static Expected<ObjMesh> load(const std::filesystem::path& path);
+    static Expected<ObjMesh> parse(std::span<const std::uint8_t> bytes);
 
     ObjMesh(const ObjMesh&) = delete;
     ObjMesh& operator=(const ObjMesh&) = delete;

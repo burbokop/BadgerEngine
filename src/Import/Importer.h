@@ -27,7 +27,8 @@ public:
      */
     virtual Expected<Model> parse(
         const TextureLoader&,
-        std::span<std::uint8_t> data,
+        std::span<const std::uint8_t> data,
+        const std::map<std::string, std::span<const std::uint8_t>>& additionalData,
         const std::string& hint) const noexcept
         = 0;
 };

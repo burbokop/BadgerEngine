@@ -92,8 +92,8 @@ function (badger_engine_add_embedded_shader_target target)
 
         add_custom_command(
             DEPENDS ${intermediate_file_path}
-            COMMAND ${BIN2H_EXECUTABLE} ${intermediate_file_path} --name ${variable_file_name} >
-                    ${output_file_path}
+            COMMAND ${BIN2H_EXECUTABLE} ${intermediate_file_path} --name ${variable_file_name}
+                    --constexpr --pragma-once > ${output_file_path}
             OUTPUT ${output_file_path})
 
         list(APPEND output_file_paths ${output_file_path})

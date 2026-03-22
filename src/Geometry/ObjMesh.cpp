@@ -1,10 +1,13 @@
 #include "ObjMesh.h"
 
+#include <cstdio>
 #include <cstring>
 
 namespace BadgerEngine::Geometry {
 
-Expected<ObjMesh> ObjMesh::load(const std::filesystem::path& path)
+namespace {
+
+Expected<ObjMesh> parseFromStream(std::FILE* file)
 {
     std::vector<glm::vec3> vertices;
     std::vector<glm::vec2> uvMap;
@@ -13,12 +16,7 @@ Expected<ObjMesh> ObjMesh::load(const std::filesystem::path& path)
     // std::vector<std::uint32_t> uvIndices;
     // std::vector<std::uint32_t> normalIndices;
 
-    std::vector<Index> indices;
-
-    const auto file = std::fopen(path.string().c_str(), "r");
-    if (file == NULL) {
-        return unexpected("Failed to open file " + path.string() + ": " + ::strerror(errno));
-    }
+    std::vector<ObjMesh::Index> indices;
 
     while (true) {
         std::string line;
@@ -53,29 +51,54 @@ Expected<ObjMesh> ObjMesh::load(const std::filesystem::path& path)
             std::uint32_t iv3z = 0;
             std::fscanf(file, "%u/%u/%u %u/%u/%u %u/%u/%u\n", &iv1x, &iv1y, &iv1z, &iv2x, &iv2y, &iv2z, &iv3x, &iv3y, &iv3z);
 
-            indices.push_back(Index {
+            indices.push_back(ObjMesh::Index {
                 .vertex = iv1x - 1,
                 .uv = iv1y - 1,
                 .normal = iv1z - 1 });
 
-            indices.push_back(Index {
+            indices.push_back(ObjMesh::Index {
                 .vertex = iv2x - 1,
                 .uv = iv2y - 1,
                 .normal = iv2z - 1 });
 
-            indices.push_back(Index {
+            indices.push_back(ObjMesh::Index {
                 .vertex = iv3x - 1,
                 .uv = iv3y - 1,
                 .normal = iv3z - 1 });
         }
     }
 
-    std::fclose(file);
     return ObjMesh(
         vertices,
         uvMap,
         normals,
         indices);
+}
+
+}
+
+Expected<ObjMesh> ObjMesh::load(const std::filesystem::path& path)
+{
+    const auto file = std::fopen(path.string().c_str(), "r");
+    if (file == NULL) {
+        return unexpected("Failed to open file " + path.string() + ": " + ::strerror(errno));
+    }
+
+    auto result = parseFromStream(file);
+    std::fclose(file);
+    return result;
+}
+
+Expected<ObjMesh> ObjMesh::parse(std::span<const std::uint8_t> bytes)
+{
+    const auto file = ::fmemopen(const_cast<std::uint8_t*>(bytes.data()), bytes.size(), "r");
+    if (file == NULL) {
+        return unexpected(std::string("Failed to open file from memory: ") + ::strerror(errno));
+    }
+
+    auto result = parseFromStream(file);
+    std::fclose(file);
+    return result;
 }
 
 }

@@ -31,7 +31,7 @@ public:
 
     bool removeVertexObject(VertexObject* vertexObject);
 
-    Renderer(Shared<Window> window, Shared<Camera> camera, const std::filesystem::path& fontPath);
+    Renderer(Shared<Window> window, Shared<Camera> camera, std::span<const uint8_t> fontBytes);
 
     [[nodiscard]] Expected<void> applyPresentation() noexcept;
 

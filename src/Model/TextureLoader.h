@@ -18,6 +18,7 @@ public:
     TextureLoader() = default;
 
     [[nodiscard]] Expected<void> load(const VirtualTexturePath& vpath, const std::filesystem::path& path) noexcept;
+    [[nodiscard]] Expected<void> parse(const VirtualTexturePath& vpath, std::span<const std::uint8_t> bytes) noexcept;
 
     std::optional<SharedTexture> texture(const VirtualTexturePath& path) const noexcept
     {

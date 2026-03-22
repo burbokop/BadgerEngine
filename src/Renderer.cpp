@@ -144,7 +144,7 @@ void createSyncObjects(const vk::Device& logicDevice, vk::Semaphore* imageAvaila
 
 }
 
-Renderer::Renderer(Shared<Window> window, Shared<Camera> camera, const std::filesystem::path& fontPath)
+Renderer::Renderer(Shared<Window> window, Shared<Camera> camera, std::span<const std::uint8_t> fontBytes)
     : m_graphicsObject(std::make_shared<e172vp::GraphicsObject>(e172vp::GraphicsObjectCreateInfo {
           .applicationName = "badger_engine_app",
           .applicationVersion = 1,
@@ -210,7 +210,7 @@ Renderer::Renderer(Shared<Window> window, Shared<Camera> camera, const std::file
         m_graphicsObject->physicalDevice(),
         m_graphicsObject->commandPool(),
         m_graphicsObject->graphicsQueue(),
-        fontPath,
+        fontBytes,
         128);
 
     m_normalDebugPipeline = createPipeline(

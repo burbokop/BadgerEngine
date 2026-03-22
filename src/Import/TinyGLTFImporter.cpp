@@ -1,4 +1,5 @@
 #include "TinyGLTFImporter.h"
+#include <algorithm>
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include "../Utils/NumericCast.h"
@@ -524,7 +525,11 @@ using ParseAttributeBufferFunction = Expected<void> (*)(std::vector<Geometry::Ve
     const tinygltf::Accessor indexAccessor = model.accessors[sz(primitive.indices)];
 
 #ifdef BADGER_ENGINE_TINY_GLTF_LOGS
-    std::cout << "\t\tIndexAccessor: " << typeToString(indexAccessor.type) << "<" << componentTypeToString(indexAccessor.componentType) << ">" << "[" << indexAccessor.count << "]" << std::endl;
+    std::cout << "\t\tIndexAccessor: " << typeToString(indexAccessor.type)
+              << "<" << componentTypeToString(indexAccessor.componentType) << ">"
+              << "[" << indexAccessor.count << "] "
+              << "(" << floatArrayToString(indexAccessor.minValues) << ".." << floatArrayToString(indexAccessor.maxValues) << ")"
+              << std::endl;
 #endif
 
     std::vector<Geometry::Mesh::Index> indices;
@@ -549,7 +554,11 @@ using ParseAttributeBufferFunction = Expected<void> (*)(std::vector<Geometry::Ve
         tinygltf::Accessor accessor = model.accessors[sz(attrib.second)];
 
 #ifdef BADGER_ENGINE_TINY_GLTF_LOGS
-        std::cout << "\t\tAttribute: " << attrib.first << " " << typeToString(accessor.type) << "<" << componentTypeToString(accessor.componentType) << ">" << "[" << accessor.count << "]" << std::endl;
+        std::cout << "\t\tAttribute: " << attrib.first << " " << typeToString(accessor.type)
+                  << "<" << componentTypeToString(accessor.componentType) << ">"
+                  << "[" << accessor.count << "] "
+                  << "(" << floatArrayToString(accessor.minValues) << ".." << floatArrayToString(accessor.maxValues) << ")"
+                  << std::endl;
 #endif
 
         const auto it = attributesBufferParseFunctions.find(attrib.first);
@@ -565,6 +574,9 @@ using ParseAttributeBufferFunction = Expected<void> (*)(std::vector<Geometry::Ve
     if (primitive.material >= 0) {
         material = materials[sz(primitive.material)];
     }
+
+    // Because the wole model has it's Y axis flipped. See `transformation` variable in `parseModel` function
+    std::ranges::reverse(indices);
 
     return std::pair {
         Geometry::Mesh::create(Geometry::Topology::TriangleList, std::move(vertices), std::move(indices)),
@@ -733,21 +745,25 @@ Expected<glm::vec4> parseVec4(const std::vector<double>& vec) noexcept
 
     std::vector<SharedTexture> normalsMaps;
     if (material.normalTexture.index >= 0) {
+        assert(material.normalTexture.texCoord == 0);
         normalsMaps.push_back(textures[sz(material.normalTexture.index)]);
     }
 
     std::vector<SharedTexture> baseColorMaps;
     if (material.pbrMetallicRoughness.baseColorTexture.index >= 0) {
+        assert(material.pbrMetallicRoughness.baseColorTexture.texCoord == 0);
         baseColorMaps.push_back(textures[sz(material.pbrMetallicRoughness.baseColorTexture.index)]);
     }
 
     std::vector<SharedTexture> metalnessMaps;
     if (material.pbrMetallicRoughness.metallicRoughnessTexture.index >= 0) {
+        assert(material.pbrMetallicRoughness.metallicRoughnessTexture.texCoord == 0);
         metalnessMaps.push_back(textures[sz(material.pbrMetallicRoughness.metallicRoughnessTexture.index)]);
     }
 
     std::vector<SharedTexture> ambientOcclusionMaps;
     if (material.occlusionTexture.index >= 0) {
+        assert(material.occlusionTexture.texCoord == 0);
         ambientOcclusionMaps.push_back(textures[sz(material.occlusionTexture.index)]);
     }
 
@@ -811,6 +827,14 @@ Expected<std::vector<SharedMaterial>> parseMaterials(
 [[nodiscard]] Expected<void> parseModel(std::vector<Shared<Mesh>>& meshes, const TextureLoader& textureLoader, const tinygltf::Model& model) noexcept
 {
 
+    const auto supportedExtensions = std::array { "KHR_texture_transform" };
+
+    for (const auto& e : model.extensionsRequired) {
+        if (std::ranges::find_if(supportedExtensions, [&e](auto a) { return a == e; }) == supportedExtensions.end()) {
+            return unexpected("Unsupported extension `" + e + "`");
+        }
+    }
+
     const auto textures = parseTextures(textureLoader, model.textures, model);
     if (!textures) {
         return unexpected("Failed to load scene textures", textures.error());
@@ -823,9 +847,11 @@ Expected<std::vector<SharedMaterial>> parseMaterials(
 
     const tinygltf::Scene& scene = model.scenes[numericCast<std::size_t>(model.defaultScene).value()];
 
+    const auto transformation = glm::scale(glm::mat4(1), glm::vec3(1, -1, 1));
+
     for (size_t i = 0; i < scene.nodes.size(); ++i) {
         assert((scene.nodes[i] >= 0) && std::cmp_less(scene.nodes[i], model.nodes.size()));
-        const auto result = parseNode(meshes, model, model.nodes[numericCast<std::size_t>(scene.nodes[i]).value()], *materials, glm::mat4(1));
+        const auto result = parseNode(meshes, model, model.nodes[numericCast<std::size_t>(scene.nodes[i]).value()], *materials, transformation);
         if (!result) {
             return unexpected("Failed to parse root nodes", result.error());
         }
@@ -868,10 +894,85 @@ Expected<Model> TinyGLTFImporter::load(const TextureLoader& textureLoader, const
     return Model(meshes);
 }
 
-Expected<Model> TinyGLTFImporter::parse(const TextureLoader&, std::span<std::uint8_t> data, const std::string& hint) const noexcept
+Expected<Model> TinyGLTFImporter::parse(
+    const TextureLoader& textureLoader,
+    std::span<const std::uint8_t> data,
+    const std::map<std::string, std::span<const std::uint8_t>>& additionalData,
+    const std::string&) const noexcept
 {
-    (void)data;
-    (void)hint;
-    return unexpected("TODO");
+    tinygltf::TinyGLTF loader;
+
+    std::string err;
+    std::string warn;
+
+    tinygltf::Model model;
+
+    {
+        using Context = std::map<std::string, std::span<const std::uint8_t>>;
+
+        const auto filesystemCallbacks = tinygltf::FsCallbacks {
+            .FileExists = [](const std::string& path, void* userData) -> bool {
+                const Context& context = *reinterpret_cast<Context*>(userData);
+                return context.find(path) != context.end();
+            },
+            .ExpandFilePath = [](const std::string& path, void*) -> std::string { return path; },
+            .ReadWholeFile = [](std::vector<unsigned char>* outputBuffer, std::string* err, const std::string& path, void* userData) -> bool {
+                const Context& context = *reinterpret_cast<Context*>(userData);
+                const auto it = context.find(path);
+                if (it != context.end()) {
+                    *outputBuffer = std::vector(it->second.begin(), it->second.end());
+                    return true;
+                } else {
+                    *err = "Data span with id `" + path + "` not found";
+                    return false;
+                }
+            },
+            .WriteWholeFile = [](std::string* err, const std::string&,
+                                  const std::vector<unsigned char>&, void*) -> bool {
+                *err = "Writing not supported";
+                return false;
+            },
+            .GetFileSizeInBytes = [](std::size_t* outputFileSize, std::string* err,
+                                      const std::string& path, void* userdata) -> bool {
+                const Context& context = *reinterpret_cast<Context*>(userdata);
+                const auto it = context.find(path);
+                if (it != context.end()) {
+                    *outputFileSize = it->second.size();
+                    return true;
+                } else {
+                    *err = "Data span with id `" + path + "` not found";
+                    return false;
+                }
+            },
+            .user_data = const_cast<Context*>(&additionalData),
+        };
+
+        std::string err;
+        if (!loader.SetFsCallbacks(filesystemCallbacks, &err)) {
+            return unexpected("Failed to set filesystem callbacks: " + err);
+        }
+    }
+
+    if (!loader.LoadASCIIFromString(
+            &model,
+            &err,
+            &warn,
+            reinterpret_cast<const char*>(data.data()),
+            numericCast<unsigned int>(data.size()).value(),
+            {})) {
+        return unexpected("Failed to load gltf model" + err);
+    }
+
+    std::vector<Shared<Mesh>> meshes;
+
+    {
+        const auto result = parseModel(meshes, textureLoader, model);
+        if (!result) {
+            return unexpected("Failed to parse model", result.error());
+        }
+    }
+
+    return Model(meshes);
 }
+
 }

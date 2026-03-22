@@ -7,10 +7,26 @@ namespace BadgerEngine {
 
 namespace {
 
-Expected<SharedTexture> readPNG(const std::filesystem::path& path, PixFormat format) noexcept
-{
-    png::image<png::rgba_pixel> image(path);
+class MemBuf : public std::streambuf {
+public:
+    MemBuf(std::span<const std::uint8_t> bytes)
+    {
+        char* p(const_cast<char*>(reinterpret_cast<const char*>(bytes.data())));
+        this->setg(p, p, p + bytes.size());
+    }
+};
 
+class IMemStream : virtual MemBuf, public std::istream {
+public:
+    IMemStream(std::span<const std::uint8_t> bytes)
+        : MemBuf(bytes)
+        , std::istream(static_cast<std::streambuf*>(this))
+    {
+    }
+};
+
+Expected<SharedTexture> parsePNG(const png::image<png::rgba_pixel>& image, PixFormat format) noexcept
+{
     const auto bytesPerPixel = pixFormatBytesPerPixel(format);
 
     const auto metadata = TextureMetaData {
@@ -58,7 +74,26 @@ Expected<void> BadgerEngine::TextureLoader::load(const BadgerEngine::TextureLoad
         return unexpected("File `" + path.string() + "` not exist");
     }
 
-    const auto texture = readPNG(path, PixFormat::RGBA32);
+    png::image<png::rgba_pixel> image(path);
+    const auto texture = parsePNG(image, PixFormat::RGBA32);
+    if (!texture) {
+        return unexpected(texture.error());
+    }
+
+    const auto it = m_textures.find(vpath);
+    if (it != m_textures.end()) {
+        return unexpected("Texture with virtual path `" + vpath + "` already exist");
+    }
+
+    m_textures.insert(it, { vpath, *texture });
+    return {};
+}
+
+Expected<void> TextureLoader::parse(const VirtualTexturePath& vpath, std::span<const uint8_t> bytes) noexcept
+{
+    IMemStream stream(bytes);
+    png::image<png::rgba_pixel> image(stream);
+    const auto texture = parsePNG(image, PixFormat::RGBA32);
     if (!texture) {
         return unexpected(texture.error());
     }

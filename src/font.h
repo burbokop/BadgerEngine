@@ -50,7 +50,7 @@ public:
         const vk::PhysicalDevice& physicalDevice,
         const vk::CommandPool& commandPool,
         const vk::Queue& copyQueue,
-        const std::filesystem::path& path,
+        std::span<const uint8_t> fontBytes,
         std::size_t size);
 
     Font(const Font&) = delete;
