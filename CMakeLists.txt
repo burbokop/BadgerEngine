@@ -34,6 +34,7 @@ include(${CMAKE_CURRENT_LIST_DIR}/cmake/utils.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/diagnostic.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/assimp.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/tinygltf.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/spng.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/embed.cmake)
 set(BIN2H_EXECUTABLE
     ${BIN2H_EXECUTABLE}
@@ -47,8 +48,13 @@ endif ()
 
 add_subdirectory(src)
 
-target_link_libraries(BadgerEngine PRIVATE Vulkan::Vulkan Freetype::Freetype assimp::assimp
-                                           tinygltf::tinygltf)
+target_link_libraries(
+    BadgerEngine
+    PRIVATE Vulkan::Vulkan
+            Freetype::Freetype
+            assimp::assimp
+            tinygltf::tinygltf
+            spng::spng)
 
 badger_engine_target_pedantic_diagnostic(BadgerEngine)
 

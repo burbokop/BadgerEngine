@@ -33,7 +33,7 @@ public:
     }
 
 private:
-    char _[N];
+    char data[N] = {};
 };
 
 struct PointLightUniformBufferObject {

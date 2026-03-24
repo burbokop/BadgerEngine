@@ -411,8 +411,9 @@ Expected<Shared<UploadedTexture>> UploadedTexture::upload(
         std::move(size),
         Private {});
 
-    const auto ok = cache.m_loadedCache.insert({ texture.nullable(), result }).second;
+    [[maybe_unused]] const auto ok = cache.m_loadedCache.insert({ texture.nullable(), result }).second;
     assert(ok);
+
     return result;
 }
 
@@ -483,7 +484,7 @@ Expected<Shared<UploadedTexture>> UploadedTexture::create(
         std::move(size),
         Private {});
 
-    const auto ok = cache.m_createdCache.insert({ cacheKey, result }).second;
+    [[maybe_unused]] const auto ok = cache.m_createdCache.insert({ cacheKey, result }).second;
     assert(ok);
 
     return result;

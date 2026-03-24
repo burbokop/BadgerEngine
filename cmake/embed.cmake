@@ -3,9 +3,13 @@ function (badger_engine_add_embedded_target target)
         PARSE_ARGV
         1
         arg
-        ""
+        "SHARED;STATIC"
         "OUTPUT_DIR;SUBDIR"
         "SOURCES")
+
+    if (arg_SHARED AND arg_STATIC)
+        message(FATAL_ERROR "Can not be both SHARED and STATIC")
+    endif ()
 
     if (NOT DEFINED arg_OUTPUT_DIR)
         set(arg_OUTPUT_DIR
@@ -18,7 +22,8 @@ function (badger_engine_add_embedded_target target)
         set(output_dir ${arg_OUTPUT_DIR})
     endif ()
 
-    set(output_file_paths)
+    make_directory(${output_dir})
+
     foreach (source_file_path ${arg_SOURCES})
 
         get_filename_component(source_file_name ${source_file_path} NAME)
@@ -46,12 +51,15 @@ function (badger_engine_add_embedded_target target)
         list(APPEND output_file_paths ${output_file_path} ${output_file_path_cpp})
     endforeach ()
 
-    add_library(${target}_impl SHARED ${output_file_paths})
+    if (arg_STATIC)
+        add_library(${target}_impl STATIC ${output_file_paths})
+    else ()
+        add_library(${target}_impl SHARED ${output_file_paths})
+    endif ()
 
     add_library(${target} INTERFACE)
     target_sources(${target} PRIVATE ${arg_SOURCES})
 
-    # add_dependencies()
     target_link_libraries(${target} INTERFACE ${target}_impl)
     target_include_directories(${target} INTERFACE ${arg_OUTPUT_DIR})
 endfunction ()

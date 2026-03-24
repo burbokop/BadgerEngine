@@ -1,67 +1,80 @@
 #include "TextureLoader.h"
 
 #include <cstring>
-#include <png++/png.hpp>
+#include <spng.h>
 
 namespace BadgerEngine {
 
 namespace {
 
-class MemBuf : public std::streambuf {
-public:
-    MemBuf(std::span<const std::uint8_t> bytes)
-    {
-        char* p(const_cast<char*>(reinterpret_cast<const char*>(bytes.data())));
-        this->setg(p, p, p + bytes.size());
-    }
-};
-
-class IMemStream : virtual MemBuf, public std::istream {
-public:
-    IMemStream(std::span<const std::uint8_t> bytes)
-        : MemBuf(bytes)
-        , std::istream(static_cast<std::streambuf*>(this))
-    {
-    }
-};
-
-Expected<SharedTexture> parsePNG(const png::image<png::rgba_pixel>& image, PixFormat format) noexcept
+std::optional<spng_format> spngFormatFromPixFormat(PixFormat fmt)
 {
+    switch (fmt) {
+    case PixFormat::GS:
+        return spng_format::SPNG_FMT_G8;
+    case PixFormat::ARGB32:
+        return std::nullopt;
+    case PixFormat::RGBA32:
+        return spng_format::SPNG_FMT_RGBA8;
+    }
+    std::unreachable();
+}
+
+Expected<SharedTexture> parsePNG(std::span<const std::uint8_t> input, PixFormat format) noexcept
+{
+    spng_ctx* ctx = ::spng_ctx_new(0);
+    assert(ctx);
+
+    {
+        const auto result = ::spng_set_png_buffer(ctx, input.data(), input.size());
+        if (result != SPNG_OK) {
+            return unexpected(std::string("spng_set_png_buffer failed: ") + ::spng_strerror(result));
+        }
+    }
+
+    const auto f = spngFormatFromPixFormat(format);
+    if (!f) {
+        return unexpected("Unsupported format");
+    }
+
+    spng_ihdr ihdr = {};
+
+    {
+        const auto result = ::spng_get_ihdr(ctx, &ihdr);
+        if (result != SPNG_OK) {
+            return unexpected(std::string("spng_get_image_limits failed: ") + ::spng_strerror(result));
+        }
+    }
+
     const auto bytesPerPixel = pixFormatBytesPerPixel(format);
 
     const auto metadata = TextureMetaData {
-        .width = image.get_width(),
-        .height = image.get_height(),
-        .pitch = image.get_width() * bytesPerPixel,
+        .width = ihdr.width,
+        .height = ihdr.height,
+        .pitch = ihdr.width * bytesPerPixel,
         .depth = pixFormatDepth(format),
         .format = format,
     };
 
-    std::vector<std::uint8_t> data(metadata.pitch * metadata.height);
-    for (std::size_t y = 0; y < metadata.height; ++y) {
-        for (std::size_t x = 0; x < metadata.width; ++x) {
-            const auto in = image.get_pixel(x, y);
-            std::uint8_t* out = &data.data()[x * bytesPerPixel + y * metadata.pitch];
+    std::size_t outputByteSize = 0;
 
-            switch (format) {
-            case PixFormat::GS:
-                out[0] = static_cast<std::uint8_t>((static_cast<std::uint16_t>(in.alpha) + static_cast<std::uint16_t>(in.red) + static_cast<std::uint16_t>(in.green) + static_cast<std::uint16_t>(in.blue)) / 4);
-                break;
-            case PixFormat::ARGB32:
-                out[0] = in.alpha;
-                out[1] = in.red;
-                out[2] = in.green;
-                out[3] = in.blue;
-                break;
-            case PixFormat::RGBA32:
-                out[0] = in.red;
-                out[1] = in.green;
-                out[2] = in.blue;
-                out[3] = in.alpha;
-                break;
-            }
+    {
+        const auto result = ::spng_decoded_image_size(ctx, *f, &outputByteSize);
+        if (result != SPNG_OK) {
+            return unexpected(std::string("spng_decoded_image_size failed: ") + ::spng_strerror(result));
         }
     }
+
+    std::vector<std::uint8_t> data(outputByteSize);
+
+    {
+        const auto result = ::spng_decode_image(ctx, data.data(), outputByteSize, *f, 0);
+        if (result != SPNG_OK) {
+            return unexpected(std::string("spng_decode_image failed: ") + ::spng_strerror(result));
+        }
+    }
+
+    ::spng_ctx_free(ctx);
 
     return std::make_shared<Texture>(std::move(data), metadata);
 }
@@ -70,30 +83,14 @@ Expected<SharedTexture> parsePNG(const png::image<png::rgba_pixel>& image, PixFo
 
 Expected<void> BadgerEngine::TextureLoader::load(const BadgerEngine::TextureLoader::VirtualTexturePath& vpath, const std::filesystem::path& path) noexcept
 {
-    if (!std::filesystem::exists(path)) {
-        return unexpected("File `" + path.string() + "` not exist");
-    }
-
-    png::image<png::rgba_pixel> image(path);
-    const auto texture = parsePNG(image, PixFormat::RGBA32);
-    if (!texture) {
-        return unexpected(texture.error());
-    }
-
-    const auto it = m_textures.find(vpath);
-    if (it != m_textures.end()) {
-        return unexpected("Texture with virtual path `" + vpath + "` already exist");
-    }
-
-    m_textures.insert(it, { vpath, *texture });
-    return {};
+    (void)vpath;
+    (void)path;
+    return unexpected("TODO");
 }
 
-Expected<void> TextureLoader::parse(const VirtualTexturePath& vpath, std::span<const uint8_t> bytes) noexcept
+Expected<void> TextureLoader::parse(const VirtualTexturePath& vpath, std::span<const std::uint8_t> bytes) noexcept
 {
-    IMemStream stream(bytes);
-    png::image<png::rgba_pixel> image(stream);
-    const auto texture = parsePNG(image, PixFormat::RGBA32);
+    const auto texture = parsePNG(bytes, PixFormat::RGBA32);
     if (!texture) {
         return unexpected(texture.error());
     }
@@ -104,6 +101,7 @@ Expected<void> TextureLoader::parse(const VirtualTexturePath& vpath, std::span<c
     }
 
     m_textures.insert(it, { vpath, *texture });
+
     return {};
 }
 
