@@ -20,7 +20,7 @@ struct GraphicsObjectCreateInfo {
 };
 
 class GraphicsObject {
-    VkDebugReportCallbackEXT m_debugReportCallbackObject;
+    [[maybe_unused]] VkDebugReportCallbackEXT m_debugReportCallbackObject;
 
     vk::Instance m_vulkanInstance;
     vk::SurfaceKHR m_surface;

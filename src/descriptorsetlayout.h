@@ -8,12 +8,13 @@ namespace e172vp {
 class DescriptorSetLayout {
     vk::DescriptorSetLayout m_descriptorSetLayoutHandle;
     vk::Device m_logicalDevice;
-    uint32_t m_binding = -1;
+    std::uint32_t m_binding = std::numeric_limits<std::uint32_t>::max();
     bool m_isValid = false;
+
 public:
-    static DescriptorSetLayout createUniformDSL(const vk::Device &logicalDevice, uint32_t binding);
-    static DescriptorSetLayout createSamplerDSL(const vk::Device &logicalDevice, uint32_t binding);
-    static void destroy(const DescriptorSetLayout &descriptorSetLayout);
+    static DescriptorSetLayout createUniformDSL(const vk::Device& logicalDevice, uint32_t binding);
+    static DescriptorSetLayout createSamplerDSL(const vk::Device& logicalDevice, uint32_t binding);
+    static void destroy(const DescriptorSetLayout& descriptorSetLayout);
 
     DescriptorSetLayout() {}
 

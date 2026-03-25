@@ -1,5 +1,6 @@
 #include "Fs.h"
 
+#include "NumericCast.h"
 #include <cstring>
 #include <fstream>
 
@@ -22,7 +23,7 @@ Expected<Bytes> readBinary(const std::filesystem::path& path) noexcept
     std::vector<char> buffer(fileSize);
 
     file.seekg(0);
-    file.read(buffer.data(), fileSize);
+    file.read(buffer.data(), numericCast<std::streamsize>(fileSize).value());
 
     file.close();
 

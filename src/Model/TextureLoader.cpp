@@ -1,6 +1,10 @@
 #include "TextureLoader.h"
 
+#include "../Utils/Collections.h"
 #include <cstring>
+#include <execution>
+#include <future>
+#include <iostream>
 #include <spng.h>
 
 namespace BadgerEngine {
@@ -88,6 +92,12 @@ Expected<void> BadgerEngine::TextureLoader::load(const BadgerEngine::TextureLoad
     return unexpected("TODO");
 }
 
+Expected<void> TextureLoader::load(std::map<VirtualTexturePath, std::filesystem::path> recipes) noexcept
+{
+    (void)recipes;
+    return unexpected("TODO");
+}
+
 Expected<void> TextureLoader::parse(const VirtualTexturePath& vpath, std::span<const std::uint8_t> bytes) noexcept
 {
     const auto texture = parsePNG(bytes, PixFormat::RGBA32);
@@ -101,6 +111,40 @@ Expected<void> TextureLoader::parse(const VirtualTexturePath& vpath, std::span<c
     }
 
     m_textures.insert(it, { vpath, *texture });
+
+    return {};
+}
+
+Expected<void> TextureLoader::parse(std::map<VirtualTexturePath, std::span<const uint8_t>> recipes) noexcept
+{
+    struct ResultElement {
+        VirtualTexturePath vpath;
+        Expected<SharedTexture> texture;
+    };
+
+    auto result = std::move(recipes)
+        | std::views::transform([](auto&& input) {
+              return std::async([](auto&& item) -> ResultElement {
+                  return { item.first, parsePNG(item.second, PixFormat::RGBA32) };
+              },
+                  std::move(input));
+          })
+        | Collect<std::vector>;
+
+    for (auto&& future : std::move(result)) {
+        const auto& [vpath, texture] = future.get();
+
+        if (!texture) {
+            return unexpected("Failed to parse image for vpath `" + vpath + "`", texture.error());
+        }
+
+        const auto it = m_textures.find(vpath);
+        if (it != m_textures.end()) {
+            return unexpected("Texture with virtual path `" + vpath + "` already exist");
+        }
+
+        m_textures.insert(it, { vpath, *texture });
+    }
 
     return {};
 }

@@ -54,7 +54,8 @@ target_link_libraries(
             Freetype::Freetype
             assimp::assimp
             tinygltf::tinygltf
-            spng::spng)
+            spng::spng
+            tbb)
 
 badger_engine_target_pedantic_diagnostic(BadgerEngine)
 

@@ -24,7 +24,7 @@ public:
     void bindTo(const vk::CommandBuffer&) const;
 
 private:
-    class Impl;
+    struct Impl;
 
 private:
     MeshBuffer(Shared<Impl>&& impl)
