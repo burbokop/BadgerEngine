@@ -1,7 +1,7 @@
 #pragma once
 
-#include "./Geometry/Topology.h"
-#include "Model/Model.h"
+#include "../Geometry/Topology.h"
+#include "../Model/Model.h"
 #include <vulkan/vulkan.hpp>
 
 namespace e172vp {

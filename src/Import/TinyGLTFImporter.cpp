@@ -901,10 +901,6 @@ Expected<Model> TinyGLTFImporter::parse(
     const std::string&) const noexcept
 {
     tinygltf::TinyGLTF loader;
-
-    std::string err;
-    std::string warn;
-
     tinygltf::Model model;
 
     {
@@ -952,6 +948,9 @@ Expected<Model> TinyGLTFImporter::parse(
             return unexpected("Failed to set filesystem callbacks: " + err);
         }
     }
+
+    std::string err;
+    std::string warn;
 
     if (!loader.LoadASCIIFromString(
             &model,

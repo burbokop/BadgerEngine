@@ -1,13 +1,11 @@
 #include "font.h"
-#include "Utils/NumericCast.h"
-#include "swapchain.h"
 
+#include "../Utils/NumericCast.h"
 #include "Buffers/BufferUtils.h"
-
+#include "swapchain.h"
 #include <freetype/freetype.h>
 #include <ft2build.h>
 #include <iostream>
-#include <thread>
 
 bool e172vp::Font::createTextureImage32(
     const vk::Device& logicalDevice,
@@ -265,9 +263,9 @@ e172vp::Font::Font(
             auto p = reinterpret_cast<uint8_t*>(face->glyph->bitmap.buffer);
             for (size_t y = 0; y < face->glyph->bitmap.rows; ++y) {
                 for (size_t x = 0; x < face->glyph->bitmap.width; ++x) {
-                    uint8_t c = p[x + y * face->glyph->bitmap.width];
+                    uint8_t pixel = p[x + y * face->glyph->bitmap.width];
 
-                    uint32_t c32 = static_cast<uint32_t>(c);
+                    uint32_t c32 = static_cast<uint32_t>(pixel);
                     uint32_t color = 0xff0088ff;
                     uint32_t gray = color & c32;
 

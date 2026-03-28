@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../Buffers/MeshBuffer.h"
-#include "../pipeline.h"
+#include "Buffers/MeshBuffer.h"
+#include "pipeline.h"
 
 namespace BadgerEngine {
 

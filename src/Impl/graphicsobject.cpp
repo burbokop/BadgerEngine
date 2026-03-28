@@ -1,8 +1,8 @@
 #include "graphicsobject.h"
 
-#include "Tools/hardware.h"
-#include "Tools/logicdevicefactory.h"
-#include "Tools/vulkaninstancefactory.h"
+#include "hardware.h"
+#include "logicdevicefactory.h"
+#include "vulkaninstancefactory.h"
 
 vk::Instance e172vp::GraphicsObject::vulkanInstance() const { return m_vulkanInstance; }
 vk::PhysicalDevice e172vp::GraphicsObject::physicalDevice() const { return m_physicalDevice; }
@@ -13,9 +13,7 @@ e172vp::Hardware::QueueFamilies e172vp::GraphicsObject::queueFamilies() const { 
 std::vector<std::string> e172vp::GraphicsObject::enabledValidationLayers() const { return m_enabledValidationLayers; }
 vk::Queue e172vp::GraphicsObject::graphicsQueue() const { return m_graphicsQueue; }
 vk::Queue e172vp::GraphicsObject::presentQueue() const { return m_presentQueue; }
-
 e172vp::CommandPool e172vp::GraphicsObject::commandPool() const { return m_commandPool; }
-e172vp::RenderPass e172vp::GraphicsObject::renderPass() const { return m_renderPass; }
 bool e172vp::GraphicsObject::debugEnabled() const { return m_debugEnabled; }
 e172vp::SwapChain::Settings e172vp::GraphicsObject::swapChainSettings() const { return m_swapChainSettings; }
 
@@ -118,18 +116,41 @@ e172vp::GraphicsObject::GraphicsObject(const GraphicsObjectCreateInfo& createInf
 
     const auto swapChainSupportDetails = e172vp::Hardware::querySwapChainSupport(m_physicalDevice, m_surface);
     m_swapChainSettings = e172vp::SwapChain::createSettings(m_physicalDevice, swapChainSupportDetails);
-    m_renderPass = e172vp::RenderPass(m_logicalDevice, m_swapChainSettings);
+
+    {
+        auto colorRenderPass = BadgerEngine::ColorRenderPass::create(m_logicalDevice, m_swapChainSettings);
+        if (!colorRenderPass) {
+            m_isValid = false;
+            m_errors.push_back("Failed to create color render pass: " + colorRenderPass.error().message());
+            return;
+        }
+
+        m_colorRenderPass = std::move(colorRenderPass).value().nullable();
+    }
+
+    {
+        auto shadowMapRenderPass = BadgerEngine::ShadowMapRenderPass::create(m_logicalDevice, m_swapChainSettings);
+        if (!shadowMapRenderPass) {
+            m_isValid = false;
+            m_errors.push_back("Failed to create shadow map render pass: " + shadowMapRenderPass.error().message());
+            return;
+        }
+
+        m_shadowMapRenderPass = std::move(shadowMapRenderPass).value().nullable();
+    }
+
     m_swapChain = e172vp::SwapChain(
         m_logicalDevice,
         m_physicalDevice,
         m_surface,
-        m_renderPass.renderPathHandle(),
+        m_colorRenderPass->handle(),
         m_queueFamilies,
         m_swapChainSettings);
+
     m_commandPool = e172vp::CommandPool(m_logicalDevice, m_queueFamilies, m_swapChain.imageCount());
 
     createDescriptorPool(m_logicalDevice, createInfo.descriptorPoolSize, &m_descriptorPool, &m_errors);
     createTextureSampler(m_logicalDevice, &m_sampler);
 
-    m_isValid = m_swapChain.isValid() && m_renderPass.isValid() && m_commandPool.isValid();
+    m_isValid = m_swapChain.isValid() && m_commandPool.isValid();
 }

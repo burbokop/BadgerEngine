@@ -1,7 +1,7 @@
 #include "swapchain.h"
 
-#include "Tools/stringvector.h"
-#include "Utils/Collections.h"
+#include "../Utils/Collections.h"
+#include "stringvector.h"
 #include <cstdint>
 #include <iostream>
 #include <limits>
@@ -204,7 +204,7 @@ vk::Extent2D e172vp::SwapChain::chooseExtent(const vk::SurfaceCapabilitiesKHR& c
     if (capabilities.currentExtent.width != std::numeric_limits<std::uint32_t>::max()) {
         return capabilities.currentExtent;
     } else {
-        VkExtent2D actualExtent = defaultExtent;
+        vk::Extent2D actualExtent = defaultExtent;
 
         actualExtent.width = std::max(capabilities.minImageExtent.width, std::min(capabilities.maxImageExtent.width, actualExtent.width));
         actualExtent.height = std::max(capabilities.minImageExtent.height, std::min(capabilities.maxImageExtent.height, actualExtent.height));

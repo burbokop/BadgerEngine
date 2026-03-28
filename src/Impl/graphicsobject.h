@@ -1,8 +1,9 @@
 #pragma once
 
-#include "Tools/hardware.h"
+#include "ColorRenderPass.h"
+#include "ShadowMapRenderPass.h"
 #include "commandpool.h"
-#include "renderpass.h"
+#include "hardware.h"
 #include "swapchain.h"
 #include <functional>
 #include <vulkan/vulkan.hpp>
@@ -31,7 +32,8 @@ class GraphicsObject {
     vk::Queue m_presentQueue;
 
     e172vp::SwapChain m_swapChain;
-    e172vp::RenderPass m_renderPass;
+    std::unique_ptr<BadgerEngine::ColorRenderPass> m_colorRenderPass;
+    std::unique_ptr<BadgerEngine::ShadowMapRenderPass> m_shadowMapRenderPass;
     e172vp::CommandPool m_commandPool;
     vk::DescriptorPool m_descriptorPool;
     vk::Sampler m_sampler;
@@ -61,7 +63,8 @@ public:
     vk::Queue presentQueue() const;
     const auto& swapChain() const { return m_swapChain; }
     e172vp::CommandPool commandPool() const;
-    e172vp::RenderPass renderPass() const;
+    const auto& colorRenderPass() const { return m_colorRenderPass; }
+    const auto& shadowMapRenderPass() const { return m_shadowMapRenderPass; }
 
     std::vector<std::string> pullErrors();
     bool isValid() const;

@@ -1,21 +1,19 @@
 #pragma once
 
-#include "Buffers/BufferUtils.h"
-#include "Buffers/MeshBuffer.h"
-#include "Tools/UploadedModel.h"
-#include "descriptorsetlayout.h"
+#include "Utils/Error.h"
 #include <glm/glm.hpp>
-#include <span>
+#include <vector>
 
-namespace e172vp {
-class GraphicsObject;
-class Pipeline;
-};
+namespace vk {
+class CommandBuffer;
+class DescriptorSet;
+}
 
 namespace BadgerEngine {
 
 class Renderer;
 class UploadedTexture;
+struct BufferBundle;
 
 namespace Geometry {
 class Mesh;
@@ -41,7 +39,6 @@ public:
     glm::mat4 scale() const;
     VertexObject& setScale(const glm::mat4& scale);
     VertexObject& setScale(const glm::vec3& scale);
-    std::vector<vk::DescriptorSet> textureDescriptorSets() const;
 
 protected:
     [[nodiscard]] virtual Expected<void> draw(std::size_t imageIndex,
@@ -51,6 +48,9 @@ protected:
         = 0;
 
     [[nodiscard]] virtual Expected<void> updateUniformBuffer(std::size_t imageIndex) noexcept = 0;
+
+private:
+    std::vector<vk::DescriptorSet> textureDescriptorSets() const;
 
 private:
     glm::mat4 m_rotation = glm::mat4(1.);

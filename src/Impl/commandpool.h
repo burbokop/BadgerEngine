@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Tools/hardware.h"
+#include "hardware.h"
 #include <vulkan/vulkan.hpp>
 
 namespace e172vp {
@@ -11,9 +11,10 @@ class CommandPool {
 
     std::vector<std::string> m_errors;
     bool m_isValid = false;
+
 public:
     CommandPool() {}
-    CommandPool(const vk::Device &logicalDevice, const Hardware::QueueFamilies &queueFamilies, size_t buffersCount);
+    CommandPool(const vk::Device& logicalDevice, const Hardware::QueueFamilies& queueFamilies, size_t buffersCount);
 
     vk::CommandPool commandPullHandle() const;
     operator vk::CommandPool() const;

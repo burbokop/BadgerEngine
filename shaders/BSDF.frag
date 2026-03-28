@@ -46,7 +46,8 @@ layout(location = 5) in vec3 fragmentBitangent;
 layout(location = 0) out vec4 outColor;
 
 vec3 calcAmbientLighting(vec3 baseColor) {
-    return texture(ambientOcclusionSampler, fragmentUVCoordinates).x * lighting.ambient.intensity * baseColor * lighting.ambient.color;
+    const float aoIntancity = 1;
+    return mix(1, texture(ambientOcclusionSampler, fragmentUVCoordinates).x, aoIntancity) * lighting.ambient.intensity * baseColor * lighting.ambient.color;
 }
 
 vec3 calcDiffuseLighting(vec3 baseColor, vec3 lightDirection, vec3 normal) {
@@ -67,7 +68,8 @@ vec3 calcSpecularLighting(vec3 lightDirection, vec3 normal) {
 void main() {
     const mat3 tbn = mat3(fragmentTangent, fragmentBitangent, fragmentNormal);
     const vec3 baseColor = texture(baseColorSampler, fragmentUVCoordinates).xyz;
-    const vec3 localNormal = normalize(tbn * (2. * texture(normalMapSampler, fragmentUVCoordinates).xyz - 1.));
+    const float normalMapInfluence = 0.2;
+    const vec3 localNormal = normalize(tbn * (mix(vec3(0,0,1), 2. * texture(normalMapSampler, fragmentUVCoordinates).xyz - 1., normalMapInfluence)));
 
     // .x because gltf format stores ambient occlusion map in R channel of combined AO - Roughness - Metallness texture
     // const float ambientOcclusion = texture(ambientOcclusionSampler, fragTexCoord).x;
@@ -86,7 +88,7 @@ void main() {
 
 
     // outColor = vec4(texture(normalMapSampler, fragmentUVCoordinates).xyz, 1.0);
-    outColor = vec4((localNormal + 1) / 2, 1.);
+    // outColor = vec4((localNormal + 1) / 2, 1.);
 
 
     // outColor = vec4(baseColor * min(1, ambientLightIntensity + directionalLightIntensity), 1.);

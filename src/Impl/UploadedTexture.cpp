@@ -1,8 +1,8 @@
 #include "UploadedTexture.h"
 
-#include "../Buffers/BufferUtils.h"
 #include "../Utils/NumericCast.h"
-#include "../swapchain.h"
+#include "Buffers/BufferUtils.h"
+#include "swapchain.h"
 
 namespace BadgerEngine {
 

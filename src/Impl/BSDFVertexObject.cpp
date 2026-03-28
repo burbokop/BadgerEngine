@@ -1,11 +1,11 @@
 #include "BSDFVertexObject.h"
 
+#include "../Geometry/Mesh.h"
+#include "../RenderingOptions.h"
+#include "../Utils/Collections.h"
+#include "../Utils/NumericCast.h"
 #include "Buffers/BufferUtils.h"
-#include "Geometry/Mesh.h"
-#include "RenderingOptions.h"
-#include "Tools/UploadedTexture.h"
-#include "Utils/Collections.h"
-#include "Utils/NumericCast.h"
+#include "UploadedTexture.h"
 #include "graphicsobject.h"
 #include "pipeline.h"
 #include <list>

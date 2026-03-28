@@ -1,7 +1,7 @@
 #include "pipeline.h"
 
-#include "Geometry/Vertex.h"
-#include "Utils/NumericCast.h"
+#include "../Geometry/Vertex.h"
+#include "../Utils/NumericCast.h"
 
 namespace {
 

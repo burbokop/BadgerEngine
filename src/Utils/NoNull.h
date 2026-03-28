@@ -119,7 +119,7 @@ public:
         requires(!std::is_pointer_v<T>)
     {
         assert(m_v);
-        return m_v;
+        return std::move(m_v);
     }
 
     constexpr T nullable() &&
@@ -129,12 +129,7 @@ public:
         return m_v;
     }
 
-    // you sure are by this point
-    constexpr T const&& nullable() const&&
-    {
-        assert(m_v);
-        return m_v;
-    }
+    constexpr T const&& nullable() const&& = delete;
     // clang-format on
 
 private:

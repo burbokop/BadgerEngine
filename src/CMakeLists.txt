@@ -1,10 +1,9 @@
 cmake_minimum_required(VERSION 3.27.2)
 
 add_subdirectory(Utils)
-add_subdirectory(Tools)
+add_subdirectory(Impl)
 add_subdirectory(Geometry)
 add_subdirectory(Model)
-add_subdirectory(Buffers)
 add_subdirectory(Windows)
 add_subdirectory(Import)
 
@@ -12,24 +11,10 @@ set(INSTALLDIR ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME})
 
 target_sources(
     BadgerEngine
-    PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/graphicsobject.h>
-           $<INSTALL_INTERFACE:${INSTALLDIR}/graphicsobject.h>
-           $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/Renderer.h>
+    PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/Renderer.h>
            $<INSTALL_INTERFACE:${INSTALLDIR}/Renderer.h>
-           $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/swapchain.h>
-           $<INSTALL_INTERFACE:${INSTALLDIR}/swapchain.h>
-           $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/renderpass.h>
-           $<INSTALL_INTERFACE:${INSTALLDIR}/renderpass.h>
-           $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/commandpool.h>
-           $<INSTALL_INTERFACE:${INSTALLDIR}/commandpool.h>
            $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/VertexObject.h>
            $<INSTALL_INTERFACE:${INSTALLDIR}/VertexObject.h>
-           $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/descriptorsetlayout.h>
-           $<INSTALL_INTERFACE:${INSTALLDIR}/descriptorsetlayout.h>
-           $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/pipeline.h>
-           $<INSTALL_INTERFACE:${INSTALLDIR}/pipeline.h>
-           $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/font.h>
-           $<INSTALL_INTERFACE:${INSTALLDIR}/font.h>
            $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/Camera.h>
            $<INSTALL_INTERFACE:${INSTALLDIR}/Camera.h>
            $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/Window.h>
@@ -38,17 +23,4 @@ target_sources(
            $<INSTALL_INTERFACE:${INSTALLDIR}/PointLight.h>
            $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/RenderingOptions.h>
            $<INSTALL_INTERFACE:${INSTALLDIR}/RenderingOptions.h>
-    PRIVATE graphicsobject.cpp
-            Renderer.cpp
-            swapchain.cpp
-            renderpass.cpp
-            commandpool.cpp
-            VertexObject.cpp
-            descriptorsetlayout.cpp
-            pipeline.cpp
-            font.cpp
-            Camera.cpp
-            ImageViewVertexObject.cpp
-            ImageViewVertexObject.h
-            BSDFVertexObject.cpp
-            BSDFVertexObject.h)
+    PRIVATE Renderer.cpp VertexObject.cpp Camera.cpp)

@@ -87,3 +87,5 @@ target_include_directories(
     BadgerEngine
     INTERFACE ${CMAKE_CURRENT_BINARY_DIR}/install_prefix/include
     PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/install_prefix/include/BadgerEngine/Shaders)
+
+target_compile_definitions(BadgerEngine PRIVATE VULKAN_HPP_NO_STRUCT_CONSTRUCTORS)

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Tools/hardware.h"
+#include "hardware.h"
 #include <vulkan/vulkan.hpp>
 
 namespace BadgerEngine {

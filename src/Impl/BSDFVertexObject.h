@@ -1,9 +1,9 @@
 #pragma once
 
+#include "../VertexObject.h"
 #include "Buffers/BufferUtils.h"
 #include "Buffers/MeshBuffer.h"
-#include "Tools/UploadedModel.h"
-#include "VertexObject.h"
+#include "UploadedModel.h"
 #include "descriptorsetlayout.h"
 #include <glm/glm.hpp>
 #include <span>

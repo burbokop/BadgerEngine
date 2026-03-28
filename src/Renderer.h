@@ -1,27 +1,47 @@
 #pragma once
 
-#include "Buffers/BufferUtils.h"
+#include "Geometry/Topology.h"
+#include "Model/Model.h"
 #include "RenderingOptions.h"
-#include "descriptorsetlayout.h"
-#include "font.h"
-#include "graphicsobject.h"
-#include "pipeline.h"
-#include <filesystem>
+#include "Utils/Error.h"
+#include "Utils/NoNull.h"
+#include <glm/glm.hpp>
 #include <list>
+#include <vector>
+
+namespace vk {
+
+class Framebuffer;
+class Extent2D;
+class RenderPass;
+class CommandBuffer;
+
+}
+
+namespace e172vp {
+
+class GraphicsObject;
+class Pipeline;
+class Font;
+
+}
 
 namespace BadgerEngine {
 
+struct PointLight;
 class Model;
 class Camera;
 class Window;
-struct PointLight;
 class UploadedTexture;
 class VertexObject;
 class UploadedTextureCache;
+class BufferBundle;
 
 class Renderer {
-
 public:
+    ~Renderer();
+    Renderer(Shared<Window> window, Shared<Camera> camera, std::span<const uint8_t> fontBytes);
+
     VertexObject& addObject(const BadgerEngine::Model& model, RenderingOptions options = RenderingOptions());
 
     Shared<PointLight> addPointLight(
@@ -30,8 +50,6 @@ public:
         float intensity);
 
     bool removeVertexObject(VertexObject* vertexObject);
-
-    Renderer(Shared<Window> window, Shared<Camera> camera, std::span<const uint8_t> fontBytes);
 
     [[nodiscard]] Expected<void> applyPresentation() noexcept;
 
@@ -69,8 +87,6 @@ public:
 private:
     void updateUniformBuffer(uint32_t currentImage);
 
-    const auto& graphicsObject() const { return m_graphicsObject; }
-
     Expected<void> proceedCommandBuffers(const vk::RenderPass& renderPass,
         const vk::Extent2D& extent,
         const Camera& camera,
@@ -89,41 +105,14 @@ private:
         bool backfaceCulling);
 
 private:
-    Shared<e172vp::GraphicsObject> m_graphicsObject;
+    struct Impl;
 
-    vk::Semaphore m_imageAvailableSemaphore;
-    vk::Semaphore m_renderFinishedSemaphore;
-
-    vk::Buffer m_vertexBuffer;
-    vk::DeviceMemory m_vertexBufferMemory;
-    vk::Buffer m_indexBuffer;
-    vk::DeviceMemory m_indexBufferMemory;
-
-    e172vp::DescriptorSetLayout m_globalDescriptorSetLayout;
-    e172vp::DescriptorSetLayout m_lightingDescriptorSetLayout;
-    e172vp::DescriptorSetLayout m_objectDescriptorSetLayout;
-    e172vp::DescriptorSetLayout m_baseColorSamplerDescriptorSetLayout;
-    e172vp::DescriptorSetLayout m_ambientOcclusionDescriptorSetLayout;
-    e172vp::DescriptorSetLayout m_normalMapDescriptorSetLayout;
-
-    std::vector<BufferBundle> m_commonGlobalUniformBufferBundles;
-    std::vector<BufferBundle> m_lightingUniformBufferBundles;
-
-    e172vp::Font* m_font = nullptr;
-
-    std::list<VertexObject*> m_vertexObjects;
-
-    std::shared_ptr<e172vp::Pipeline> m_normalDebugPipeline;
-
-    std::vector<Shared<PointLight>> m_pointLights;
-
+private:
+    Unique<Impl> m_impl;
+    Shared<Camera> m_camera;
     glm::vec3 m_directionalLightVector = glm::vec3(0.);
     glm::vec3 m_directionalLightColor = glm::vec3(1.f);
     float m_directionalLightIntensity = 0.f;
-
-    Shared<Window> m_window;
-    Shared<Camera> m_camera;
-    Shared<UploadedTextureCache> m_textureCache;
 };
 
 }
