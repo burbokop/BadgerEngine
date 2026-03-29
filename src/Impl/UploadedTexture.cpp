@@ -309,7 +309,7 @@ std::optional<vk::Format> pixFormatToVkFormat(PixFormat fmt)
     std::unreachable();
 }
 
-std::vector<std::uint8_t> colorToBytesOfPixFormat(PixFormat fmt, Color color)
+std::vector<std::uint8_t> colorToBytesOfPixFormat(PixFormat fmt, RGBAColor color)
 {
     switch (fmt) {
     case PixFormat::GS:
@@ -332,7 +332,7 @@ std::vector<std::uint8_t> colorToBytesOfPixFormat(PixFormat fmt, Color color)
     std::unreachable();
 }
 
-std::vector<std::uint8_t> textureBytesFilledWithColor(PixFormat fmt, UploadedTexture::Size size, Color color)
+std::vector<std::uint8_t> textureBytesFilledWithColor(PixFormat fmt, UploadedTexture::Size size, RGBAColor color)
 {
     const auto pix = colorToBytesOfPixFormat(fmt, color);
 
@@ -425,7 +425,7 @@ Expected<Shared<UploadedTexture>> UploadedTexture::create(
     BadgerEngine::UploadedTextureCache& cache,
     PixFormat format,
     Size size,
-    Color fillColor) noexcept
+    RGBAColor fillColor) noexcept
 {
     const auto cacheKey = UploadedTextureCache::CreateKey { format, size, fillColor };
     {

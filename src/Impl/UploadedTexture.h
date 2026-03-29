@@ -38,7 +38,7 @@ public:
         BadgerEngine::UploadedTextureCache& cache,
         PixFormat format,
         Size size,
-        Color fillColor) noexcept;
+        RGBAColor fillColor) noexcept;
 
     UploadedTexture(
         vk::Device logicalDevice,
@@ -88,7 +88,7 @@ public:
     struct CreateKey {
         PixFormat format;
         UploadedTexture::Size size;
-        Color fillColor;
+        RGBAColor fillColor;
 
         std::partial_ordering operator<=>(const CreateKey& rhs) const
         {

@@ -23,6 +23,7 @@ struct DirectionalLight {
     vec3 vector;
     vec3 color;
     float intensity;
+    mat4 shadowMapTransformation;
 };
 
 layout(binding = 0, set = 1, std140) uniform Lighting {

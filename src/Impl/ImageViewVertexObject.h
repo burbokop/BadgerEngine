@@ -62,12 +62,14 @@ public:
     }
 
 protected:
-    Expected<void> draw(std::size_t imageIndex,
+    [[nodiscard]] Expected<void> draw(
+        std::size_t imageIndex,
         std::span<const vk::CommandBuffer> commandBuffers,
         std::span<const BufferBundle> commonGlobalUniformBufferBundles,
-        std::span<const BufferBundle> lightingUniformBufferBundles) const noexcept override;
+        std::span<const BufferBundle> lightingUniformBufferBundles,
+        RenderTarget target) const noexcept override;
 
-    Expected<void> updateUniformBuffer(std::size_t imageIndex) noexcept override;
+    [[nodiscard]] Expected<void> updateUniformBuffer(std::size_t imageIndex) noexcept override;
 
 private:
     Shared<e172vp::GraphicsObject> m_graphicsObject;

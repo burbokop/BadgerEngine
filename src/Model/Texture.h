@@ -9,7 +9,7 @@
 
 namespace BadgerEngine {
 
-using Color = glm::vec4;
+using RGBAColor = glm::vec4;
 
 enum class PixFormat {
     /// Gray scale 8 bit

@@ -5,6 +5,7 @@
 #include "RenderingOptions.h"
 #include "Utils/Error.h"
 #include "Utils/NoNull.h"
+#include "VertexObject.h"
 #include <glm/glm.hpp>
 #include <list>
 #include <vector>
@@ -15,6 +16,7 @@ class Framebuffer;
 class Extent2D;
 class RenderPass;
 class CommandBuffer;
+union ClearValue;
 
 }
 
@@ -29,13 +31,12 @@ class Font;
 namespace BadgerEngine {
 
 struct PointLight;
+struct BufferBundle;
 class Model;
 class Camera;
 class Window;
 class UploadedTexture;
-class VertexObject;
 class UploadedTextureCache;
-class BufferBundle;
 
 class Renderer {
 public:
@@ -63,10 +64,7 @@ public:
         return m_camera;
     }
 
-    void setDirectionalLightVector(glm::vec3 v)
-    {
-        m_directionalLightVector = v;
-    }
+    void setDirectionalLightVector(glm::vec3 v);
 
     glm::vec3 directionalLightVector() const { return m_directionalLightVector; }
 
@@ -87,19 +85,31 @@ public:
 private:
     void updateUniformBuffer(uint32_t currentImage);
 
-    Expected<void> proceedCommandBuffers(const vk::RenderPass& renderPass,
+    [[nodiscard]] Expected<void> proceedRenderPass(
+        std::size_t imageIndex,
+        const vk::RenderPass& renderPass,
         const vk::Extent2D& extent,
         const Camera& camera,
+        std::span<const vk::ClearValue> clearValues,
         const std::vector<vk::Framebuffer>& swapChainFramebuffers,
         const std::vector<vk::CommandBuffer>& commandBuffers,
         const std::vector<BufferBundle>& commonGlobalUniformBufferBundles,
         const std::vector<BufferBundle>& lightingUniformBufferBundles,
-        const std::list<VertexObject*>& vertexObjects);
+        const std::list<VertexObject*>& vertexObjects,
+        VertexObject::RenderTarget renderTarget) noexcept;
+
+    [[nodiscard]] Expected<void> fillCommandBuffers();
 
     VertexObject& addCharacter(char c, std::shared_ptr<e172vp::Pipeline> pipeline);
-    std::shared_ptr<e172vp::Pipeline> createPipeline(
+    std::shared_ptr<e172vp::Pipeline> createColorPipeline(
         std::span<const std::uint8_t> vertShaderCode,
         std::span<const std::uint8_t> fragShaderCode,
+        Geometry::Topology topology,
+        BadgerEngine::PolygonMode polygonMode,
+        bool backfaceCulling);
+
+    std::shared_ptr<e172vp::Pipeline> createShadowMapPipeline(
+        std::span<const std::uint8_t> vertShaderCode,
         Geometry::Topology topology,
         BadgerEngine::PolygonMode polygonMode,
         bool backfaceCulling);

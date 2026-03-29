@@ -8,7 +8,7 @@ namespace BadgerEngine {
 class UploadedModel {
 public:
     UploadedModel(
-        MeshBuffer meshBuffer,
+        UploadedMesh meshBuffer,
         Shared<e172vp::Pipeline> pipeline)
         : m_meshBuffer(std::move(meshBuffer))
         , m_pipeline(std::move(pipeline))
@@ -33,7 +33,7 @@ public:
     }
 
 private:
-    MeshBuffer m_meshBuffer;
+    UploadedMesh m_meshBuffer;
     Shared<e172vp::Pipeline> m_pipeline;
 };
 

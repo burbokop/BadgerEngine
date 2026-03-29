@@ -16,16 +16,63 @@
 #include "Window.h"
 #include <BSDF.frag.spv.h>
 #include <BSDF.vert.spv.h>
+#include <Normal.frag.spv.h>
+#include <Normal.vert.spv.h>
+#include <ShadowMap.vert.spv.h>
 #include <chrono>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 #include <math.h>
-#include <normal_debug.frag.spv.h>
-#include <normal_debug.vert.spv.h>
+
+#ifdef BADGER_ENGINE_RENDERDOC
+#include <dlfcn.h>
+#include <renderdoc_app.h>
+#endif
 
 namespace BadgerEngine {
 
 namespace {
+
+#ifdef BADGER_ENGINE_RENDERDOC
+
+RENDERDOC_API_1_1_2* createRenderDocApi()
+{
+    RENDERDOC_API_1_1_2* result = NULL;
+    if (void* mod = dlopen("librenderdoc.so", RTLD_NOW | RTLD_NOLOAD)) {
+        pRENDERDOC_GetAPI RENDERDOC_GetAPI = (pRENDERDOC_GetAPI)dlsym(mod, "RENDERDOC_GetAPI");
+        int ret = RENDERDOC_GetAPI(eRENDERDOC_API_Version_1_1_2, (void**)&result);
+        assert(ret == 1);
+    }
+    return result;
+}
+
+class RenderDocGuard {
+public:
+    RenderDocGuard(const RenderDocGuard&) = delete;
+    RenderDocGuard(RenderDocGuard&&) = delete;
+    RenderDocGuard& operator=(const RenderDocGuard&) = delete;
+    RenderDocGuard& operator=(RenderDocGuard&&) = delete;
+
+    RenderDocGuard(RENDERDOC_API_1_1_2* api)
+        : m_api(api)
+    {
+        if (m_api) {
+            m_api->StartFrameCapture(NULL, NULL);
+        }
+    }
+
+    ~RenderDocGuard()
+    {
+        if (m_api) {
+            m_api->EndFrameCapture(NULL, NULL);
+        }
+    }
+
+private:
+    RENDERDOC_API_1_1_2* m_api;
+};
+
+#endif
 
 template<size_t N>
 class Padding {
@@ -59,11 +106,13 @@ struct DirectionalLightUniformBufferObject {
     Padding<4> _;
     glm::vec3 color;
     float intensity;
+    glm::mat4 shadowMapTransformation;
 };
 
 static_assert(offsetof(DirectionalLightUniformBufferObject, vector) == 0, "Offset must comply with std140");
 static_assert(offsetof(DirectionalLightUniformBufferObject, color) == 16, "Offset must comply with std140");
 static_assert(offsetof(DirectionalLightUniformBufferObject, intensity) == 28, "Offset must comply with std140");
+static_assert(offsetof(DirectionalLightUniformBufferObject, shadowMapTransformation) == 32, "Offset must comply with std140");
 
 struct LightingUniformBufferObject {
     PointLightUniformBufferObject lights[64];
@@ -78,7 +127,7 @@ static_assert(offsetof(LightingUniformBufferObject, lightsCount) == 2048, "Offse
 static_assert(offsetof(LightingUniformBufferObject, ambient) == 2064, "Offset must comply with std140");
 static_assert(offsetof(LightingUniformBufferObject, directionalLight) == 2080, "Offset must comply with std140");
 
-struct GlobalUniformBufferObject {
+struct ColorGlobalUniformBufferObject {
     glm::mat4 transformation;
     float time;
     Padding<4> _;
@@ -86,10 +135,21 @@ struct GlobalUniformBufferObject {
     glm::vec3 cameraPosition;
 };
 
-static_assert(offsetof(GlobalUniformBufferObject, transformation) == 0, "Offset must comply with std140");
-static_assert(offsetof(GlobalUniformBufferObject, time) == 64, "Offset must comply with std140");
-static_assert(offsetof(GlobalUniformBufferObject, mouse) == 72, "Offset must comply with std140");
-static_assert(offsetof(GlobalUniformBufferObject, cameraPosition) == 80, "Offset must comply with std140");
+static_assert(offsetof(ColorGlobalUniformBufferObject, transformation) == 0, "Offset must comply with std140");
+static_assert(offsetof(ColorGlobalUniformBufferObject, time) == 64, "Offset must comply with std140");
+static_assert(offsetof(ColorGlobalUniformBufferObject, mouse) == 72, "Offset must comply with std140");
+static_assert(offsetof(ColorGlobalUniformBufferObject, cameraPosition) == 80, "Offset must comply with std140");
+
+struct ShadowMapGlobalUniformBufferObject {
+    glm::mat4 transformation;
+};
+
+static_assert(offsetof(ShadowMapGlobalUniformBufferObject, transformation) == 0, "Offset must comply with std140");
+
+glm::vec2 vkExtent2DToGLMVec2(vk::Extent2D ex)
+{
+    return { ex.width, ex.height };
+}
 
 Expected<Shared<UploadedTexture>> uploadMaterialColorChannel(
     const MaterialColorChannel& channel,
@@ -109,7 +169,7 @@ Expected<Shared<UploadedTexture>> uploadMaterialColorChannel(
                     texture)
                     .transform_error(AsReason("Failed to upload a texture"));
             },
-            [&graphicsObject, &cache](const Color& color) -> Expected<Shared<UploadedTexture>> {
+            [&graphicsObject, &cache](const RGBAColor& color) -> Expected<Shared<UploadedTexture>> {
                 return UploadedTexture::create(
                     graphicsObject.logicalDevice(),
                     graphicsObject.physicalDevice(),
@@ -157,22 +217,32 @@ struct Renderer::Impl {
     vk::Buffer indexBuffer;
     vk::DeviceMemory indexBufferMemory;
 
-    e172vp::DescriptorSetLayout globalDescriptorSetLayout;
+    e172vp::DescriptorSetLayout colorGlobalDescriptorSetLayout;
     e172vp::DescriptorSetLayout lightingDescriptorSetLayout;
+    e172vp::DescriptorSetLayout shadowMapGlobalDescriptorSetLayout;
     e172vp::DescriptorSetLayout objectDescriptorSetLayout;
     e172vp::DescriptorSetLayout baseColorSamplerDescriptorSetLayout;
     e172vp::DescriptorSetLayout ambientOcclusionDescriptorSetLayout;
     e172vp::DescriptorSetLayout normalMapDescriptorSetLayout;
+    e172vp::DescriptorSetLayout shadowMapSamplerDescriptorSetLayout;
 
-    std::vector<BufferBundle> commonGlobalUniformBufferBundles;
+    std::vector<BufferBundle> colorGlobalUniformBufferBundles;
     std::vector<BufferBundle> lightingUniformBufferBundles;
+    std::vector<BufferBundle> shadowMapGlobalUniformBufferBundles;
+
     e172vp::Font* font = nullptr;
     std::list<VertexObject*> vertexObjects;
     std::shared_ptr<e172vp::Pipeline> normalDebugPipeline;
+    std::shared_ptr<e172vp::Pipeline> shadowMapPipeline;
     std::vector<Shared<PointLight>> pointLights;
+    DirectionBasedOrthographicCamera directionalLightCamera;
 
     Shared<Window> window;
     Shared<UploadedTextureCache> textureCache;
+
+#ifdef BADGER_ENGINE_RENDERDOC
+    RENDERDOC_API_1_1_2* renderDocApi;
+#endif
 };
 
 Renderer::Renderer(Shared<Window> window, Shared<Camera> camera, std::span<const std::uint8_t> fontBytes)
@@ -199,22 +269,31 @@ Renderer::Renderer(Shared<Window> window, Shared<Camera> camera, std::span<const
           .indexBuffer = {},
           .indexBufferMemory = {},
 
-          .globalDescriptorSetLayout = {},
+          .colorGlobalDescriptorSetLayout = {},
           .lightingDescriptorSetLayout = {},
+          .shadowMapGlobalDescriptorSetLayout = {},
           .objectDescriptorSetLayout = {},
           .baseColorSamplerDescriptorSetLayout = {},
           .ambientOcclusionDescriptorSetLayout = {},
           .normalMapDescriptorSetLayout = {},
+          .shadowMapSamplerDescriptorSetLayout = {},
 
-          .commonGlobalUniformBufferBundles = {},
+          .colorGlobalUniformBufferBundles = {},
           .lightingUniformBufferBundles = {},
+          .shadowMapGlobalUniformBufferBundles = {},
           .font = nullptr,
           .vertexObjects = {},
           .normalDebugPipeline = {},
+          .shadowMapPipeline = {},
           .pointLights = {},
+          .directionalLightCamera = {},
 
           .window = std::move(window),
           .textureCache = std::make_shared<UploadedTextureCache>(),
+
+#ifdef BADGER_ENGINE_RENDERDOC
+          .renderDocApi = createRenderDocApi()
+#endif
       }))
     , m_camera(std::move(camera))
 {
@@ -230,24 +309,32 @@ Renderer::Renderer(Shared<Window> window, Shared<Camera> camera, std::span<const
         std::cerr << e172vp::StringVector::toString(errors) << "\n";
     }
 
-    m_impl->globalDescriptorSetLayout = e172vp::DescriptorSetLayout::createUniformDSL(m_impl->graphicsObject->logicalDevice(), 0);
+    m_impl->colorGlobalDescriptorSetLayout = e172vp::DescriptorSetLayout::createUniformDSL(m_impl->graphicsObject->logicalDevice(), 0);
     m_impl->lightingDescriptorSetLayout = e172vp::DescriptorSetLayout::createUniformDSL(m_impl->graphicsObject->logicalDevice(), 0);
+    m_impl->shadowMapGlobalDescriptorSetLayout = e172vp::DescriptorSetLayout::createUniformDSL(m_impl->graphicsObject->logicalDevice(), 0);
     m_impl->objectDescriptorSetLayout = e172vp::DescriptorSetLayout::createUniformDSL(m_impl->graphicsObject->logicalDevice(), 0);
     m_impl->baseColorSamplerDescriptorSetLayout = e172vp::DescriptorSetLayout::createSamplerDSL(m_impl->graphicsObject->logicalDevice(), 0);
     m_impl->ambientOcclusionDescriptorSetLayout = e172vp::DescriptorSetLayout::createSamplerDSL(m_impl->graphicsObject->logicalDevice(), 0);
     m_impl->normalMapDescriptorSetLayout = e172vp::DescriptorSetLayout::createSamplerDSL(m_impl->graphicsObject->logicalDevice(), 0);
+    m_impl->shadowMapSamplerDescriptorSetLayout = e172vp::DescriptorSetLayout::createSamplerDSL(m_impl->graphicsObject->logicalDevice(), 0);
 
-    m_impl->commonGlobalUniformBufferBundles = BufferUtils::createUniformBufferBundle<GlobalUniformBufferObject>(
+    m_impl->colorGlobalUniformBufferBundles = BufferUtils::createUniformBufferBundle<ColorGlobalUniformBufferObject>(
         *m_impl->graphicsObject,
         m_impl->graphicsObject->swapChain().imageCount(),
         m_impl->graphicsObject->descriptorPool(),
-        m_impl->globalDescriptorSetLayout);
+        m_impl->colorGlobalDescriptorSetLayout);
 
     m_impl->lightingUniformBufferBundles = BufferUtils::createUniformBufferBundle<LightingUniformBufferObject>(
         *m_impl->graphicsObject,
         m_impl->graphicsObject->swapChain().imageCount(),
         m_impl->graphicsObject->descriptorPool(),
         m_impl->lightingDescriptorSetLayout);
+
+    m_impl->shadowMapGlobalUniformBufferBundles = BufferUtils::createUniformBufferBundle<ShadowMapGlobalUniformBufferObject>(
+        *m_impl->graphicsObject,
+        m_impl->graphicsObject->swapChain().imageCount(),
+        m_impl->graphicsObject->descriptorPool(),
+        m_impl->shadowMapGlobalDescriptorSetLayout);
 
     //    bool useUniformBuffer = true;
     //    std::vector<char> vertShaderCode;
@@ -267,95 +354,39 @@ Renderer::Renderer(Shared<Window> window, Shared<Camera> camera, std::span<const
         fontBytes,
         128);
 
-    m_impl->normalDebugPipeline = createPipeline(
-        normal_debug_vert,
-        normal_debug_frag,
+    m_impl->normalDebugPipeline = createColorPipeline(
+        Normal_vert,
+        Normal_frag,
+        Geometry::Topology::LineList,
+        PolygonMode::Fill,
+        true);
+
+    m_impl->shadowMapPipeline = createShadowMapPipeline(
+        ShadowMap_vert,
         Geometry::Topology::LineList,
         PolygonMode::Fill,
         true);
 }
 
-Expected<void> Renderer::proceedCommandBuffers(
-    const vk::RenderPass& renderPass,
-    const vk::Extent2D& extent,
-    const Camera& camera,
-    const std::vector<vk::Framebuffer>& swapChainFramebuffers,
-    const std::vector<vk::CommandBuffer>& commandBuffers,
-    const std::vector<BufferBundle>& commonGlobalUniformBufferBundles,
-    const std::vector<BufferBundle>& lightingUniformBufferBundles,
-    const std::list<VertexObject*>& vertexObjects)
-{
-    for (size_t i = 0; i < commandBuffers.size(); i++) {
-        vk::CommandBufferBeginInfo beginInfo {};
-        if (commandBuffers[i].begin(&beginInfo) != vk::Result::eSuccess) {
-            throw std::runtime_error("failed to begin recording command buffer!");
-        }
-
-        // #1A0033
-        const vk::ClearValue clearColor = vk::ClearColorValue(std::array<float, 4> {
-            0x1a / 256.,
-            0x00 / 256.,
-            0x33 / 256.,
-            0.4f });
-
-        vk::ClearValue depthClear;
-        depthClear.depthStencil = vk::ClearDepthStencilValue(1.0f, 0.f);
-
-        std::array clearValues = {
-            clearColor,
-            depthClear,
-        };
-
-        vk::RenderPassBeginInfo renderPassInfo;
-        renderPassInfo.renderPass = renderPass;
-        renderPassInfo.framebuffer = swapChainFramebuffers[i];
-        renderPassInfo.renderArea.offset = vk::Offset2D();
-        renderPassInfo.renderArea.extent = extent;
-        renderPassInfo.clearValueCount = clearValues.size();
-        renderPassInfo.pClearValues = clearValues.data();
-
-        vk::Viewport viewport;
-        viewport.setX(0);
-        viewport.setY(0);
-        viewport.setWidth(static_cast<float>(extent.width));
-        viewport.setHeight(static_cast<float>(extent.height));
-        viewport.setMinDepth(camera.near());
-        viewport.setMaxDepth(camera.far());
-
-        commandBuffers[i].beginRenderPass(&renderPassInfo, vk::SubpassContents::eInline);
-        commandBuffers[i].setViewport(0, 1, &viewport);
-
-        for (auto object : vertexObjects) {
-            const auto result = object->draw(i, commandBuffers, commonGlobalUniformBufferBundles, lightingUniformBufferBundles);
-            if (!result) {
-                return unexpected("Failed to draw vertex object", result.error());
-            }
-        }
-
-        commandBuffers[i].endRenderPass();
-        commandBuffers[i].end();
-    }
-
-    return {};
-}
-
-std::shared_ptr<e172vp::Pipeline> Renderer::createPipeline(
+std::shared_ptr<e172vp::Pipeline> Renderer::createColorPipeline(
     std::span<const uint8_t> vertShaderCode,
     std::span<const uint8_t> fragShaderCode,
     Geometry::Topology topology,
     BadgerEngine::PolygonMode polygonMode,
     bool backfaceCulling)
 {
-    return std::make_shared<e172vp::Pipeline>(m_impl->graphicsObject->logicalDevice(),
+    return std::make_shared<e172vp::Pipeline>(
+        m_impl->graphicsObject->logicalDevice(),
         m_impl->graphicsObject->swapChainSettings().extent,
         m_impl->graphicsObject->colorRenderPass()->handle(),
         std::vector {
-            m_impl->globalDescriptorSetLayout.descriptorSetLayoutHandle(),
+            m_impl->colorGlobalDescriptorSetLayout.descriptorSetLayoutHandle(),
             m_impl->lightingDescriptorSetLayout.descriptorSetLayoutHandle(),
             m_impl->objectDescriptorSetLayout.descriptorSetLayoutHandle(),
             m_impl->baseColorSamplerDescriptorSetLayout.descriptorSetLayoutHandle(),
             m_impl->ambientOcclusionDescriptorSetLayout.descriptorSetLayoutHandle(),
             m_impl->normalMapDescriptorSetLayout.descriptorSetLayoutHandle(),
+            m_impl->shadowMapSamplerDescriptorSetLayout.descriptorSetLayoutHandle(),
         },
         vertShaderCode,
         fragShaderCode,
@@ -364,22 +395,157 @@ std::shared_ptr<e172vp::Pipeline> Renderer::createPipeline(
         backfaceCulling);
 }
 
+std::shared_ptr<e172vp::Pipeline> Renderer::createShadowMapPipeline(
+    std::span<const uint8_t> vertShaderCode,
+    Geometry::Topology topology,
+    PolygonMode polygonMode,
+    bool backfaceCulling)
+{
+    return std::make_shared<e172vp::Pipeline>(
+        m_impl->graphicsObject->logicalDevice(),
+        m_impl->graphicsObject->swapChainSettings().shadowMapExtent,
+        m_impl->graphicsObject->shadowMapRenderPass()->handle(),
+        std::vector {
+            m_impl->shadowMapGlobalDescriptorSetLayout.descriptorSetLayoutHandle(),
+            m_impl->objectDescriptorSetLayout.descriptorSetLayoutHandle(),
+        },
+        vertShaderCode,
+        topology,
+        polygonMode,
+        backfaceCulling);
+}
+
+Expected<void> Renderer::proceedRenderPass(
+    std::size_t imageIndex,
+    const vk::RenderPass& renderPass,
+    const vk::Extent2D& extent,
+    const Camera& camera,
+    std::span<const vk::ClearValue> clearValues,
+    const std::vector<vk::Framebuffer>& swapChainFramebuffers,
+    const std::vector<vk::CommandBuffer>& commandBuffers,
+    const std::vector<BufferBundle>& commonGlobalUniformBufferBundles,
+    const std::vector<BufferBundle>& lightingUniformBufferBundles,
+    const std::list<VertexObject*>& vertexObjects,
+    VertexObject::RenderTarget renderTarget) noexcept
+{
+    const vk::RenderPassBeginInfo renderPassInfo = {
+        .renderPass = renderPass,
+        .framebuffer = swapChainFramebuffers[imageIndex],
+        .renderArea = {
+            .offset = vk::Offset2D(),
+            .extent = extent,
+        },
+        .clearValueCount = numericCast<std::uint32_t>(clearValues.size()).value(),
+        .pClearValues = clearValues.data(),
+    };
+
+    const vk::Viewport viewport = {
+        .x = 0,
+        .y = 0,
+        .width = static_cast<float>(extent.width),
+        .height = static_cast<float>(extent.height),
+        .minDepth = camera.near(),
+        .maxDepth = camera.far(),
+    };
+
+    commandBuffers[imageIndex].beginRenderPass(&renderPassInfo, vk::SubpassContents::eInline);
+    commandBuffers[imageIndex].setViewport(0, 1, &viewport);
+
+    for (auto object : vertexObjects) {
+        const auto result = object->draw(imageIndex, commandBuffers, commonGlobalUniformBufferBundles, lightingUniformBufferBundles, renderTarget);
+        if (!result) {
+            return unexpected("Failed to draw vertex object", result.error());
+        }
+    }
+
+    commandBuffers[imageIndex].endRenderPass();
+
+    return {};
+}
+
+Expected<void> Renderer::fillCommandBuffers()
+{
+    const auto commandBuffers = m_impl->graphicsObject->commandPool().commandBufferVector();
+
+    for (size_t i = 0; i < commandBuffers.size(); i++) {
+        vk::CommandBufferBeginInfo beginInfo;
+        {
+            const auto result = commandBuffers[i].begin(&beginInfo);
+            if (result != vk::Result::eSuccess) {
+                return unexpected("Failed to begin recording command buffer: " + vk::to_string(result));
+            }
+        }
+
+        {
+            const auto result = proceedRenderPass(
+                i,
+                m_impl->graphicsObject->shadowMapRenderPass()->handle(),
+                m_impl->graphicsObject->swapChainSettings().shadowMapExtent,
+                m_impl->directionalLightCamera,
+                std::array<vk::ClearValue, 1> { vk::ClearDepthStencilValue(1.0f, 0.f) },
+                m_impl->graphicsObject->swapChain().shadowMapFrameBufferVector(),
+                commandBuffers,
+                m_impl->shadowMapGlobalUniformBufferBundles,
+                {},
+                m_impl->vertexObjects,
+                VertexObject::RenderTarget::ShadowMap);
+
+            if (!result) {
+                return unexpected("Failed to process render pass", result.error());
+            }
+        }
+
+        {
+            const auto result = proceedRenderPass(
+                i,
+                m_impl->graphicsObject->colorRenderPass()->handle(),
+                m_impl->graphicsObject->swapChainSettings().extent,
+                *m_camera,
+                std::array<vk::ClearValue, 2> {
+                    // #1A0033
+                    vk::ClearColorValue(std::array<float, 4> {
+                        0x1a / 256.,
+                        0x00 / 256.,
+                        0x33 / 256.,
+                        0.4f,
+                    }),
+                    vk::ClearDepthStencilValue(1.0f, 0.f),
+                },
+                m_impl->graphicsObject->swapChain().frameBufferVector(),
+                commandBuffers,
+                m_impl->colorGlobalUniformBufferBundles,
+                m_impl->lightingUniformBufferBundles,
+                m_impl->vertexObjects,
+                VertexObject::RenderTarget::Color);
+
+            if (!result) {
+                return unexpected("Failed to process render pass", result.error());
+            }
+        }
+
+        commandBuffers[i].end();
+    }
+
+    return {};
+}
+
 Expected<void> Renderer::applyPresentation() noexcept
 {
+#ifdef BADGER_ENGINE_RENDERDOC
+    RenderDocGuard _(m_impl->renderDocApi);
+#endif
+
     resetCommandBuffers(
         m_impl->graphicsObject->commandPool().commandBufferVector(),
         m_impl->graphicsObject->graphicsQueue(),
         m_impl->graphicsObject->presentQueue());
 
-    proceedCommandBuffers(
-        m_impl->graphicsObject->colorRenderPass()->handle(),
-        m_impl->graphicsObject->swapChainSettings().extent,
-        *m_camera,
-        m_impl->graphicsObject->swapChain().frameBufferVector(),
-        m_impl->graphicsObject->commandPool().commandBufferVector(),
-        m_impl->commonGlobalUniformBufferBundles,
-        m_impl->lightingUniformBufferBundles,
-        m_impl->vertexObjects);
+    {
+        const auto result = fillCommandBuffers();
+        if (!result) {
+            return unexpected("Failed to fill command buffers", result.error());
+        }
+    }
 
     std::uint32_t imageIndex = 0;
 
@@ -388,7 +554,7 @@ Expected<void> Renderer::applyPresentation() noexcept
                                 ->graphicsObject
                                 ->logicalDevice()
                                 .acquireNextImageKHR(
-                                    m_impl->graphicsObject->swapChain(),
+                                    m_impl->graphicsObject->swapChain().swapChainHandle(),
                                     UINT64_MAX,
                                     m_impl->imageAvailableSemaphore,
                                     {},
@@ -426,7 +592,7 @@ Expected<void> Renderer::applyPresentation() noexcept
         }
     }
 
-    vk::SwapchainKHR swapChains[] = { m_impl->graphicsObject->swapChain() };
+    vk::SwapchainKHR swapChains[] = { m_impl->graphicsObject->swapChain().swapChainHandle() };
 
     vk::PresentInfoKHR presentInfo;
     presentInfo.setWaitSemaphores(m_impl->renderFinishedSemaphore);
@@ -445,29 +611,33 @@ Expected<void> Renderer::applyPresentation() noexcept
     return {};
 }
 
+void Renderer::setDirectionalLightVector(glm::vec3 v)
+{
+    m_directionalLightVector = v;
+    m_impl->directionalLightCamera.setOrbit({ 0, 0, 0 }, v);
+}
+
 void Renderer::updateUniformBuffer(uint32_t currentImage)
 {
     {
         static const auto begin = std::chrono::high_resolution_clock::now();
         const float time = static_cast<float>(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - begin).count()) / 1000.f;
 
-        const auto size = m_impl->window->size();
-
-        const auto ubo = GlobalUniformBufferObject {
-            .transformation = m_camera->transformation(size.x / size.y),
+        const auto ubo = ColorGlobalUniformBufferObject {
+            .transformation = m_camera->transformation(vkExtent2DToGLMVec2(m_impl->graphicsObject->swapChainSettings().extent)),
             .time = time,
             ._ = {},
             .mouse = { 0, 0 },
-            .cameraPosition = m_camera->position()
+            .cameraPosition = m_camera->position(),
         };
 
         void* data = nullptr;
-        const auto result = m_impl->graphicsObject->logicalDevice().mapMemory(m_impl->commonGlobalUniformBufferBundles[currentImage].memory, 0, sizeof(ubo), vk::MemoryMapFlags(), &data);
+        const auto result = m_impl->graphicsObject->logicalDevice().mapMemory(m_impl->colorGlobalUniformBufferBundles[currentImage].memory, 0, sizeof(ubo), vk::MemoryMapFlags(), &data);
         if (result != vk::Result::eSuccess) {
             throw std::runtime_error("Failed to map memory: " + vk::to_string(result));
         }
         std::memcpy(data, &ubo, sizeof(ubo));
-        m_impl->graphicsObject->logicalDevice().unmapMemory(m_impl->commonGlobalUniformBufferBundles[currentImage].memory);
+        m_impl->graphicsObject->logicalDevice().unmapMemory(m_impl->colorGlobalUniformBufferBundles[currentImage].memory);
     }
 
     {
@@ -493,6 +663,11 @@ void Renderer::updateUniformBuffer(uint32_t currentImage)
             ._ = {},
             .color = m_directionalLightColor,
             .intensity = m_directionalLightIntensity,
+            .shadowMapTransformation = glm::translate(glm::mat4(1.), { 0.5, 0.5, 0.5 })
+                * glm::scale(glm::mat4(1.), { 0.5, 0.5, 0.5 })
+                * m_impl
+                    ->directionalLightCamera
+                    .transformation(vkExtent2DToGLMVec2(m_impl->graphicsObject->swapChainSettings().shadowMapExtent))
         };
 
         void* data = nullptr;
@@ -502,6 +677,20 @@ void Renderer::updateUniformBuffer(uint32_t currentImage)
         }
         std::memcpy(data, &ubo, sizeof(ubo));
         m_impl->graphicsObject->logicalDevice().unmapMemory(m_impl->lightingUniformBufferBundles[currentImage].memory);
+    }
+
+    {
+        const auto ubo = ShadowMapGlobalUniformBufferObject {
+            .transformation = m_impl->directionalLightCamera.transformation(vkExtent2DToGLMVec2(m_impl->graphicsObject->swapChainSettings().shadowMapExtent)),
+        };
+
+        void* data = nullptr;
+        const auto result = m_impl->graphicsObject->logicalDevice().mapMemory(m_impl->shadowMapGlobalUniformBufferBundles[currentImage].memory, 0, sizeof(ubo), vk::MemoryMapFlags(), &data);
+        if (result != vk::Result::eSuccess) {
+            throw std::runtime_error("Failed to map memory: " + vk::to_string(result));
+        }
+        std::memcpy(data, &ubo, sizeof(ubo));
+        m_impl->graphicsObject->logicalDevice().unmapMemory(m_impl->shadowMapGlobalUniformBufferBundles[currentImage].memory);
     }
 }
 
@@ -551,12 +740,14 @@ VertexObject& Renderer::addObject(const BadgerEngine::Model& model, RenderingOpt
                     m_impl->baseColorSamplerDescriptorSetLayout,
                     m_impl->ambientOcclusionDescriptorSetLayout,
                     m_impl->normalMapDescriptorSetLayout,
+                    m_impl->shadowMapSamplerDescriptorSetLayout,
                     model.mesh(),
                     std::move(baseColor),
                     std::move(ambientOclusion),
                     std::move(normalMap),
-                    createPipeline(BSDF_vert, BSDF_frag, model.mesh()->topology(), model.polygonMode(), options.backfaceCulling),
+                    createColorPipeline(BSDF_vert, BSDF_frag, model.mesh()->topology(), model.polygonMode(), options.backfaceCulling),
                     m_impl->normalDebugPipeline,
+                    m_impl->shadowMapPipeline,
                     options.displayNormals);
                 m_impl->vertexObjects.push_back(result);
                 return *result;
@@ -571,8 +762,8 @@ VertexObject& Renderer::addObject(const BadgerEngine::Model& model, RenderingOpt
                     m_impl->objectDescriptorSetLayout,
                     m_impl->baseColorSamplerDescriptorSetLayout,
                     model.mesh(),
-                    frames[i].imageView,
-                    createPipeline(material.vert, material.frag, model.mesh()->topology(), model.polygonMode(), options.backfaceCulling),
+                    frames[i].color.imageView,
+                    createColorPipeline(material.vert, material.frag, model.mesh()->topology(), model.polygonMode(), options.backfaceCulling),
                     m_impl->normalDebugPipeline,
                     options.displayNormals);
                 m_impl->vertexObjects.push_back(result);
@@ -599,7 +790,7 @@ VertexObject& Renderer::addObject(const BadgerEngine::Model& model, RenderingOpt
                         m_impl->baseColorSamplerDescriptorSetLayout,
                         model.mesh(),
                         texture,
-                        createPipeline(material.vert, material.frag, model.mesh()->topology(), model.polygonMode(), options.backfaceCulling),
+                        createColorPipeline(material.vert, material.frag, model.mesh()->topology(), model.polygonMode(), options.backfaceCulling),
                         m_impl->normalDebugPipeline,
                         options.displayNormals);
                     m_impl->vertexObjects.push_back(result);
@@ -613,7 +804,7 @@ VertexObject& Renderer::addObject(const BadgerEngine::Model& model, RenderingOpt
                         m_impl->baseColorSamplerDescriptorSetLayout,
                         model.mesh(),
                         m_impl->font->character('N').imageView(),
-                        createPipeline(material.vert, material.frag, model.mesh()->topology(), model.polygonMode(), options.backfaceCulling),
+                        createColorPipeline(material.vert, material.frag, model.mesh()->topology(), model.polygonMode(), options.backfaceCulling),
                         m_impl->normalDebugPipeline,
                         options.displayNormals);
                     m_impl->vertexObjects.push_back(result);

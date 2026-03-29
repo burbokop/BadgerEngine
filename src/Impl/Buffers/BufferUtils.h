@@ -139,11 +139,28 @@ public:
     static void createSamplerDescriptorSets(
         const vk::Device& logicalDevice,
         const vk::DescriptorPool& descriptorPool,
-        const vk::ImageView& imageView,
+        std::span<const vk::ImageView> imageViews,
         const vk::Sampler& sampler,
-        std::size_t count,
         const e172vp::DescriptorSetLayout& descriptorSetLayout,
         std::vector<vk::DescriptorSet>* descriptorSets);
+
+    static void createSamplerDescriptorSets(
+        const vk::Device& logicalDevice,
+        const vk::DescriptorPool& descriptorPool,
+        const vk::ImageView& imageView,
+        std::size_t count,
+        const vk::Sampler& sampler,
+        const e172vp::DescriptorSetLayout& descriptorSetLayout,
+        std::vector<vk::DescriptorSet>* descriptorSets)
+    {
+        createSamplerDescriptorSets(
+            logicalDevice,
+            descriptorPool,
+            std::vector<vk::ImageView>(count, imageView),
+            sampler,
+            descriptorSetLayout,
+            descriptorSets);
+    }
 
     template<typename T>
     static void createUniformDescriptorSets(const vk::Device& logicalDevice, const vk::DescriptorPool& descriptorPool, const std::vector<vk::Buffer>& uniformBuffers, const e172vp::DescriptorSetLayout* descriptorSetLayout, std::vector<vk::DescriptorSet>* descriptorSets)

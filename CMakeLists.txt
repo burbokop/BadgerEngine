@@ -9,6 +9,7 @@ option(ENABLE_BADGER_ENGINE_GLFW3 "Compile glfw3 based window" ON)
 option(ENABLE_BADGER_ENGINE_SDL2 "Compile SDL2 based window" ON)
 option(ENABLE_BADGER_ENGINE_PEDANTIC_DIAGNOSTIC
        "Enable all compiler warnings. Treat warnings as errors" ON)
+option(ENABLE_BADGER_ENGINE_RENDERDOC "Enable renderdoc api" OFF)
 
 find_package(Vulkan REQUIRED COMPONENTS glslc)
 find_package(Freetype REQUIRED)
@@ -67,6 +68,10 @@ if (ENABLE_BADGER_ENGINE_SDL2)
     target_link_libraries(BadgerEngine PRIVATE SDL2::SDL2)
 endif ()
 
+if (ENABLE_BADGER_ENGINE_RENDERDOC)
+    target_compile_definitions(BADGER_ENGINE_RENDERDOC)
+endif ()
+
 badger_engine_install_public_headers(
     BadgerEngine ${CMAKE_CURRENT_LIST_DIR}/src
     ${CMAKE_CURRENT_BINARY_DIR}/install_prefix/include/BadgerEngine)
@@ -76,10 +81,11 @@ badger_engine_add_embedded_shader_target(
     OUTPUT_DIR
     ${CMAKE_CURRENT_BINARY_DIR}/install_prefix/include/BadgerEngine/Shaders
     SOURCES
-    ${CMAKE_CURRENT_LIST_DIR}/shaders/normal_debug.frag
-    ${CMAKE_CURRENT_LIST_DIR}/shaders/normal_debug.vert
     ${CMAKE_CURRENT_LIST_DIR}/shaders/BSDF.vert
-    ${CMAKE_CURRENT_LIST_DIR}/shaders/BSDF.frag)
+    ${CMAKE_CURRENT_LIST_DIR}/shaders/BSDF.frag
+    ${CMAKE_CURRENT_LIST_DIR}/shaders/Normal.frag
+    ${CMAKE_CURRENT_LIST_DIR}/shaders/Normal.vert
+    ${CMAKE_CURRENT_LIST_DIR}/shaders/ShadowMap.vert)
 
 add_dependencies(BadgerEngine BadgerEngineEmbeddedShaders)
 

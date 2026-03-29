@@ -38,10 +38,10 @@ enum class TextureRole {
 struct Material {
     std::string name;
 
-    std::optional<Color> baseColor;
-    std::optional<Color> diffuseColor;
-    std::optional<Color> emissiveColor;
-    std::optional<Color> specularColor;
+    std::optional<RGBAColor> baseColor;
+    std::optional<RGBAColor> diffuseColor;
+    std::optional<RGBAColor> emissiveColor;
+    std::optional<RGBAColor> specularColor;
     std::optional<float> metallness;
     std::optional<float> roughness;
     std::optional<float> shininess;

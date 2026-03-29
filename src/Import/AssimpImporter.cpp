@@ -194,7 +194,7 @@ std::string bufferPropertyValueToString(const aiMaterialProperty& property) noex
     std::unreachable();
 }
 
-Expected<std::optional<Color>> materialColorProperty(const aiMaterial& material, const char* key, unsigned int type, unsigned int idx) noexcept
+Expected<std::optional<RGBAColor>> materialColorProperty(const aiMaterial& material, const char* key, unsigned int type, unsigned int idx) noexcept
 {
     aiColor4D c;
     const auto result = material.Get(key, type, idx, c);

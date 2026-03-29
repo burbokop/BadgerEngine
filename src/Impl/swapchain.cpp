@@ -1,21 +1,9 @@
 #include "swapchain.h"
 
 #include "../Utils/Collections.h"
-#include "stringvector.h"
 #include <cstdint>
-#include <iostream>
 #include <limits>
 #include <ranges>
-
-vk::SwapchainKHR e172vp::SwapChain::swapChainHandle() const
-{
-    return m_swapChainHandle;
-}
-
-e172vp::SwapChain::operator vk::SwapchainKHR() const
-{
-    return m_swapChainHandle;
-}
 
 std::vector<std::string> e172vp::SwapChain::pullErrors()
 {
@@ -32,7 +20,7 @@ bool e172vp::SwapChain::isValid() const
 vk::Image e172vp::SwapChain::image(size_t index) const
 {
     if (index < m_frames.size())
-        return m_frames[index].image;
+        return m_frames[index].color.image;
     return vk::Image();
 }
 
@@ -44,7 +32,7 @@ size_t e172vp::SwapChain::imageCount() const
 vk::ImageView e172vp::SwapChain::imageView(size_t index) const
 {
     if (index < m_frames.size())
-        return m_frames[index].imageView;
+        return m_frames[index].color.imageView;
     return vk::ImageView();
 }
 
@@ -215,19 +203,19 @@ vk::Extent2D e172vp::SwapChain::chooseExtent(const vk::SurfaceCapabilitiesKHR& c
 
 e172vp::SwapChain::Settings e172vp::SwapChain::createSettings(vk::PhysicalDevice physicalDevice, const e172vp::Hardware::SwapChainSupportDetails& supportDetails, const vk::Extent2D& defaultExtent)
 {
-    Settings result;
-    result.surfaceFormat = chooseSurfaceFormat(supportDetails.formats);
+    return {
+        .surfaceFormat = chooseSurfaceFormat(supportDetails.formats),
+        .depthFormat = find_supported_depth_format(
+            physicalDevice,
+            { vk::Format::eD32Sfloat, vk::Format::eD24UnormS8Uint },
+            vk::ImageTiling::eOptimal,
+            vk::FormatFeatureFlagBits::eDepthStencilAttachment),
 
-    result.depthFormat = find_supported_depth_format(
-        physicalDevice,
-        { vk::Format::eD32Sfloat, vk::Format::eD24UnormS8Uint },
-        vk::ImageTiling::eOptimal,
-        vk::FormatFeatureFlagBits::eDepthStencilAttachment);
-
-    result.presentMode = choosePresentMode(supportDetails.presentModes);
-    result.extent = chooseExtent(supportDetails.capabilities, defaultExtent);
-    result.supportDetails = supportDetails;
-    return result;
+        .presentMode = choosePresentMode(supportDetails.presentModes),
+        .extent = chooseExtent(supportDetails.capabilities, defaultExtent),
+        .shadowMapExtent = { 512, 512 },
+        .supportDetails = supportDetails,
+    };
 }
 
 vk::Format e172vp::SwapChain::find_supported_depth_format(vk::PhysicalDevice physicalDevice, const std::vector<vk::Format>& candidates, vk::ImageTiling tiling, vk::FormatFeatureFlags features)
@@ -295,21 +283,32 @@ vk::ImageView e172vp::SwapChain::createImageView(const vk::Device& logicalDevice
     return imageView;
 }
 
-std::vector<vk::ImageView> e172vp::SwapChain::imageViewVector() const
+std::vector<vk::ImageView> e172vp::SwapChain::colorImageViewVector() const
 {
-    return m_frames | std::views::transform([](const BadgerEngine::Frame& f) { return f.imageView; }) | BadgerEngine::Collect<std::vector>;
+    return m_frames | std::views::transform([](const BadgerEngine::Frame& f) { return f.color.imageView; }) | BadgerEngine::Collect<std::vector>;
+}
+
+std::vector<vk::ImageView> e172vp::SwapChain::shadowMapImageViewVector() const
+{
+    return m_frames | std::views::transform([](const BadgerEngine::Frame& f) { return f.shadowMap.imageView; }) | BadgerEngine::Collect<std::vector>;
 }
 
 std::vector<vk::Framebuffer> e172vp::SwapChain::frameBufferVector() const
 {
-    return m_frames | std::views::transform([](const BadgerEngine::Frame& f) { return f.framebuffer; }) | BadgerEngine::Collect<std::vector>;
+    return m_frames | std::views::transform([](const BadgerEngine::Frame& f) { return f.color.framebuffer; }) | BadgerEngine::Collect<std::vector>;
+}
+
+std::vector<vk::Framebuffer> e172vp::SwapChain::shadowMapFrameBufferVector() const
+{
+    return m_frames | std::views::transform([](const BadgerEngine::Frame& f) { return f.shadowMap.framebuffer; }) | BadgerEngine::Collect<std::vector>;
 }
 
 e172vp::SwapChain::SwapChain(
     const vk::Device& logicalDevice,
     const vk::PhysicalDevice& physicalDevice,
     const vk::SurfaceKHR& surface,
-    const vk::RenderPass& renderPass,
+    const vk::RenderPass& colorRenderPass,
+    const vk::RenderPass& shadowMapRenderPass,
     const Hardware::QueueFamilies& queueFamilies,
     const Settings& settings)
     : m_logicalDevice(logicalDevice)
@@ -359,43 +358,88 @@ e172vp::SwapChain::SwapChain(
 
             assert(images.size() == imageViewes.size());
 
-            m_frames = std::views::zip(images, imageViewes) | std::views::transform([renderPass, settings, logicalDevice, physicalDevice](auto&& x) {
+            m_frames = std::views::zip(images, imageViewes) | std::views::transform([colorRenderPass, shadowMapRenderPass, settings, logicalDevice, physicalDevice](auto&& x) {
                 auto [image, imageView] = std::move(x);
 
-                ImageInputChunk imageInfo;
-                imageInfo.logicalDevice = logicalDevice;
-                imageInfo.physicalDevice = physicalDevice;
-                imageInfo.tiling = vk::ImageTiling::eOptimal;
-                imageInfo.usage = vk::ImageUsageFlagBits::eDepthStencilAttachment;
-                imageInfo.memoryProperties = vk::MemoryPropertyFlagBits::eDeviceLocal;
-                imageInfo.width = settings.extent.width;
-                imageInfo.height = settings.extent.height;
-                imageInfo.format = settings.depthFormat;
-                const auto depthBuffer = make_image(imageInfo);
-                const auto depthBufferMemory = make_image_memory(imageInfo, depthBuffer);
+                const ImageInputChunk depthBufferImageInfo {
+                    .logicalDevice = logicalDevice,
+                    .physicalDevice = physicalDevice,
+                    .width = settings.extent.width,
+                    .height = settings.extent.height,
+                    .tiling = vk::ImageTiling::eOptimal,
+                    .usage = vk::ImageUsageFlagBits::eDepthStencilAttachment,
+                    .memoryProperties = vk::MemoryPropertyFlagBits::eDeviceLocal,
+                    .format = settings.depthFormat,
+                };
+
+                const auto depthBuffer = make_image(depthBufferImageInfo);
+                const auto depthBufferMemory = make_image_memory(depthBufferImageInfo, depthBuffer);
                 const auto depthBufferView = make_image_view(
                     logicalDevice,
                     depthBuffer,
                     settings.depthFormat,
                     vk::ImageAspectFlagBits::eDepth);
 
-                std::array attachments = {
-                    imageView,
-                    depthBufferView
+                vk::Framebuffer colorFrameBuffer;
+                {
+                    std::array colorFramebufferAttachments = {
+                        imageView,
+                        depthBufferView
+                    };
+
+                    const vk::FramebufferCreateInfo colorFramebufferInfo = {
+                        .renderPass = colorRenderPass,
+                        .attachmentCount = colorFramebufferAttachments.size(),
+                        .pAttachments = colorFramebufferAttachments.data(),
+                        .width = settings.extent.width,
+                        .height = settings.extent.height,
+                        .layers = 1,
+                    };
+
+                    const auto code = logicalDevice.createFramebuffer(&colorFramebufferInfo, nullptr, &colorFrameBuffer);
+                    if (code != vk::Result::eSuccess) {
+                        throw std::runtime_error("[error] Failed to create framebuffer: " + vk::to_string(code));
+                    }
+                }
+
+                const ImageInputChunk shadowMapImageInfo {
+                    .logicalDevice = logicalDevice,
+                    .physicalDevice = physicalDevice,
+                    .width = settings.shadowMapExtent.width,
+                    .height = settings.shadowMapExtent.height,
+                    .tiling = vk::ImageTiling::eOptimal,
+                    .usage = vk::ImageUsageFlagBits::eDepthStencilAttachment,
+                    .memoryProperties = vk::MemoryPropertyFlagBits::eDeviceLocal,
+                    .format = settings.depthFormat,
                 };
 
-                vk::FramebufferCreateInfo framebufferInfo;
-                framebufferInfo.renderPass = renderPass;
-                framebufferInfo.attachmentCount = attachments.size();
-                framebufferInfo.pAttachments = attachments.data();
-                framebufferInfo.width = settings.extent.width;
-                framebufferInfo.height = settings.extent.height;
-                framebufferInfo.layers = 1;
+                const auto shadowMap = make_image(shadowMapImageInfo);
+                const auto shadowMapMemory = make_image_memory(shadowMapImageInfo, depthBuffer);
+                const auto shadowMapView = make_image_view(
+                    logicalDevice,
+                    depthBuffer,
+                    settings.depthFormat,
+                    vk::ImageAspectFlagBits::eDepth);
 
-                vk::Framebuffer frameBuffer;
-                const auto code = logicalDevice.createFramebuffer(&framebufferInfo, nullptr, &frameBuffer);
-                if (code != vk::Result::eSuccess) {
-                    throw std::runtime_error("[error] Failed to create framebuffer: " + vk::to_string(code));
+                vk::Framebuffer shadowMapFrameBuffer;
+                {
+                    std::array shadowMapFramebufferAttachments = {
+                        shadowMapView
+                    };
+
+                    const vk::FramebufferCreateInfo shadowMapFramebufferInfo = {
+                        .renderPass = shadowMapRenderPass,
+                        .attachmentCount = shadowMapFramebufferAttachments.size(),
+                        .pAttachments = shadowMapFramebufferAttachments.data(),
+                        .width = settings.shadowMapExtent.width,
+                        .height = settings.shadowMapExtent.height,
+                        .layers = 1,
+                    };
+
+                    const auto code = logicalDevice.createFramebuffer(&shadowMapFramebufferInfo, nullptr, &shadowMapFrameBuffer);
+                    if (code != vk::Result::eSuccess) {
+                        throw std::runtime_error("[error] Failed to create framebuffer: " + vk::to_string(code));
+                    }
                 }
 
                 assert(image);
@@ -403,15 +447,27 @@ e172vp::SwapChain::SwapChain(
                 assert(depthBuffer);
                 assert(depthBufferMemory);
                 assert(depthBufferView);
-                assert(frameBuffer);
+                assert(colorFrameBuffer);
+                assert(shadowMap);
+                assert(shadowMapMemory);
+                assert(shadowMapView);
+                assert(shadowMapFrameBuffer);
 
                 return BadgerEngine::Frame {
-                    .image = image,
-                    .imageView = imageView,
-                    .depthBuffer = depthBuffer,
-                    .depthBufferMemory = depthBufferMemory,
-                    .depthBufferView = depthBufferView,
-                    .framebuffer = frameBuffer,
+                    .color = {
+                        .image = image,
+                        .imageView = imageView,
+                        .depthBuffer = depthBuffer,
+                        .depthBufferMemory = depthBufferMemory,
+                        .depthBufferView = depthBufferView,
+                        .framebuffer = colorFrameBuffer,
+                    },
+                    .shadowMap = {
+                        .image = shadowMap,
+                        .memory = shadowMapMemory,
+                        .imageView = shadowMapView,
+                        .framebuffer = shadowMapFrameBuffer,
+                    },
                 };
             }) | BadgerEngine::Collect<std::vector>;
 

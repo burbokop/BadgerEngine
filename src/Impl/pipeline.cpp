@@ -202,3 +202,121 @@ e172vp::Pipeline::Pipeline(const vk::Device& logicalDevice,
     logicalDevice.destroyShaderModule(vertShaderModule);
     m_logicalDevice = logicalDevice;
 }
+
+e172vp::Pipeline::Pipeline(
+    const vk::Device& logicalDevice,
+    const vk::Extent2D& extent,
+    const vk::RenderPass& renderPass,
+    const std::vector<vk::DescriptorSetLayout>& descriptorSetLayouts,
+    std::span<const uint8_t> vertexShader,
+    BadgerEngine::Geometry::Topology topology,
+    BadgerEngine::PolygonMode polygonMode,
+    bool backfaceCulling)
+{
+    vk::ShaderModule vertShaderModule = createShaderModule(logicalDevice, vertexShader);
+
+    vk::PipelineShaderStageCreateInfo vertShaderStageInfo {};
+    vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
+    vertShaderStageInfo.module = vertShaderModule;
+    vertShaderStageInfo.pName = "main";
+
+    std::array<vk::PipelineShaderStageCreateInfo, 1> shaderStages = { vertShaderStageInfo };
+
+    // vertex input
+    vk::PipelineVertexInputStateCreateInfo vertexInputInfo {};
+    const auto bindingDescription = BadgerEngine::Geometry::Vertex::bindingDescription();
+    const auto attributeDescriptions = BadgerEngine::Geometry::Vertex::attributeDescriptions();
+    vertexInputInfo.vertexBindingDescriptionCount = 1;
+    vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+    vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
+
+    vk::PipelineInputAssemblyStateCreateInfo inputAssembly {};
+    inputAssembly.topology = vulkanPrimitiveTopologyFromTopology(topology);
+    inputAssembly.primitiveRestartEnable = false;
+
+    const vk::Viewport viewport = {
+        .x = 0.0f,
+        .y = 0.0f,
+        .width = static_cast<float>(extent.width),
+        .height = static_cast<float>(extent.height),
+        .minDepth = 0.0f,
+        .maxDepth = 1.0f,
+    };
+
+    const vk::Rect2D scissor = {
+        .offset = vk::Offset2D(0, 0),
+        .extent = extent,
+    };
+
+    const vk::PipelineViewportStateCreateInfo viewportState = {
+        .viewportCount = 1,
+        .pViewports = &viewport,
+        .scissorCount = 1,
+        .pScissors = &scissor,
+    };
+
+    const vk::PipelineRasterizationStateCreateInfo rasterizer = {
+        .depthClampEnable = false,
+        .rasterizerDiscardEnable = false,
+        .polygonMode = polygonModeToVk(polygonMode),
+        .cullMode = backfaceCulling ? vk::CullModeFlagBits::eBack : vk::CullModeFlagBits::eNone,
+        .frontFace = vk::FrontFace::eClockwise,
+        .depthBiasEnable = false,
+        .lineWidth = 1.0f,
+    };
+
+    const vk::PipelineDepthStencilStateCreateInfo depthStencilState = {
+        .flags = vk::PipelineDepthStencilStateCreateFlags(),
+        .depthTestEnable = true,
+        .depthWriteEnable = true,
+        .depthCompareOp = vk::CompareOp::eLess,
+        .depthBoundsTestEnable = false,
+        .stencilTestEnable = false,
+    };
+
+    const vk::PipelineMultisampleStateCreateInfo multisampling = {
+        .rasterizationSamples = vk::SampleCountFlagBits::e1,
+        .sampleShadingEnable = false,
+    };
+
+    const vk::PipelineColorBlendStateCreateInfo colorBlending = {
+        .logicOpEnable = false,
+        .logicOp = vk::LogicOp::eCopy,
+        .attachmentCount = 0,
+        .pAttachments = nullptr,
+        .blendConstants = std::array { 0.0f, 0.0f, 0.0f, 0.0f },
+    };
+
+    const vk::PipelineLayoutCreateInfo pipelineLayoutInfo = {
+        .setLayoutCount = BadgerEngine::numericCast<std::uint32_t>(descriptorSetLayouts.size()).value(),
+        .pSetLayouts = descriptorSetLayouts.data(),
+        .pushConstantRangeCount = 0,
+    };
+
+    if (logicalDevice.createPipelineLayout(&pipelineLayoutInfo, nullptr, &m_pipelineLayout) != vk::Result::eSuccess) {
+        throw std::runtime_error("failed to create pipeline layout!");
+    }
+
+    const vk::GraphicsPipelineCreateInfo pipelineInfo = {
+        .stageCount = shaderStages.size(),
+        .pStages = shaderStages.data(),
+        .pVertexInputState = &vertexInputInfo,
+        .pInputAssemblyState = &inputAssembly,
+        .pViewportState = &viewportState,
+        .pRasterizationState = &rasterizer,
+        .pMultisampleState = &multisampling,
+        .pDepthStencilState = &depthStencilState,
+        .pColorBlendState = &colorBlending,
+        .layout = m_pipelineLayout,
+        .renderPass = renderPass,
+        .subpass = 0,
+    };
+
+    if (logicalDevice.createGraphicsPipelines(vk::PipelineCache(), 1, &pipelineInfo, nullptr, &m_handle) != vk::Result::eSuccess) {
+        throw std::runtime_error("failed to create graphics pipeline!");
+    }
+
+    logicalDevice.destroyShaderModule(vertShaderModule);
+    m_logicalDevice = logicalDevice;
+}

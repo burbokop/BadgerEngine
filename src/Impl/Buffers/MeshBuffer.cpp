@@ -6,7 +6,7 @@
 
 namespace BadgerEngine {
 
-struct MeshBuffer::Impl {
+struct UploadedMesh::Impl {
     struct Private {};
 
 public:
@@ -87,27 +87,28 @@ private:
     Shared<e172vp::GraphicsObject> m_device;
 };
 
-Expected<MeshBuffer> MeshBuffer::upload(Shared<e172vp::GraphicsObject> device, const Geometry::Mesh& mesh)
+Expected<UploadedMesh> UploadedMesh::upload(Shared<e172vp::GraphicsObject> device, const Geometry::Mesh& mesh)
 {
     auto r = Impl::upload(device, mesh);
     if (!r) {
         return unexpected(r.error());
     }
-    return MeshBuffer(std::move(*r));
+    return UploadedMesh(std::move(*r));
 }
 
-Geometry::Topology MeshBuffer::topology() const
+Geometry::Topology UploadedMesh::topology() const
 {
     return m_impl->topology();
 }
 
-std::size_t MeshBuffer::indexCount() const
+std::size_t UploadedMesh::indexCount() const
 {
     return m_impl->indexCount();
 }
 
-void MeshBuffer::bindTo(const vk::CommandBuffer& commandBuffer) const
+void UploadedMesh::bindTo(const vk::CommandBuffer& commandBuffer) const
 {
     m_impl->bindTo(commandBuffer);
 }
+
 }

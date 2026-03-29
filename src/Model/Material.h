@@ -4,7 +4,7 @@
 
 namespace BadgerEngine {
 
-using MaterialColorChannel = std::variant<SharedTexture, Color>;
+using MaterialColorChannel = std::variant<SharedTexture, RGBAColor>;
 using MaterialFloatChannel = std::variant<SharedTexture, float>;
 
 struct BSDFMaterial {

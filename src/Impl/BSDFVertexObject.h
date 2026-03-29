@@ -34,12 +34,14 @@ public:
         const e172vp::DescriptorSetLayout& baseColorDescriptorSetLayout,
         const e172vp::DescriptorSetLayout& ambientOclussionDescriptorSetLayout,
         const e172vp::DescriptorSetLayout& normalMapDescriptorSetLayout,
+        const e172vp::DescriptorSetLayout& shadowMapSamplerDescriptorSetLayout,
         const Shared<BadgerEngine::Geometry::Mesh>& mesh,
         Shared<UploadedTexture> baseColorTexture,
         Shared<UploadedTexture> ambientOclussionMap,
         Shared<UploadedTexture> normalMap,
         Shared<e172vp::Pipeline> pipeline,
-        Shared<e172vp::Pipeline> nPipeline,
+        Shared<e172vp::Pipeline> normalesPipeline,
+        Shared<e172vp::Pipeline> shadowMapPipeline,
         DisplayNormals displayNormals);
 
 public:
@@ -51,16 +53,37 @@ public:
     }
 
 protected:
-    Expected<void> draw(std::size_t imageIndex,
+    [[nodiscard]] Expected<void> draw(
+        std::size_t imageIndex,
         std::span<const vk::CommandBuffer> commandBuffers,
-        std::span<const BufferBundle> commonGlobalUniformBufferBundles,
-        std::span<const BufferBundle> lightingUniformBufferBundles) const noexcept override;
+        std::span<const BufferBundle> globalUniformBufferBundles,
+        std::span<const BufferBundle> lightingUniformBufferBundles,
+        RenderTarget target) const noexcept override;
 
-    Expected<void> updateUniformBuffer(std::size_t imageIndex) noexcept override;
+    [[nodiscard]] Expected<void> updateUniformBuffer(std::size_t imageIndex) noexcept override;
+
+private:
+    [[nodiscard]] Expected<void> drawColorTarget(
+        std::size_t imageIndex,
+        std::span<const vk::CommandBuffer> commandBuffers,
+        std::span<const BufferBundle> globalUniformBufferBundles,
+        std::span<const BufferBundle> lightingUniformBufferBundles) const noexcept;
+
+    [[nodiscard]] Expected<void> drawShadowMapTarget(
+        std::size_t imageIndex,
+        std::span<const vk::CommandBuffer> commandBuffers,
+        std::span<const BufferBundle> globalUniformBufferBundles) const noexcept;
 
 private:
     Shared<e172vp::GraphicsObject> m_graphicsObject;
-    std::vector<UploadedModel> m_models;
+
+    Shared<e172vp::Pipeline> m_pipeline;
+    Shared<e172vp::Pipeline> m_normalesPipeline;
+    Shared<e172vp::Pipeline> m_shadowMapPipeline;
+
+    UploadedMesh m_mesh;
+    std::vector<UploadedMesh> m_debugMeshes;
+
     Shared<UploadedTexture> m_baseColorTexture;
     Shared<UploadedTexture> m_ambientOclussionMap;
     Shared<UploadedTexture> m_normalMap;
@@ -69,5 +92,7 @@ private:
     std::vector<vk::DescriptorSet> m_baseColorTextureDescriptorSets;
     std::vector<vk::DescriptorSet> m_ambientOclussionMapDescriptorSets;
     std::vector<vk::DescriptorSet> m_normalMapDescriptorSets;
+    std::vector<vk::DescriptorSet> m_shadowMapSamplerDescriptorSets;
 };
+
 }

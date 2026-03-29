@@ -16,6 +16,16 @@ public:
         std::span<const std::uint8_t> vertexShader,
         std::span<const std::uint8_t> fragmentShader,
         BadgerEngine::Geometry::Topology topology,
+        BadgerEngine::PolygonMode polygonMode,
+        bool backfaceCulling);
+
+    Pipeline(
+        const vk::Device& logicalDevice,
+        const vk::Extent2D& extent,
+        const vk::RenderPass& renderPass,
+        const std::vector<vk::DescriptorSetLayout>& descriptorSetLayouts,
+        std::span<const std::uint8_t> vertexShader,
+        BadgerEngine::Geometry::Topology topology,
         BadgerEngine::PolygonMode polygonMode, bool backfaceCulling);
 
     Pipeline() = delete;

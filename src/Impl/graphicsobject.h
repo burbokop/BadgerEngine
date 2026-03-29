@@ -31,7 +31,7 @@ class GraphicsObject {
     vk::Queue m_graphicsQueue;
     vk::Queue m_presentQueue;
 
-    e172vp::SwapChain m_swapChain;
+    std::unique_ptr<e172vp::SwapChain> m_swapChain;
     std::unique_ptr<BadgerEngine::ColorRenderPass> m_colorRenderPass;
     std::unique_ptr<BadgerEngine::ShadowMapRenderPass> m_shadowMapRenderPass;
     e172vp::CommandPool m_commandPool;
@@ -61,7 +61,7 @@ public:
     std::vector<std::string> enabledValidationLayers() const;
     vk::Queue graphicsQueue() const;
     vk::Queue presentQueue() const;
-    const auto& swapChain() const { return m_swapChain; }
+    const e172vp::SwapChain& swapChain() const { return *m_swapChain; }
     e172vp::CommandPool commandPool() const;
     const auto& colorRenderPass() const { return m_colorRenderPass; }
     const auto& shadowMapRenderPass() const { return m_shadowMapRenderPass; }

@@ -20,18 +20,12 @@ struct UniformBufferObject {
 
 static_assert(offsetof(UniformBufferObject, model) == 0, "Offset must comply with std140");
 
-std::vector<UploadedModel> createModels(
+std::vector<UploadedMesh> createDebugMeshes(
     Shared<e172vp::GraphicsObject> graphicsObject,
-    const Shared<Geometry::Mesh>& mesh,
-    Shared<e172vp::Pipeline> pipeline,
-    Shared<e172vp::Pipeline> nPipeline,
+    const Geometry::Mesh& mesh,
     DisplayNormals displayNormals)
 {
-    std::list<UploadedModel> result = {
-        UploadedModel(
-            MeshBuffer::upload(graphicsObject, *mesh).transform_error(AsCritical()).value(),
-            std::move(pipeline))
-    };
+    std::list<UploadedMesh> result;
 
     const float len = 0.02f;
 
@@ -39,20 +33,16 @@ std::vector<UploadedModel> createModels(
     case DisplayNormals::NoNormals:
         break;
     case DisplayNormals::VertexNormals:
-        result.push_back(UploadedModel(
-            MeshBuffer::upload(graphicsObject, *mesh->vertexNormalsMesh(len, glm::vec3(0, 0, 1)).value()).transform_error(AsCritical()).value(),
-            nPipeline));
-        result.push_back(UploadedModel(
-            MeshBuffer::upload(graphicsObject, *mesh->vertexTangentsMesh(len, glm::vec3(1, 0, 0)).value()).transform_error(AsCritical()).value(),
-            nPipeline));
-        result.push_back(UploadedModel(
-            MeshBuffer::upload(graphicsObject, *mesh->vertexBitangentsMesh(len, glm::vec3(0, 1, 0)).value()).transform_error(AsCritical()).value(),
-            std::move(nPipeline)));
+        result.push_back(
+            UploadedMesh::upload(graphicsObject, *mesh.vertexNormalsMesh(len, glm::vec3(0, 0, 1)).value()).transform_error(AsCritical()).value());
+        result.push_back(
+            UploadedMesh::upload(graphicsObject, *mesh.vertexTangentsMesh(len, glm::vec3(1, 0, 0)).value()).transform_error(AsCritical()).value());
+        result.push_back(
+            UploadedMesh::upload(graphicsObject, *mesh.vertexBitangentsMesh(len, glm::vec3(0, 1, 0)).value()).transform_error(AsCritical()).value());
         break;
     case DisplayNormals::PolygonNormals:
-        result.push_back(UploadedModel(
-            MeshBuffer::upload(graphicsObject, *mesh->polygonNormalsMesh(len).value()).transform_error(AsCritical()).value(),
-            std::move(nPipeline)));
+        result.push_back(
+            UploadedMesh::upload(graphicsObject, *mesh.polygonNormalsMesh(len).value()).transform_error(AsCritical()).value());
         break;
     }
 
@@ -67,15 +57,21 @@ BSDFVertexObject::BSDFVertexObject(
     const e172vp::DescriptorSetLayout& baseColorDescriptorSetLayout,
     const e172vp::DescriptorSetLayout& ambientOclussionDescriptorSetLayout,
     const e172vp::DescriptorSetLayout& normalMapDescriptorSetLayout,
+    const e172vp::DescriptorSetLayout& shadowMapSamplerDescriptorSetLayout,
     const Shared<Geometry::Mesh>& mesh,
     Shared<UploadedTexture> baseColorTexture,
     Shared<UploadedTexture> ambientOclussionMap,
     Shared<UploadedTexture> normalMap,
     Shared<e172vp::Pipeline> pipeline,
-    Shared<e172vp::Pipeline> nPipeline,
+    Shared<e172vp::Pipeline> normalesPipeline,
+    Shared<e172vp::Pipeline> shadowMapPipeline,
     DisplayNormals displayNormals)
     : m_graphicsObject(std::move(graphicsObject))
-    , m_models(createModels(m_graphicsObject, mesh, std::move(pipeline), std::move(nPipeline), displayNormals))
+    , m_pipeline(std::move(pipeline))
+    , m_normalesPipeline(std::move(normalesPipeline))
+    , m_shadowMapPipeline(std::move(shadowMapPipeline))
+    , m_mesh(UploadedMesh::upload(m_graphicsObject, *mesh).transform_error(AsCritical()).value())
+    , m_debugMeshes(createDebugMeshes(m_graphicsObject, *mesh, displayNormals))
     , m_baseColorTexture(std::move(baseColorTexture))
     , m_ambientOclussionMap(std::move(ambientOclussionMap))
     , m_normalMap(std::move(normalMap))
@@ -90,8 +86,8 @@ BSDFVertexObject::BSDFVertexObject(
         m_graphicsObject->logicalDevice(),
         m_graphicsObject->descriptorPool(),
         m_baseColorTexture->imageView(),
-        m_graphicsObject->sampler(),
         imageCount,
+        m_graphicsObject->sampler(),
         baseColorDescriptorSetLayout,
         &m_baseColorTextureDescriptorSets);
 
@@ -99,8 +95,8 @@ BSDFVertexObject::BSDFVertexObject(
         m_graphicsObject->logicalDevice(),
         m_graphicsObject->descriptorPool(),
         m_ambientOclussionMap->imageView(),
-        m_graphicsObject->sampler(),
         imageCount,
+        m_graphicsObject->sampler(),
         ambientOclussionDescriptorSetLayout,
         &m_ambientOclussionMapDescriptorSets);
 
@@ -108,37 +104,106 @@ BSDFVertexObject::BSDFVertexObject(
         m_graphicsObject->logicalDevice(),
         m_graphicsObject->descriptorPool(),
         m_normalMap->imageView(),
-        m_graphicsObject->sampler(),
         imageCount,
+        m_graphicsObject->sampler(),
         normalMapDescriptorSetLayout,
         &m_normalMapDescriptorSets);
+
+    BufferUtils::createSamplerDescriptorSets(
+        m_graphicsObject->logicalDevice(),
+        m_graphicsObject->descriptorPool(),
+        m_graphicsObject->swapChain().shadowMapImageViewVector(),
+        m_graphicsObject->sampler(),
+        shadowMapSamplerDescriptorSetLayout,
+        &m_shadowMapSamplerDescriptorSets);
 }
 
 Expected<void> BSDFVertexObject::draw(
     std::size_t imageIndex,
     std::span<const vk::CommandBuffer> commandBuffers,
-    std::span<const BufferBundle> commonGlobalUniformBufferBundles,
+    std::span<const BufferBundle> globalUniformBufferBundles,
+    std::span<const BufferBundle> lightingUniformBufferBundles,
+    RenderTarget target) const noexcept
+{
+    switch (target) {
+    case RenderTarget::Color:
+        return drawColorTarget(imageIndex, commandBuffers, globalUniformBufferBundles, lightingUniformBufferBundles);
+    case RenderTarget::ShadowMap:
+        return drawShadowMapTarget(imageIndex, commandBuffers, globalUniformBufferBundles);
+    }
+
+    std::unreachable();
+}
+
+Expected<void> BSDFVertexObject::drawColorTarget(
+    std::size_t imageIndex,
+    std::span<const vk::CommandBuffer> commandBuffers,
+    std::span<const BufferBundle> globalUniformBufferBundles,
     std::span<const BufferBundle> lightingUniformBufferBundles) const noexcept
 {
-    for (const auto& model : m_models) {
-        model.bindTo(commandBuffers[imageIndex]);
+    m_pipeline->bindTo(commandBuffers[imageIndex]);
+    m_mesh.bindTo(commandBuffers[imageIndex]);
+
+    commandBuffers[imageIndex].bindDescriptorSets(
+        vk::PipelineBindPoint::eGraphics,
+        m_pipeline->pipelineLayout(),
+        0,
+        {
+            globalUniformBufferBundles[imageIndex].descriptorSet,
+            lightingUniformBufferBundles[imageIndex].descriptorSet,
+            m_uniformBufferBundles.at(imageIndex).descriptorSet,
+            m_baseColorTextureDescriptorSets.at(imageIndex),
+            m_ambientOclussionMapDescriptorSets.at(imageIndex),
+            m_normalMapDescriptorSets.at(imageIndex),
+            m_shadowMapSamplerDescriptorSets.at(imageIndex),
+        },
+        {});
+
+    commandBuffers[imageIndex].drawIndexed(numericCast<std::uint32_t>(m_mesh.indexCount()).value(), 1, 0, 0, 0);
+
+    if (!m_debugMeshes.empty()) {
+        m_normalesPipeline->bindTo(commandBuffers[imageIndex]);
+    }
+
+    for (const auto& mesh : m_debugMeshes) {
+        mesh.bindTo(commandBuffers[imageIndex]);
 
         commandBuffers[imageIndex].bindDescriptorSets(
             vk::PipelineBindPoint::eGraphics,
-            model.pipeline()->pipelineLayout(),
+            m_normalesPipeline->pipelineLayout(),
             0,
             {
-                commonGlobalUniformBufferBundles[imageIndex].descriptorSet,
+                globalUniformBufferBundles[imageIndex].descriptorSet,
                 lightingUniformBufferBundles[imageIndex].descriptorSet,
                 m_uniformBufferBundles.at(imageIndex).descriptorSet,
-                m_baseColorTextureDescriptorSets.at(imageIndex),
-                m_ambientOclussionMapDescriptorSets.at(imageIndex),
-                m_normalMapDescriptorSets.at(imageIndex),
             },
             {});
 
-        commandBuffers[imageIndex].drawIndexed(numericCast<std::uint32_t>(model.indexCount()).value(), 1, 0, 0, 0);
+        commandBuffers[imageIndex].drawIndexed(numericCast<std::uint32_t>(mesh.indexCount()).value(), 1, 0, 0, 0);
     }
+
+    return {};
+}
+
+Expected<void> BSDFVertexObject::drawShadowMapTarget(
+    std::size_t imageIndex,
+    std::span<const vk::CommandBuffer> commandBuffers,
+    std::span<const BufferBundle> globalUniformBufferBundles) const noexcept
+{
+    m_shadowMapPipeline->bindTo(commandBuffers[imageIndex]);
+    m_mesh.bindTo(commandBuffers[imageIndex]);
+
+    commandBuffers[imageIndex].bindDescriptorSets(
+        vk::PipelineBindPoint::eGraphics,
+        m_shadowMapPipeline->pipelineLayout(),
+        0,
+        {
+            globalUniformBufferBundles[imageIndex].descriptorSet,
+            m_uniformBufferBundles.at(imageIndex).descriptorSet,
+        },
+        {});
+
+    commandBuffers[imageIndex].drawIndexed(numericCast<std::uint32_t>(m_mesh.indexCount()).value(), 1, 0, 0, 0);
 
     return {};
 }

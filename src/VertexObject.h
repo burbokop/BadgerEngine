@@ -41,10 +41,17 @@ public:
     VertexObject& setScale(const glm::vec3& scale);
 
 protected:
-    [[nodiscard]] virtual Expected<void> draw(std::size_t imageIndex,
+    enum class RenderTarget {
+        Color,
+        ShadowMap,
+    };
+
+    [[nodiscard]] virtual Expected<void> draw(
+        std::size_t imageIndex,
         std::span<const vk::CommandBuffer> commandBuffers,
-        std::span<const BufferBundle> commonGlobalUniformBufferBundles,
-        std::span<const BufferBundle> lightingUniformBufferBundles) const noexcept
+        std::span<const BufferBundle> globalUniformBufferBundles,
+        std::span<const BufferBundle> lightingUniformBufferBundles,
+        RenderTarget target) const noexcept
         = 0;
 
     [[nodiscard]] virtual Expected<void> updateUniformBuffer(std::size_t imageIndex) noexcept = 0;

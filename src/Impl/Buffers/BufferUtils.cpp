@@ -266,12 +266,13 @@ void BufferUtils::createUniformDescriptorSets(
 void BufferUtils::createSamplerDescriptorSets(
     const vk::Device& logicalDevice,
     const vk::DescriptorPool& descriptorPool,
-    const vk::ImageView& imageView,
+    std::span<const vk::ImageView> imageViews,
     const vk::Sampler& sampler,
-    std::size_t count,
     const e172vp::DescriptorSetLayout& descriptorSetLayout,
     std::vector<vk::DescriptorSet>* descriptorSets)
 {
+    const auto count = imageViews.size();
+
     std::vector<vk::DescriptorSetLayout> layouts(count, descriptorSetLayout.descriptorSetLayoutHandle());
     vk::DescriptorSetAllocateInfo allocInfo;
     allocInfo.descriptorPool = descriptorPool;
@@ -288,7 +289,7 @@ void BufferUtils::createSamplerDescriptorSets(
     for (size_t i = 0; i < count; i++) {
         vk::DescriptorImageInfo imageInfo;
         imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-        imageInfo.imageView = imageView;
+        imageInfo.imageView = imageViews[i];
         imageInfo.sampler = sampler;
 
         vk::WriteDescriptorSet descriptorWrite;

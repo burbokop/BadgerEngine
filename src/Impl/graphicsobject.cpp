@@ -139,18 +139,22 @@ e172vp::GraphicsObject::GraphicsObject(const GraphicsObjectCreateInfo& createInf
         m_shadowMapRenderPass = std::move(shadowMapRenderPass).value().nullable();
     }
 
-    m_swapChain = e172vp::SwapChain(
+    assert(m_colorRenderPass);
+    assert(m_shadowMapRenderPass);
+
+    m_swapChain = std::make_unique<e172vp::SwapChain>(
         m_logicalDevice,
         m_physicalDevice,
         m_surface,
         m_colorRenderPass->handle(),
+        m_shadowMapRenderPass->handle(),
         m_queueFamilies,
         m_swapChainSettings);
 
-    m_commandPool = e172vp::CommandPool(m_logicalDevice, m_queueFamilies, m_swapChain.imageCount());
+    m_commandPool = e172vp::CommandPool(m_logicalDevice, m_queueFamilies, m_swapChain->imageCount());
 
     createDescriptorPool(m_logicalDevice, createInfo.descriptorPoolSize, &m_descriptorPool, &m_errors);
     createTextureSampler(m_logicalDevice, &m_sampler);
 
-    m_isValid = m_swapChain.isValid() && m_commandPool.isValid();
+    m_isValid = m_swapChain->isValid() && m_commandPool.isValid();
 }

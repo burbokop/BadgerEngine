@@ -29,7 +29,7 @@ std::vector<UploadedModel> createModels(
 {
     std::list<UploadedModel> result = {
         UploadedModel(
-            MeshBuffer::upload(graphicsObject, *mesh).transform_error(AsCritical()).value(),
+            UploadedMesh::upload(graphicsObject, *mesh).transform_error(AsCritical()).value(),
             std::move(pipeline))
     };
 
@@ -40,18 +40,18 @@ std::vector<UploadedModel> createModels(
         break;
     case DisplayNormals::VertexNormals:
         result.push_back(UploadedModel(
-            MeshBuffer::upload(graphicsObject, *mesh->vertexNormalsMesh(len, glm::vec3(0, 0, 1)).value()).transform_error(AsCritical()).value(),
+            UploadedMesh::upload(graphicsObject, *mesh->vertexNormalsMesh(len, glm::vec3(0, 0, 1)).value()).transform_error(AsCritical()).value(),
             nPipeline));
         result.push_back(UploadedModel(
-            MeshBuffer::upload(graphicsObject, *mesh->vertexTangentsMesh(len, glm::vec3(1, 0, 0)).value()).transform_error(AsCritical()).value(),
+            UploadedMesh::upload(graphicsObject, *mesh->vertexTangentsMesh(len, glm::vec3(1, 0, 0)).value()).transform_error(AsCritical()).value(),
             nPipeline));
         result.push_back(UploadedModel(
-            MeshBuffer::upload(graphicsObject, *mesh->vertexBitangentsMesh(len, glm::vec3(0, 1, 0)).value()).transform_error(AsCritical()).value(),
+            UploadedMesh::upload(graphicsObject, *mesh->vertexBitangentsMesh(len, glm::vec3(0, 1, 0)).value()).transform_error(AsCritical()).value(),
             std::move(nPipeline)));
         break;
     case DisplayNormals::PolygonNormals:
         result.push_back(UploadedModel(
-            MeshBuffer::upload(graphicsObject, *mesh->polygonNormalsMesh(len).value()).transform_error(AsCritical()).value(),
+            UploadedMesh::upload(graphicsObject, *mesh->polygonNormalsMesh(len).value()).transform_error(AsCritical()).value(),
             std::move(nPipeline)));
         break;
     }
@@ -83,8 +83,8 @@ ImageViewVertexObject::ImageViewVertexObject(
     BufferUtils::createSamplerDescriptorSets(m_graphicsObject->logicalDevice(),
         m_graphicsObject->descriptorPool(),
         imageView,
-        m_graphicsObject->sampler(),
         imageCount,
+        m_graphicsObject->sampler(),
         samplerDescriptorSetLayout,
         &m_textureDescriptorSets);
 }
@@ -109,11 +109,12 @@ ImageViewVertexObject::ImageViewVertexObject(
         m_graphicsObject->descriptorPool(),
         uniformBufferDescriptorSetLayout);
 
-    BufferUtils::createSamplerDescriptorSets(m_graphicsObject->logicalDevice(),
+    BufferUtils::createSamplerDescriptorSets(
+        m_graphicsObject->logicalDevice(),
         m_graphicsObject->descriptorPool(),
         (*m_texture)->imageView(),
-        m_graphicsObject->sampler(),
         imageCount,
+        m_graphicsObject->sampler(),
         samplerDescriptorSetLayout,
         &m_textureDescriptorSets);
 }
@@ -122,8 +123,12 @@ Expected<void> ImageViewVertexObject::draw(
     std::size_t imageIndex,
     std::span<const vk::CommandBuffer> commandBuffers,
     std::span<const BufferBundle> commonGlobalUniformBufferBundles,
-    std::span<const BufferBundle> lightingUniformBufferBundles) const noexcept
+    std::span<const BufferBundle> lightingUniformBufferBundles, RenderTarget target) const noexcept
 {
+    if (target != RenderTarget::Color) {
+        return {};
+    }
+
     for (const auto& model : m_models) {
         model.bindTo(commandBuffers[imageIndex]);
 

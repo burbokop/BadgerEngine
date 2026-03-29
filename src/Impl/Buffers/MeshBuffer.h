@@ -14,9 +14,9 @@ class GraphicsObject;
 
 namespace BadgerEngine {
 
-class MeshBuffer {
+class UploadedMesh {
 public:
-    static Expected<MeshBuffer> upload(Shared<e172vp::GraphicsObject> device, const Geometry::Mesh& mesh);
+    static Expected<UploadedMesh> upload(Shared<e172vp::GraphicsObject> device, const Geometry::Mesh& mesh);
 
     Geometry::Topology topology() const;
     std::size_t indexCount() const;
@@ -27,7 +27,7 @@ private:
     struct Impl;
 
 private:
-    MeshBuffer(Shared<Impl>&& impl)
+    UploadedMesh(Shared<Impl>&& impl)
         : m_impl(std::move(impl))
     {
     }
