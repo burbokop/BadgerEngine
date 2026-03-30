@@ -73,7 +73,8 @@ vk::ShaderModule e172vp::Pipeline::createShaderModule(const vk::Device& logicDev
     return shaderModule;
 }
 
-e172vp::Pipeline::Pipeline(const vk::Device& logicalDevice,
+e172vp::Pipeline::Pipeline(
+    const vk::Device& logicalDevice,
     const vk::Extent2D& extent,
     const vk::RenderPass& renderPass,
     const std::vector<vk::DescriptorSetLayout>& descriptorSetLayouts,

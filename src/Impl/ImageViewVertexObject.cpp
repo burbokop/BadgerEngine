@@ -65,7 +65,7 @@ ImageViewVertexObject::ImageViewVertexObject(
     Shared<e172vp::GraphicsObject> graphicsObject,
     size_t imageCount,
     const e172vp::DescriptorSetLayout& uniformBufferDescriptorSetLayout,
-    const e172vp::DescriptorSetLayout& samplerDescriptorSetLayout,
+    const e172vp::DescriptorSetLayout& baseColorDescriptorSetLayout,
     const Shared<Geometry::Mesh>& mesh,
     const vk::ImageView& imageView,
     Shared<e172vp::Pipeline> pipeline,
@@ -80,20 +80,51 @@ ImageViewVertexObject::ImageViewVertexObject(
         m_graphicsObject->descriptorPool(),
         uniformBufferDescriptorSetLayout);
 
-    BufferUtils::createSamplerDescriptorSets(m_graphicsObject->logicalDevice(),
+    BufferUtils::createSamplerDescriptorSets(
+        m_graphicsObject->logicalDevice(),
         m_graphicsObject->descriptorPool(),
         imageView,
         imageCount,
         m_graphicsObject->sampler(),
-        samplerDescriptorSetLayout,
-        &m_textureDescriptorSets);
+        baseColorDescriptorSetLayout,
+        &m_baseColorTextureDescriptorSets,
+        vk::ImageLayout::eShaderReadOnlyOptimal);
+}
+
+ImageViewVertexObject::ImageViewVertexObject(
+    Shared<e172vp::GraphicsObject> graphicsObject,
+    const e172vp::DescriptorSetLayout& uniformBufferDescriptorSetLayout,
+    const e172vp::DescriptorSetLayout& baseColorDescriptorSetLayout,
+    const Shared<Geometry::Mesh>& mesh,
+    std::span<const vk::ImageView> imageViews,
+    vk::ImageLayout imageLayout,
+    Shared<e172vp::Pipeline> pipeline,
+    Shared<e172vp::Pipeline> nPipeline,
+    DisplayNormals displayNormals)
+    : m_graphicsObject(std::move(graphicsObject))
+    , m_models(createModels(m_graphicsObject, mesh, std::move(pipeline), std::move(nPipeline), displayNormals))
+{
+    m_uniformBufferBundles = BufferUtils::createUniformBufferBundle<UniformBufferObject>(
+        *m_graphicsObject,
+        m_graphicsObject->swapChain().imageCount(),
+        m_graphicsObject->descriptorPool(),
+        uniformBufferDescriptorSetLayout);
+
+    BufferUtils::createSamplerDescriptorSets(
+        m_graphicsObject->logicalDevice(),
+        m_graphicsObject->descriptorPool(),
+        imageViews,
+        m_graphicsObject->sampler(),
+        baseColorDescriptorSetLayout,
+        &m_baseColorTextureDescriptorSets,
+        imageLayout);
 }
 
 ImageViewVertexObject::ImageViewVertexObject(
     Shared<e172vp::GraphicsObject> graphicsObject,
     std::size_t imageCount,
     const e172vp::DescriptorSetLayout& uniformBufferDescriptorSetLayout,
-    const e172vp::DescriptorSetLayout& samplerDescriptorSetLayout,
+    const e172vp::DescriptorSetLayout& baseColorDescriptorSetLayout,
     const Shared<Geometry::Mesh>& mesh,
     Shared<UploadedTexture> texture,
     Shared<e172vp::Pipeline> pipeline,
@@ -115,21 +146,24 @@ ImageViewVertexObject::ImageViewVertexObject(
         (*m_texture)->imageView(),
         imageCount,
         m_graphicsObject->sampler(),
-        samplerDescriptorSetLayout,
-        &m_textureDescriptorSets);
+        baseColorDescriptorSetLayout,
+        &m_baseColorTextureDescriptorSets,
+        vk::ImageLayout::eShaderReadOnlyOptimal);
 }
 
 Expected<void> ImageViewVertexObject::draw(
     std::size_t imageIndex,
     std::span<const vk::CommandBuffer> commandBuffers,
     std::span<const BufferBundle> commonGlobalUniformBufferBundles,
-    std::span<const BufferBundle> lightingUniformBufferBundles, RenderTarget target) const noexcept
+    std::span<const BufferBundle> lightingUniformBufferBundles,
+    RenderTarget target) const noexcept
 {
     if (target != RenderTarget::Color) {
         return {};
     }
 
     for (const auto& model : m_models) {
+
         model.bindTo(commandBuffers[imageIndex]);
 
         commandBuffers[imageIndex].bindDescriptorSets(
@@ -140,7 +174,7 @@ Expected<void> ImageViewVertexObject::draw(
                 commonGlobalUniformBufferBundles[imageIndex].descriptorSet,
                 lightingUniformBufferBundles[imageIndex].descriptorSet,
                 m_uniformBufferBundles.at(imageIndex).descriptorSet,
-                m_textureDescriptorSets.at(imageIndex),
+                m_baseColorTextureDescriptorSets.at(imageIndex),
             },
             {});
 

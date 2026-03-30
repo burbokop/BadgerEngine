@@ -108,6 +108,13 @@ private:
         BadgerEngine::PolygonMode polygonMode,
         bool backfaceCulling);
 
+    std::shared_ptr<e172vp::Pipeline> createShadowMapAsColorPipeline(
+        std::span<const std::uint8_t> vertShaderCode,
+        std::span<const std::uint8_t> fragShaderCode,
+        Geometry::Topology topology,
+        BadgerEngine::PolygonMode polygonMode,
+        bool backfaceCulling);
+
     std::shared_ptr<e172vp::Pipeline> createShadowMapPipeline(
         std::span<const std::uint8_t> vertShaderCode,
         Geometry::Topology topology,

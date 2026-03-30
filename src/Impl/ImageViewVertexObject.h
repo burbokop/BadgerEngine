@@ -32,7 +32,7 @@ public:
         Shared<e172vp::GraphicsObject> graphicsObject,
         std::size_t imageCount,
         const e172vp::DescriptorSetLayout& uniformBufferDescriptorSetLayout,
-        const e172vp::DescriptorSetLayout& samplerDescriptorSetLayout,
+        const e172vp::DescriptorSetLayout& baseColorDescriptorSetLayout,
         const Shared<BadgerEngine::Geometry::Mesh>& mesh,
         const vk::ImageView& imageView,
         Shared<e172vp::Pipeline> pipeline,
@@ -41,9 +41,20 @@ public:
 
     ImageViewVertexObject(
         Shared<e172vp::GraphicsObject> graphicsObject,
+        const e172vp::DescriptorSetLayout& uniformBufferDescriptorSetLayout,
+        const e172vp::DescriptorSetLayout& baseColorDescriptorSetLayout,
+        const Shared<BadgerEngine::Geometry::Mesh>& mesh,
+        std::span<const vk::ImageView> imageViews,
+        vk::ImageLayout imageLayout,
+        Shared<e172vp::Pipeline> pipeline,
+        Shared<e172vp::Pipeline> nPipeline,
+        DisplayNormals displayNormals);
+
+    ImageViewVertexObject(
+        Shared<e172vp::GraphicsObject> graphicsObject,
         std::size_t imageCount,
         const e172vp::DescriptorSetLayout& uniformBufferDescriptorSetLayout,
-        const e172vp::DescriptorSetLayout& samplerDescriptorSetLayout,
+        const e172vp::DescriptorSetLayout& baseColorDescriptorSetLayout,
         const Shared<BadgerEngine::Geometry::Mesh>& mesh,
         Shared<UploadedTexture> texture,
         Shared<e172vp::Pipeline> pipeline,
@@ -77,8 +88,7 @@ private:
     std::optional<Shared<UploadedTexture>> m_texture;
 
     std::vector<BadgerEngine::BufferBundle> m_uniformBufferBundles;
-    std::vector<vk::DescriptorSet> m_textureDescriptorSets;
-    std::vector<vk::DescriptorSet> m_ambientOclussionMapDescriptorSets;
+    std::vector<vk::DescriptorSet> m_baseColorTextureDescriptorSets;
 };
 
 }

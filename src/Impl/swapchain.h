@@ -5,22 +5,25 @@
 
 namespace BadgerEngine {
 
-struct Frame {
-    struct {
-        vk::Image image;
-        vk::ImageView imageView;
-        vk::Image depthBuffer;
-        vk::DeviceMemory depthBufferMemory;
-        vk::ImageView depthBufferView;
-        vk::Framebuffer framebuffer;
-    } color;
+struct ColorRenderPassFrame {
+    vk::Image image;
+    vk::ImageView imageView;
+    vk::Image depthBuffer;
+    vk::DeviceMemory depthBufferMemory;
+    vk::ImageView depthBufferView;
+    vk::Framebuffer framebuffer;
+};
 
-    struct {
-        vk::Image image;
-        vk::DeviceMemory memory;
-        vk::ImageView imageView;
-        vk::Framebuffer framebuffer;
-    } shadowMap;
+struct ShadowMapRenderPassFrame {
+    vk::Image image;
+    vk::DeviceMemory memory;
+    vk::ImageView imageView;
+    vk::Framebuffer framebuffer;
+};
+
+struct Frame {
+    ColorRenderPassFrame color;
+    ShadowMapRenderPassFrame shadowMap;
 };
 
 }

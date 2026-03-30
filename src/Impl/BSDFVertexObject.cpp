@@ -89,7 +89,8 @@ BSDFVertexObject::BSDFVertexObject(
         imageCount,
         m_graphicsObject->sampler(),
         baseColorDescriptorSetLayout,
-        &m_baseColorTextureDescriptorSets);
+        &m_baseColorTextureDescriptorSets,
+        vk::ImageLayout::eShaderReadOnlyOptimal);
 
     BufferUtils::createSamplerDescriptorSets(
         m_graphicsObject->logicalDevice(),
@@ -98,7 +99,8 @@ BSDFVertexObject::BSDFVertexObject(
         imageCount,
         m_graphicsObject->sampler(),
         ambientOclussionDescriptorSetLayout,
-        &m_ambientOclussionMapDescriptorSets);
+        &m_ambientOclussionMapDescriptorSets,
+        vk::ImageLayout::eShaderReadOnlyOptimal);
 
     BufferUtils::createSamplerDescriptorSets(
         m_graphicsObject->logicalDevice(),
@@ -107,7 +109,8 @@ BSDFVertexObject::BSDFVertexObject(
         imageCount,
         m_graphicsObject->sampler(),
         normalMapDescriptorSetLayout,
-        &m_normalMapDescriptorSets);
+        &m_normalMapDescriptorSets,
+        vk::ImageLayout::eShaderReadOnlyOptimal);
 
     BufferUtils::createSamplerDescriptorSets(
         m_graphicsObject->logicalDevice(),
@@ -115,7 +118,8 @@ BSDFVertexObject::BSDFVertexObject(
         m_graphicsObject->swapChain().shadowMapImageViewVector(),
         m_graphicsObject->sampler(),
         shadowMapSamplerDescriptorSetLayout,
-        &m_shadowMapSamplerDescriptorSets);
+        &m_shadowMapSamplerDescriptorSets,
+        vk::ImageLayout::eDepthStencilReadOnlyOptimal);
 }
 
 Expected<void> BSDFVertexObject::draw(

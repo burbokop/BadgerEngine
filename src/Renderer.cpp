@@ -395,6 +395,30 @@ std::shared_ptr<e172vp::Pipeline> Renderer::createColorPipeline(
         backfaceCulling);
 }
 
+std::shared_ptr<e172vp::Pipeline> Renderer::createShadowMapAsColorPipeline(
+    std::span<const uint8_t> vertShaderCode,
+    std::span<const uint8_t> fragShaderCode,
+    Geometry::Topology topology,
+    PolygonMode polygonMode,
+    bool backfaceCulling)
+{
+    return std::make_shared<e172vp::Pipeline>(
+        m_impl->graphicsObject->logicalDevice(),
+        m_impl->graphicsObject->swapChainSettings().extent,
+        m_impl->graphicsObject->colorRenderPass()->handle(),
+        std::vector {
+            m_impl->colorGlobalDescriptorSetLayout.descriptorSetLayoutHandle(),
+            m_impl->lightingDescriptorSetLayout.descriptorSetLayoutHandle(),
+            m_impl->objectDescriptorSetLayout.descriptorSetLayoutHandle(),
+            m_impl->shadowMapSamplerDescriptorSetLayout.descriptorSetLayoutHandle(),
+        },
+        vertShaderCode,
+        fragShaderCode,
+        topology,
+        polygonMode,
+        backfaceCulling);
+}
+
 std::shared_ptr<e172vp::Pipeline> Renderer::createShadowMapPipeline(
     std::span<const uint8_t> vertShaderCode,
     Geometry::Topology topology,
@@ -764,6 +788,20 @@ VertexObject& Renderer::addObject(const BadgerEngine::Model& model, RenderingOpt
                     model.mesh(),
                     frames[i].color.imageView,
                     createColorPipeline(material.vert, material.frag, model.mesh()->topology(), model.polygonMode(), options.backfaceCulling),
+                    m_impl->normalDebugPipeline,
+                    options.displayNormals);
+                m_impl->vertexObjects.push_back(result);
+                return *result;
+            },
+            [this, &model, &options](const ShadowMapMaterial& material) -> VertexObject& {
+                const auto result = new ImageViewVertexObject(
+                    m_impl->graphicsObject,
+                    m_impl->objectDescriptorSetLayout,
+                    m_impl->shadowMapSamplerDescriptorSetLayout,
+                    model.mesh(),
+                    m_impl->graphicsObject->swapChain().shadowMapImageViewVector(),
+                    vk::ImageLayout::eDepthStencilReadOnlyOptimal,
+                    createShadowMapAsColorPipeline(material.vert, material.frag, model.mesh()->topology(), model.polygonMode(), options.backfaceCulling),
                     m_impl->normalDebugPipeline,
                     options.displayNormals);
                 m_impl->vertexObjects.push_back(result);

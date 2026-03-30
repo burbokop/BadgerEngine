@@ -142,7 +142,8 @@ public:
         std::span<const vk::ImageView> imageViews,
         const vk::Sampler& sampler,
         const e172vp::DescriptorSetLayout& descriptorSetLayout,
-        std::vector<vk::DescriptorSet>* descriptorSets);
+        std::vector<vk::DescriptorSet>* descriptorSets,
+        vk::ImageLayout imageLayout);
 
     static void createSamplerDescriptorSets(
         const vk::Device& logicalDevice,
@@ -151,7 +152,8 @@ public:
         std::size_t count,
         const vk::Sampler& sampler,
         const e172vp::DescriptorSetLayout& descriptorSetLayout,
-        std::vector<vk::DescriptorSet>* descriptorSets)
+        std::vector<vk::DescriptorSet>* descriptorSets,
+        vk::ImageLayout imageLayout)
     {
         createSamplerDescriptorSets(
             logicalDevice,
@@ -159,7 +161,8 @@ public:
             std::vector<vk::ImageView>(count, imageView),
             sampler,
             descriptorSetLayout,
-            descriptorSets);
+            descriptorSets,
+            imageLayout);
     }
 
     template<typename T>

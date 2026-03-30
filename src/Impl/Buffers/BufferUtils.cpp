@@ -269,7 +269,8 @@ void BufferUtils::createSamplerDescriptorSets(
     std::span<const vk::ImageView> imageViews,
     const vk::Sampler& sampler,
     const e172vp::DescriptorSetLayout& descriptorSetLayout,
-    std::vector<vk::DescriptorSet>* descriptorSets)
+    std::vector<vk::DescriptorSet>* descriptorSets,
+    vk::ImageLayout imageLayout)
 {
     const auto count = imageViews.size();
 
@@ -288,11 +289,12 @@ void BufferUtils::createSamplerDescriptorSets(
 
     for (size_t i = 0; i < count; i++) {
         vk::DescriptorImageInfo imageInfo;
-        imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+        imageInfo.imageLayout = imageLayout;
         imageInfo.imageView = imageViews[i];
         imageInfo.sampler = sampler;
 
         vk::WriteDescriptorSet descriptorWrite;
+        descriptorWrite.sType = vk::StructureType::eWriteDescriptorSet,
         descriptorWrite.dstSet = descriptorSets->at(i);
         descriptorWrite.dstBinding = descriptorSetLayout.binding();
         descriptorWrite.dstArrayElement = 0;

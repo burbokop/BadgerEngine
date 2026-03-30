@@ -360,114 +360,123 @@ e172vp::SwapChain::SwapChain(
 
             m_frames = std::views::zip(images, imageViewes) | std::views::transform([colorRenderPass, shadowMapRenderPass, settings, logicalDevice, physicalDevice](auto&& x) {
                 auto [image, imageView] = std::move(x);
-
-                const ImageInputChunk depthBufferImageInfo {
-                    .logicalDevice = logicalDevice,
-                    .physicalDevice = physicalDevice,
-                    .width = settings.extent.width,
-                    .height = settings.extent.height,
-                    .tiling = vk::ImageTiling::eOptimal,
-                    .usage = vk::ImageUsageFlagBits::eDepthStencilAttachment,
-                    .memoryProperties = vk::MemoryPropertyFlagBits::eDeviceLocal,
-                    .format = settings.depthFormat,
-                };
-
-                const auto depthBuffer = make_image(depthBufferImageInfo);
-                const auto depthBufferMemory = make_image_memory(depthBufferImageInfo, depthBuffer);
-                const auto depthBufferView = make_image_view(
-                    logicalDevice,
-                    depthBuffer,
-                    settings.depthFormat,
-                    vk::ImageAspectFlagBits::eDepth);
-
-                vk::Framebuffer colorFrameBuffer;
-                {
-                    std::array colorFramebufferAttachments = {
-                        imageView,
-                        depthBufferView
-                    };
-
-                    const vk::FramebufferCreateInfo colorFramebufferInfo = {
-                        .renderPass = colorRenderPass,
-                        .attachmentCount = colorFramebufferAttachments.size(),
-                        .pAttachments = colorFramebufferAttachments.data(),
-                        .width = settings.extent.width,
-                        .height = settings.extent.height,
-                        .layers = 1,
-                    };
-
-                    const auto code = logicalDevice.createFramebuffer(&colorFramebufferInfo, nullptr, &colorFrameBuffer);
-                    if (code != vk::Result::eSuccess) {
-                        throw std::runtime_error("[error] Failed to create framebuffer: " + vk::to_string(code));
-                    }
-                }
-
-                const ImageInputChunk shadowMapImageInfo {
-                    .logicalDevice = logicalDevice,
-                    .physicalDevice = physicalDevice,
-                    .width = settings.shadowMapExtent.width,
-                    .height = settings.shadowMapExtent.height,
-                    .tiling = vk::ImageTiling::eOptimal,
-                    .usage = vk::ImageUsageFlagBits::eDepthStencilAttachment,
-                    .memoryProperties = vk::MemoryPropertyFlagBits::eDeviceLocal,
-                    .format = settings.depthFormat,
-                };
-
-                const auto shadowMap = make_image(shadowMapImageInfo);
-                const auto shadowMapMemory = make_image_memory(shadowMapImageInfo, depthBuffer);
-                const auto shadowMapView = make_image_view(
-                    logicalDevice,
-                    depthBuffer,
-                    settings.depthFormat,
-                    vk::ImageAspectFlagBits::eDepth);
-
-                vk::Framebuffer shadowMapFrameBuffer;
-                {
-                    std::array shadowMapFramebufferAttachments = {
-                        shadowMapView
-                    };
-
-                    const vk::FramebufferCreateInfo shadowMapFramebufferInfo = {
-                        .renderPass = shadowMapRenderPass,
-                        .attachmentCount = shadowMapFramebufferAttachments.size(),
-                        .pAttachments = shadowMapFramebufferAttachments.data(),
-                        .width = settings.shadowMapExtent.width,
-                        .height = settings.shadowMapExtent.height,
-                        .layers = 1,
-                    };
-
-                    const auto code = logicalDevice.createFramebuffer(&shadowMapFramebufferInfo, nullptr, &shadowMapFrameBuffer);
-                    if (code != vk::Result::eSuccess) {
-                        throw std::runtime_error("[error] Failed to create framebuffer: " + vk::to_string(code));
-                    }
-                }
-
                 assert(image);
                 assert(imageView);
-                assert(depthBuffer);
-                assert(depthBufferMemory);
-                assert(depthBufferView);
-                assert(colorFrameBuffer);
-                assert(shadowMap);
-                assert(shadowMapMemory);
-                assert(shadowMapView);
-                assert(shadowMapFrameBuffer);
 
-                return BadgerEngine::Frame {
-                    .color = {
+                auto colorFrame = [colorRenderPass, settings, logicalDevice, physicalDevice, image, imageView] -> BadgerEngine::ColorRenderPassFrame {
+                    const ImageInputChunk depthBufferImageInfo {
+                        .logicalDevice = logicalDevice,
+                        .physicalDevice = physicalDevice,
+                        .width = settings.extent.width,
+                        .height = settings.extent.height,
+                        .tiling = vk::ImageTiling::eOptimal,
+                        .usage = vk::ImageUsageFlagBits::eDepthStencilAttachment,
+                        .memoryProperties = vk::MemoryPropertyFlagBits::eDeviceLocal,
+                        .format = settings.depthFormat,
+                    };
+
+                    const auto depthBuffer = make_image(depthBufferImageInfo);
+                    const auto depthBufferMemory = make_image_memory(depthBufferImageInfo, depthBuffer);
+                    const auto depthBufferView = make_image_view(
+                        logicalDevice,
+                        depthBuffer,
+                        settings.depthFormat,
+                        vk::ImageAspectFlagBits::eDepth);
+
+                    vk::Framebuffer colorFrameBuffer;
+                    {
+                        std::array colorFramebufferAttachments = {
+                            imageView,
+                            depthBufferView
+                        };
+
+                        const vk::FramebufferCreateInfo colorFramebufferInfo = {
+                            .renderPass = colorRenderPass,
+                            .attachmentCount = colorFramebufferAttachments.size(),
+                            .pAttachments = colorFramebufferAttachments.data(),
+                            .width = settings.extent.width,
+                            .height = settings.extent.height,
+                            .layers = 1,
+                        };
+
+                        const auto code = logicalDevice.createFramebuffer(&colorFramebufferInfo, nullptr, &colorFrameBuffer);
+                        if (code != vk::Result::eSuccess) {
+                            throw std::runtime_error("[error] Failed to create framebuffer: " + vk::to_string(code));
+                        }
+                    }
+
+                    assert(depthBuffer);
+                    assert(depthBufferMemory);
+                    assert(depthBufferView);
+                    assert(colorFrameBuffer);
+
+                    return {
                         .image = image,
                         .imageView = imageView,
                         .depthBuffer = depthBuffer,
                         .depthBufferMemory = depthBufferMemory,
                         .depthBufferView = depthBufferView,
                         .framebuffer = colorFrameBuffer,
-                    },
-                    .shadowMap = {
+                    };
+                }();
+
+                auto shadowMapFrame = [shadowMapRenderPass, settings, logicalDevice, physicalDevice] -> BadgerEngine::ShadowMapRenderPassFrame {
+                    const ImageInputChunk shadowMapImageInfo {
+                        .logicalDevice = logicalDevice,
+                        .physicalDevice = physicalDevice,
+                        .width = settings.shadowMapExtent.width,
+                        .height = settings.shadowMapExtent.height,
+                        .tiling = vk::ImageTiling::eOptimal,
+                        .usage = vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled,
+                        .memoryProperties = vk::MemoryPropertyFlagBits::eDeviceLocal,
+                        .format = settings.depthFormat,
+                    };
+
+                    const auto shadowMap = make_image(shadowMapImageInfo);
+                    const auto shadowMapMemory = make_image_memory(shadowMapImageInfo, shadowMap);
+                    const auto shadowMapView = make_image_view(
+                        logicalDevice,
+                        shadowMap,
+                        settings.depthFormat,
+                        vk::ImageAspectFlagBits::eDepth);
+
+                    vk::Framebuffer shadowMapFrameBuffer;
+                    {
+                        std::array shadowMapFramebufferAttachments = {
+                            shadowMapView
+                        };
+
+                        const vk::FramebufferCreateInfo shadowMapFramebufferInfo = {
+                            .renderPass = shadowMapRenderPass,
+                            .attachmentCount = shadowMapFramebufferAttachments.size(),
+                            .pAttachments = shadowMapFramebufferAttachments.data(),
+                            .width = settings.shadowMapExtent.width,
+                            .height = settings.shadowMapExtent.height,
+                            .layers = 1,
+                        };
+
+                        const auto code = logicalDevice.createFramebuffer(&shadowMapFramebufferInfo, nullptr, &shadowMapFrameBuffer);
+                        if (code != vk::Result::eSuccess) {
+                            throw std::runtime_error("[error] Failed to create framebuffer: " + vk::to_string(code));
+                        }
+                    }
+
+                    assert(shadowMap);
+                    assert(shadowMapMemory);
+                    assert(shadowMapView);
+                    assert(shadowMapFrameBuffer);
+
+                    return {
                         .image = shadowMap,
                         .memory = shadowMapMemory,
                         .imageView = shadowMapView,
                         .framebuffer = shadowMapFrameBuffer,
-                    },
+                    };
+                }();
+
+                return BadgerEngine::Frame {
+                    .color = std::move(colorFrame),
+                    .shadowMap = std::move(shadowMapFrame),
                 };
             }) | BadgerEngine::Collect<std::vector>;
 
