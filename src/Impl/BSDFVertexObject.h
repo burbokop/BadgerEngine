@@ -42,7 +42,8 @@ public:
         Shared<e172vp::Pipeline> pipeline,
         Shared<e172vp::Pipeline> normalesPipeline,
         Shared<e172vp::Pipeline> shadowMapPipeline,
-        DisplayNormals displayNormals);
+        DisplayNormals displayNormals,
+        bool castShadow);
 
 public:
     const auto& graphicsObject() const { return m_graphicsObject; }
@@ -93,6 +94,8 @@ private:
     std::vector<vk::DescriptorSet> m_ambientOclussionMapDescriptorSets;
     std::vector<vk::DescriptorSet> m_normalMapDescriptorSets;
     std::vector<vk::DescriptorSet> m_shadowMapSamplerDescriptorSets;
+    std::vector<vk::DescriptorSet> m_shadowMapDebugSamplerDescriptorSets;
+    bool m_castShadow;
 };
 
 }

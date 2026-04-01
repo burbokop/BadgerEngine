@@ -81,8 +81,8 @@ public:
         glm::vec3 position = { 0, 0, 0 },
         glm::vec3 direction = { 0, 0, 1.f },
         glm::vec3 up = { 0, 1.f, 0 },
-        float near = -1000,
-        float far = 1000)
+        float near = -10,
+        float far = 10)
         : m_position(std::move(position))
         , m_direction(std::move(direction))
         , m_up(std::move(up))
@@ -120,7 +120,8 @@ public:
     virtual glm::mat4 transformation(glm::vec2 extent) const override
     {
         // TODO: remove it
-        extent /= 30;
+        // extent /= 30;
+        extent /= 100;
         return glm::ortho(-extent.x / 2.f, extent.x / 2.f, -extent.y / 2.f, extent.y / 2.f, m_near, m_far) * glm::lookAt(m_position, m_position + m_direction, m_up);
     }
 

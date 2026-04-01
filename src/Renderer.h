@@ -66,7 +66,19 @@ public:
 
     void setDirectionalLightVector(glm::vec3 v);
 
-    glm::vec3 directionalLightVector() const { return m_directionalLightVector; }
+    void setShadowFocus(glm::vec3 v);
+    glm::vec3 shadowCameraPosition() const;
+
+    glm::vec3 shadowFocus() const
+    {
+        return m_shadowFocus;
+    }
+
+    glm::vec3
+    directionalLightVector() const
+    {
+        return m_directionalLightVector;
+    }
 
     void setDirectionalLightColor(glm::vec3 c)
     {
@@ -81,6 +93,11 @@ public:
     };
 
     float directionalLightIntensity() const { return m_directionalLightIntensity; }
+
+    void setMode(std::uint32_t mode)
+    {
+        m_mode = mode;
+    }
 
 private:
     void updateUniformBuffer(uint32_t currentImage);
@@ -130,6 +147,8 @@ private:
     glm::vec3 m_directionalLightVector = glm::vec3(0.);
     glm::vec3 m_directionalLightColor = glm::vec3(1.f);
     float m_directionalLightIntensity = 0.f;
+    glm::vec3 m_shadowFocus;
+    std::uint32_t m_mode = 0;
 };
 
 }

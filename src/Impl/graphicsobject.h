@@ -37,6 +37,7 @@ class GraphicsObject {
     e172vp::CommandPool m_commandPool;
     vk::DescriptorPool m_descriptorPool;
     vk::Sampler m_sampler;
+    vk::Sampler m_shadowSampler;
 
     e172vp::Hardware::QueueFamilies m_queueFamilies;
     e172vp::SwapChain::Settings m_swapChainSettings;
@@ -47,8 +48,6 @@ class GraphicsObject {
     std::vector<std::string> m_errors;
 
 public:
-    void createTextureSampler(const vk::Device& logicalDevice, vk::Sampler* sampler);
-
     static void createDescriptorPool(const vk::Device& logicalDevice, size_t size, vk::DescriptorPool* uniformDescriptorPool, std::vector<std::string>* m_errors);
     GraphicsObject(const GraphicsObjectCreateInfo& createInfo);
 
@@ -71,6 +70,7 @@ public:
     bool debugEnabled() const;
     vk::DescriptorPool descriptorPool() const;
     vk::Sampler sampler() const;
+    vk::Sampler shadowSampler() const { return m_shadowSampler; }
 };
 
 }

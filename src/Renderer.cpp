@@ -133,12 +133,14 @@ struct ColorGlobalUniformBufferObject {
     Padding<4> _;
     glm::vec2 mouse;
     glm::vec3 cameraPosition;
+    std::uint32_t mode;
 };
 
 static_assert(offsetof(ColorGlobalUniformBufferObject, transformation) == 0, "Offset must comply with std140");
 static_assert(offsetof(ColorGlobalUniformBufferObject, time) == 64, "Offset must comply with std140");
 static_assert(offsetof(ColorGlobalUniformBufferObject, mouse) == 72, "Offset must comply with std140");
 static_assert(offsetof(ColorGlobalUniformBufferObject, cameraPosition) == 80, "Offset must comply with std140");
+static_assert(offsetof(ColorGlobalUniformBufferObject, mode) == 92, "Offset must comply with std140");
 
 struct ShadowMapGlobalUniformBufferObject {
     glm::mat4 transformation;
@@ -363,9 +365,9 @@ Renderer::Renderer(Shared<Window> window, Shared<Camera> camera, std::span<const
 
     m_impl->shadowMapPipeline = createShadowMapPipeline(
         ShadowMap_vert,
-        Geometry::Topology::LineList,
+        Geometry::Topology::TriangleList,
         PolygonMode::Fill,
-        true);
+        false);
 }
 
 std::shared_ptr<e172vp::Pipeline> Renderer::createColorPipeline(
@@ -386,6 +388,7 @@ std::shared_ptr<e172vp::Pipeline> Renderer::createColorPipeline(
             m_impl->baseColorSamplerDescriptorSetLayout.descriptorSetLayoutHandle(),
             m_impl->ambientOcclusionDescriptorSetLayout.descriptorSetLayoutHandle(),
             m_impl->normalMapDescriptorSetLayout.descriptorSetLayoutHandle(),
+            m_impl->shadowMapSamplerDescriptorSetLayout.descriptorSetLayoutHandle(),
             m_impl->shadowMapSamplerDescriptorSetLayout.descriptorSetLayoutHandle(),
         },
         vertShaderCode,
@@ -638,7 +641,18 @@ Expected<void> Renderer::applyPresentation() noexcept
 void Renderer::setDirectionalLightVector(glm::vec3 v)
 {
     m_directionalLightVector = v;
-    m_impl->directionalLightCamera.setOrbit({ 0, 0, 0 }, v);
+    m_impl->directionalLightCamera.setOrbit(m_shadowFocus, m_directionalLightVector);
+}
+
+void Renderer::setShadowFocus(glm::vec3 v)
+{
+    m_shadowFocus = v;
+    m_impl->directionalLightCamera.setOrbit(m_shadowFocus, m_directionalLightVector);
+}
+
+glm::vec3 Renderer::shadowCameraPosition() const
+{
+    return m_impl->directionalLightCamera.position();
 }
 
 void Renderer::updateUniformBuffer(uint32_t currentImage)
@@ -653,6 +667,7 @@ void Renderer::updateUniformBuffer(uint32_t currentImage)
             ._ = {},
             .mouse = { 0, 0 },
             .cameraPosition = m_camera->position(),
+            .mode = m_mode,
         };
 
         void* data = nullptr;
@@ -682,16 +697,15 @@ void Renderer::updateUniformBuffer(uint32_t currentImage)
             .intensity = 0.05f,
         };
 
+        // const auto bias = 0.01;
+        // auto textureSpaceTransformation = glm::translate(glm::mat4(1.), { 0.5, 0.5, 0.5 - bias }) * glm::scale(glm::mat4(1.), { 0.5, 0.5, 0.5 });
+
         ubo.directionalLight = DirectionalLightUniformBufferObject {
             .vector = m_directionalLightVector,
             ._ = {},
             .color = m_directionalLightColor,
             .intensity = m_directionalLightIntensity,
-            .shadowMapTransformation = glm::translate(glm::mat4(1.), { 0.5, 0.5, 0.5 })
-                * glm::scale(glm::mat4(1.), { 0.5, 0.5, 0.5 })
-                * m_impl
-                    ->directionalLightCamera
-                    .transformation(vkExtent2DToGLMVec2(m_impl->graphicsObject->swapChainSettings().shadowMapExtent))
+            .shadowMapTransformation = /*textureSpaceTransformation **/ m_impl->directionalLightCamera.transformation(vkExtent2DToGLMVec2(m_impl->graphicsObject->swapChainSettings().shadowMapExtent))
         };
 
         void* data = nullptr;
@@ -772,7 +786,7 @@ VertexObject& Renderer::addObject(const BadgerEngine::Model& model, RenderingOpt
                     createColorPipeline(BSDF_vert, BSDF_frag, model.mesh()->topology(), model.polygonMode(), options.backfaceCulling),
                     m_impl->normalDebugPipeline,
                     m_impl->shadowMapPipeline,
-                    options.displayNormals);
+                    options.displayNormals, material.castShadow);
                 m_impl->vertexObjects.push_back(result);
                 return *result;
             },

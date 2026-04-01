@@ -1,13 +1,5 @@
-
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
-
-layout(binding = 0, set = 0, std140) uniform Global {
-    mat4 transformation;
-    float time;
-    vec2 mouse;
-    vec3 cameraPosition;
-} global;
 
 struct PointLight {
     vec4 position;
@@ -26,6 +18,14 @@ struct DirectionalLight {
     mat4 shadowMapTransformation;
 };
 
+layout(binding = 0, set = 0, std140) uniform Global {
+    mat4 transformation;
+    float time;
+    vec2 mouse;
+    vec3 cameraPosition;
+    uint mode;
+} global;
+
 layout(binding = 0, set = 1, std140) uniform Lighting {
     PointLight lights[64];
     uint lightsCount;
@@ -36,6 +36,8 @@ layout(binding = 0, set = 1, std140) uniform Lighting {
 layout(binding = 0, set = 3) uniform sampler2D baseColorSampler;
 layout(binding = 0, set = 4) uniform sampler2D ambientOcclusionSampler;
 layout(binding = 0, set = 5) uniform sampler2D normalMapSampler;
+layout(binding = 0, set = 6) uniform sampler2DShadow shadowMapSampler;
+layout(binding = 0, set = 7) uniform sampler2D shadowMapDebugSampler;
 
 layout(location = 0) in vec3 fragmentColor;
 layout(location = 1) in vec2 fragmentUVCoordinates;
@@ -43,8 +45,9 @@ layout(location = 2) in vec3 fragmentGlobalCoordinates;
 layout(location = 3) in vec3 fragmentNormal;
 layout(location = 4) in vec3 fragmentTangent;
 layout(location = 5) in vec3 fragmentBitangent;
+layout(location = 6) in vec4 fragmentShadowMapPosition;
 
-layout(location = 0) out vec4 outColor;
+layout(location = 0) out vec4 outputColor;
 
 vec3 calcAmbientLighting(vec3 baseColor) {
     const float aoIntancity = 1;
@@ -84,9 +87,31 @@ void main() {
 
     const vec3 lightDirection = normalize(-lighting.directionalLight.vector); // Direction TO light
 
-    const vec3 result = calcAmbientLighting(baseColor) + calcDiffuseLighting(baseColor, lightDirection, localNormal) + calcSpecularLighting(lightDirection, localNormal);
-    outColor = vec4(result, 1.0);
+    vec3 result = calcAmbientLighting(baseColor) + calcDiffuseLighting(baseColor, lightDirection, localNormal) + calcSpecularLighting(lightDirection, localNormal);
 
+
+    outputColor = vec4(result, 1.0);
+
+
+    // outputColor = vec4(1.0) * textureProj(shadowMapSampler, fragmentShadowMapPosition);
+
+    const vec3 shadowPos = fragmentShadowMapPosition.xyz / fragmentShadowMapPosition.w;
+
+    // const float depth = shadowPos.z - texture(shadowMapDebugSampler, shadowPos.xy).r;
+
+    if(global.mode == 0) {
+        const float depth = 1. - texture(shadowMapDebugSampler, (shadowPos.xy + 1) / 2).r;
+        outputColor = vec4(depth, depth, depth, 1);
+    } else if(global.mode == 1) {
+        const float depth = 1. - shadowPos.z;
+        outputColor = vec4(depth, depth, depth, 1);
+    } else if(global.mode == 2) {
+        const float depth = (1. - texture(shadowMapDebugSampler, (shadowPos.xy + 1) / 2).r) > (1. - shadowPos.z) ? 0 : 1;
+        outputColor = vec4(depth, depth, depth, 1);
+    }
+
+
+    // outputColor = vec4(fragmentShadowMapPosition.xyz / fragmentShadowMapPosition.w, 1);
 
     // outColor = vec4(texture(normalMapSampler, fragmentUVCoordinates).xyz, 1.0);
     // outColor = vec4((localNormal + 1) / 2, 1.);
