@@ -81,9 +81,16 @@ function (badger_engine_add_embedded_shader_target target)
             "source_file_path: ${source_file_path}, intermediate_file_path: ${intermediate_file_path}"
         )
 
+        set(GLSLC_OPTIONS -Werror)
+        if (${CMAKE_BUILD_TYPE} STREQUAL "Release")
+            list(APPEND ${GLSLC_OPTIONS} -O)
+        else ()
+            list(APPEND ${GLSLC_OPTIONS} -g)
+        endif ()
+
         add_custom_command(
             DEPENDS ${source_file_path}
-            COMMAND ${GLSLC_EXECUTABLE} ${source_file_path} -o ${intermediate_file_path}
+            COMMAND ${GLSLC_EXECUTABLE} ${source_file_path} -o ${intermediate_file_path} -O
             OUTPUT ${intermediate_file_path})
 
         if (NOT DEFINED BIN2H_EXECUTABLE)

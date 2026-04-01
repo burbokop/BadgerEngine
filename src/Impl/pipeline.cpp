@@ -263,7 +263,7 @@ e172vp::Pipeline::Pipeline(
         .polygonMode = polygonModeToVk(polygonMode),
         .cullMode = backfaceCulling ? vk::CullModeFlagBits::eBack : vk::CullModeFlagBits::eNone,
         .frontFace = vk::FrontFace::eClockwise,
-        .depthBiasEnable = false,
+        .depthBiasEnable = true,
         .lineWidth = 1.0f,
     };
 
@@ -271,7 +271,7 @@ e172vp::Pipeline::Pipeline(
         .flags = vk::PipelineDepthStencilStateCreateFlags(),
         .depthTestEnable = true,
         .depthWriteEnable = true,
-        .depthCompareOp = vk::CompareOp::eLess,
+        .depthCompareOp = vk::CompareOp::eLessOrEqual,
         .depthBoundsTestEnable = false,
         .stencilTestEnable = false,
     };

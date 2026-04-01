@@ -133,12 +133,14 @@ struct ColorGlobalUniformBufferObject {
     Padding<4> _;
     glm::vec2 mouse;
     glm::vec3 cameraPosition;
+    std::uint32_t mode;
 };
 
 static_assert(offsetof(ColorGlobalUniformBufferObject, transformation) == 0, "Offset must comply with std140");
 static_assert(offsetof(ColorGlobalUniformBufferObject, time) == 64, "Offset must comply with std140");
 static_assert(offsetof(ColorGlobalUniformBufferObject, mouse) == 72, "Offset must comply with std140");
 static_assert(offsetof(ColorGlobalUniformBufferObject, cameraPosition) == 80, "Offset must comply with std140");
+static_assert(offsetof(ColorGlobalUniformBufferObject, mode) == 92, "Offset must comply with std140");
 
 struct ShadowMapGlobalUniformBufferObject {
     glm::mat4 transformation;
@@ -206,7 +208,7 @@ void createSyncObjects(const vk::Device& logicDevice, vk::Semaphore* imageAvaila
 
 }
 
-struct Renderer::Impl {
+struct RendererImpl {
     Shared<e172vp::GraphicsObject> graphicsObject;
 
     vk::Semaphore imageAvailableSemaphore;
@@ -246,7 +248,7 @@ struct Renderer::Impl {
 };
 
 Renderer::Renderer(Shared<Window> window, Shared<Camera> camera, std::span<const std::uint8_t> fontBytes)
-    : m_impl(std::make_unique<Impl>(Impl {
+    : m_impl(std::make_shared<RendererImpl>(RendererImpl {
           .graphicsObject = std::make_shared<e172vp::GraphicsObject>(e172vp::GraphicsObjectCreateInfo {
               .applicationName = "badger_engine_app",
               .applicationVersion = 1,
@@ -296,6 +298,7 @@ Renderer::Renderer(Shared<Window> window, Shared<Camera> camera, std::span<const
 #endif
       }))
     , m_camera(std::move(camera))
+    , m_directionalLight(m_impl)
 {
 
     if (m_impl->graphicsObject->debugEnabled())
@@ -363,9 +366,9 @@ Renderer::Renderer(Shared<Window> window, Shared<Camera> camera, std::span<const
 
     m_impl->shadowMapPipeline = createShadowMapPipeline(
         ShadowMap_vert,
-        Geometry::Topology::LineList,
+        Geometry::Topology::TriangleList,
         PolygonMode::Fill,
-        true);
+        false);
 }
 
 std::shared_ptr<e172vp::Pipeline> Renderer::createColorPipeline(
@@ -635,14 +638,58 @@ Expected<void> Renderer::applyPresentation() noexcept
     return {};
 }
 
-void Renderer::setDirectionalLightVector(glm::vec3 v)
+DirectionalLight& Renderer::directionalLight()
 {
-    m_directionalLightVector = v;
-    m_impl->directionalLightCamera.setOrbit({ 0, 0, 0 }, v);
+    return m_directionalLight;
+}
+
+const DirectionalLight& Renderer::directionalLight() const
+{
+    return m_directionalLight;
+}
+
+void DirectionalLight::setDirection(glm::vec3 v)
+{
+    m_direction = v;
+    m_impl->directionalLightCamera.setOrbit(m_shadowFocus, m_direction);
+}
+
+void DirectionalLight::setShadowFocus(glm::vec3 v)
+{
+    m_shadowFocus = v;
+    m_impl->directionalLightCamera.setOrbit(m_shadowFocus, m_direction);
+}
+
+void DirectionalLight::setShadowNear(float v)
+{
+    m_impl->directionalLightCamera.setNear(v);
+    m_impl->directionalLightCamera.setOrbit(m_shadowFocus, m_direction);
+}
+
+void DirectionalLight::setShadowFar(float v)
+{
+    m_impl->directionalLightCamera.setFar(v);
+    m_impl->directionalLightCamera.setOrbit(m_shadowFocus, m_direction);
+}
+
+void DirectionalLight::setShadowCameraScale(float v)
+{
+    m_impl->directionalLightCamera.setScale(v);
+    m_impl->directionalLightCamera.setOrbit(m_shadowFocus, m_direction);
+}
+
+glm::vec3 DirectionalLight::shadowCameraPosition() const
+{
+    return m_impl->directionalLightCamera.position();
 }
 
 void Renderer::updateUniformBuffer(uint32_t currentImage)
 {
+    const auto directionalLightCameraTransformation
+        = m_impl
+              ->directionalLightCamera
+              .transformation(vkExtent2DToGLMVec2(m_impl->graphicsObject->swapChainSettings().shadowMapExtent));
+
     {
         static const auto begin = std::chrono::high_resolution_clock::now();
         const float time = static_cast<float>(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - begin).count()) / 1000.f;
@@ -653,6 +700,7 @@ void Renderer::updateUniformBuffer(uint32_t currentImage)
             ._ = {},
             .mouse = { 0, 0 },
             .cameraPosition = m_camera->position(),
+            .mode = m_mode,
         };
 
         void* data = nullptr;
@@ -682,16 +730,15 @@ void Renderer::updateUniformBuffer(uint32_t currentImage)
             .intensity = 0.05f,
         };
 
+        const auto bias = 0.01;
+        auto textureSpaceTransformation = glm::translate(glm::mat4(1.), { 0.5, 0.5, -bias }) * glm::scale(glm::mat4(1.), { 0.5, 0.5, 1 });
+
         ubo.directionalLight = DirectionalLightUniformBufferObject {
-            .vector = m_directionalLightVector,
+            .vector = m_directionalLight.direction(),
             ._ = {},
-            .color = m_directionalLightColor,
-            .intensity = m_directionalLightIntensity,
-            .shadowMapTransformation = glm::translate(glm::mat4(1.), { 0.5, 0.5, 0.5 })
-                * glm::scale(glm::mat4(1.), { 0.5, 0.5, 0.5 })
-                * m_impl
-                    ->directionalLightCamera
-                    .transformation(vkExtent2DToGLMVec2(m_impl->graphicsObject->swapChainSettings().shadowMapExtent))
+            .color = m_directionalLight.color(),
+            .intensity = m_directionalLight.intensity(),
+            .shadowMapTransformation = textureSpaceTransformation * directionalLightCameraTransformation
         };
 
         void* data = nullptr;
@@ -705,7 +752,7 @@ void Renderer::updateUniformBuffer(uint32_t currentImage)
 
     {
         const auto ubo = ShadowMapGlobalUniformBufferObject {
-            .transformation = m_impl->directionalLightCamera.transformation(vkExtent2DToGLMVec2(m_impl->graphicsObject->swapChainSettings().shadowMapExtent)),
+            .transformation = directionalLightCameraTransformation,
         };
 
         void* data = nullptr;
@@ -772,7 +819,8 @@ VertexObject& Renderer::addObject(const BadgerEngine::Model& model, RenderingOpt
                     createColorPipeline(BSDF_vert, BSDF_frag, model.mesh()->topology(), model.polygonMode(), options.backfaceCulling),
                     m_impl->normalDebugPipeline,
                     m_impl->shadowMapPipeline,
-                    options.displayNormals);
+                    options.displayNormals,
+                    material.castShadow);
                 m_impl->vertexObjects.push_back(result);
                 return *result;
             },

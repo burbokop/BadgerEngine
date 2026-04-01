@@ -38,6 +38,57 @@ class Window;
 class UploadedTexture;
 class UploadedTextureCache;
 
+struct RendererImpl;
+
+class DirectionalLight {
+public:
+    DirectionalLight(Shared<RendererImpl> impl)
+        : m_impl(std::move(impl))
+    {
+    }
+
+    void setDirection(glm::vec3 v);
+
+    glm::vec3 direction() const
+    {
+        return m_direction;
+    }
+
+    void setColor(glm::vec3 c)
+    {
+        m_color = c;
+    }
+
+    glm::vec3 color() const { return m_color; }
+
+    void setIntensity(float i)
+    {
+        m_intensity = i;
+    };
+
+    float intensity() const { return m_intensity; }
+
+    void setShadowFocus(glm::vec3 v);
+
+    glm::vec3 shadowFocus() const
+    {
+        return m_shadowFocus;
+    }
+
+    glm::vec3 shadowCameraPosition() const;
+
+    void setShadowNear(float v);
+    void setShadowFar(float v);
+    void setShadowCameraScale(float v);
+
+private:
+    Shared<RendererImpl> m_impl;
+    glm::vec3 m_direction = glm::vec3(0.);
+    glm::vec3 m_color = glm::vec3(1.f);
+    float m_intensity = 0.f;
+    glm::vec3 m_shadowFocus;
+};
+
 class Renderer {
 public:
     ~Renderer();
@@ -64,23 +115,13 @@ public:
         return m_camera;
     }
 
-    void setDirectionalLightVector(glm::vec3 v);
-
-    glm::vec3 directionalLightVector() const { return m_directionalLightVector; }
-
-    void setDirectionalLightColor(glm::vec3 c)
+    void setMode(std::uint32_t mode)
     {
-        m_directionalLightColor = c;
+        m_mode = mode;
     }
 
-    glm::vec3 directionalLightColor() const { return m_directionalLightColor; }
-
-    void setDirectionalLightIntensity(float i)
-    {
-        m_directionalLightIntensity = i;
-    };
-
-    float directionalLightIntensity() const { return m_directionalLightIntensity; }
+    DirectionalLight& directionalLight();
+    const DirectionalLight& directionalLight() const;
 
 private:
     void updateUniformBuffer(uint32_t currentImage);
@@ -122,14 +163,10 @@ private:
         bool backfaceCulling);
 
 private:
-    struct Impl;
-
-private:
-    Unique<Impl> m_impl;
+    Shared<RendererImpl> m_impl;
     Shared<Camera> m_camera;
-    glm::vec3 m_directionalLightVector = glm::vec3(0.);
-    glm::vec3 m_directionalLightColor = glm::vec3(1.f);
-    float m_directionalLightIntensity = 0.f;
+    std::uint32_t m_mode = 0;
+    DirectionalLight m_directionalLight;
 };
 
 }

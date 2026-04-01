@@ -81,13 +81,15 @@ public:
         glm::vec3 position = { 0, 0, 0 },
         glm::vec3 direction = { 0, 0, 1.f },
         glm::vec3 up = { 0, 1.f, 0 },
-        float near = -1000,
-        float far = 1000)
+        float near = -1,
+        float far = 1,
+        float scale = 1)
         : m_position(std::move(position))
         , m_direction(std::move(direction))
         , m_up(std::move(up))
         , m_near(std::move(near))
         , m_far(std::move(far))
+        , m_scale(std::move(scale))
     {
         assert(m_near < m_far);
     }
@@ -101,6 +103,10 @@ public:
     {
         m_position = position;
     }
+
+    void setNear(float v) { m_near = v; }
+    void setFar(float v) { m_far = v; }
+    void setScale(float v) { m_scale = v; }
 
     /**
      * @brief setOrbit - set position and direction in the way that camera looks at `center` from `direction` and the center is in the middle of its view range
@@ -119,8 +125,7 @@ public:
 public:
     virtual glm::mat4 transformation(glm::vec2 extent) const override
     {
-        // TODO: remove it
-        extent /= 30;
+        extent /= m_scale;
         return glm::ortho(-extent.x / 2.f, extent.x / 2.f, -extent.y / 2.f, extent.y / 2.f, m_near, m_far) * glm::lookAt(m_position, m_position + m_direction, m_up);
     }
 
@@ -134,6 +139,7 @@ private:
     glm::vec3 m_up;
     float m_near;
     float m_far;
+    float m_scale;
 };
 
 }

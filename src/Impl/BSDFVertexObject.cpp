@@ -65,7 +65,8 @@ BSDFVertexObject::BSDFVertexObject(
     Shared<e172vp::Pipeline> pipeline,
     Shared<e172vp::Pipeline> normalesPipeline,
     Shared<e172vp::Pipeline> shadowMapPipeline,
-    DisplayNormals displayNormals)
+    DisplayNormals displayNormals,
+    bool castShadow)
     : m_graphicsObject(std::move(graphicsObject))
     , m_pipeline(std::move(pipeline))
     , m_normalesPipeline(std::move(normalesPipeline))
@@ -75,6 +76,7 @@ BSDFVertexObject::BSDFVertexObject(
     , m_baseColorTexture(std::move(baseColorTexture))
     , m_ambientOclussionMap(std::move(ambientOclussionMap))
     , m_normalMap(std::move(normalMap))
+    , m_castShadow(std::move(castShadow))
 {
     m_uniformBufferBundles = BufferUtils::createUniformBufferBundle<UniformBufferObject>(
         *m_graphicsObject,
@@ -116,7 +118,7 @@ BSDFVertexObject::BSDFVertexObject(
         m_graphicsObject->logicalDevice(),
         m_graphicsObject->descriptorPool(),
         m_graphicsObject->swapChain().shadowMapImageViewVector(),
-        m_graphicsObject->sampler(),
+        m_graphicsObject->shadowSampler(),
         shadowMapSamplerDescriptorSetLayout,
         &m_shadowMapSamplerDescriptorSets,
         vk::ImageLayout::eDepthStencilReadOnlyOptimal);
@@ -194,6 +196,9 @@ Expected<void> BSDFVertexObject::drawShadowMapTarget(
     std::span<const vk::CommandBuffer> commandBuffers,
     std::span<const BufferBundle> globalUniformBufferBundles) const noexcept
 {
+    if (!m_castShadow)
+        return {};
+
     m_shadowMapPipeline->bindTo(commandBuffers[imageIndex]);
     m_mesh.bindTo(commandBuffers[imageIndex]);
 

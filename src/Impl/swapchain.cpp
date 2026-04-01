@@ -213,7 +213,7 @@ e172vp::SwapChain::Settings e172vp::SwapChain::createSettings(vk::PhysicalDevice
 
         .presentMode = choosePresentMode(supportDetails.presentModes),
         .extent = chooseExtent(supportDetails.capabilities, defaultExtent),
-        .shadowMapExtent = { 512, 512 },
+        .shadowMapExtent = { 4096, 4096 },
         .supportDetails = supportDetails,
     };
 }
@@ -325,7 +325,7 @@ e172vp::SwapChain::SwapChain(
     swapchainCreateInfo.imageColorSpace = settings.surfaceFormat.colorSpace;
     swapchainCreateInfo.imageExtent = settings.extent;
     swapchainCreateInfo.imageArrayLayers = 1;
-    swapchainCreateInfo.setImageUsage(vk::ImageUsageFlagBits::eColorAttachment);
+    swapchainCreateInfo.imageUsage = vk::ImageUsageFlagBits::eColorAttachment; // uncommed if u want RecursiveMaterial to work: | vk::ImageUsageFlagBits::eSampled;
     swapchainCreateInfo.setPNext(nullptr);
 
     uint32_t queueFamilyIndices[] = { queueFamilies.graphicsFamily(), queueFamilies.presentFamily() };

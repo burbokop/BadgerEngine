@@ -4,6 +4,54 @@
 #include "logicdevicefactory.h"
 #include "vulkaninstancefactory.h"
 
+namespace {
+
+void createSampler(const vk::Device& logicalDevice, vk::Sampler* sampler)
+{
+    const vk::SamplerCreateInfo samplerInfo {
+        .magFilter = vk::Filter::eLinear,
+        .minFilter = vk::Filter::eLinear,
+        .mipmapMode = vk::SamplerMipmapMode::eLinear,
+        .addressModeU = vk::SamplerAddressMode::eRepeat,
+        .addressModeV = vk::SamplerAddressMode::eRepeat,
+        .addressModeW = vk::SamplerAddressMode::eRepeat,
+        .anisotropyEnable = true,
+        .maxAnisotropy = 16.0f,
+        .compareEnable = false,
+        .compareOp = vk::CompareOp::eAlways,
+        .borderColor = vk::BorderColor::eIntOpaqueBlack,
+        .unnormalizedCoordinates = false,
+    };
+
+    if (logicalDevice.createSampler(&samplerInfo, nullptr, sampler) != vk::Result::eSuccess) {
+        throw std::runtime_error("failed to create texture sampler!");
+    }
+}
+
+void createShadowSampler(const vk::Device& logicalDevice, vk::Sampler* sampler)
+{
+    const vk::SamplerCreateInfo samplerInfo {
+        .magFilter = vk::Filter::eLinear,
+        .minFilter = vk::Filter::eLinear,
+        .mipmapMode = vk::SamplerMipmapMode::eLinear,
+        .addressModeU = vk::SamplerAddressMode::eClampToEdge,
+        .addressModeV = vk::SamplerAddressMode::eClampToEdge,
+        .addressModeW = vk::SamplerAddressMode::eClampToEdge,
+        .anisotropyEnable = true,
+        .maxAnisotropy = 16.0f,
+        .compareEnable = true,
+        .compareOp = vk::CompareOp::eLessOrEqual,
+        .borderColor = vk::BorderColor::eIntOpaqueBlack,
+        .unnormalizedCoordinates = false,
+    };
+
+    if (logicalDevice.createSampler(&samplerInfo, nullptr, sampler) != vk::Result::eSuccess) {
+        throw std::runtime_error("failed to create texture sampler!");
+    }
+}
+
+}
+
 vk::Instance e172vp::GraphicsObject::vulkanInstance() const { return m_vulkanInstance; }
 vk::PhysicalDevice e172vp::GraphicsObject::physicalDevice() const { return m_physicalDevice; }
 vk::Device e172vp::GraphicsObject::logicalDevice() const { return m_logicalDevice; }
@@ -32,27 +80,6 @@ vk::DescriptorPool e172vp::GraphicsObject::descriptorPool() const
 vk::Sampler e172vp::GraphicsObject::sampler() const
 {
     return m_sampler;
-}
-
-void e172vp::GraphicsObject::createTextureSampler(const vk::Device& logicalDevice, vk::Sampler* sampler)
-{
-    vk::SamplerCreateInfo samplerInfo;
-    samplerInfo.magFilter = vk::Filter::eLinear;
-    samplerInfo.minFilter = vk::Filter::eLinear;
-    samplerInfo.addressModeU = vk::SamplerAddressMode::eRepeat;
-    samplerInfo.addressModeV = vk::SamplerAddressMode::eRepeat;
-    samplerInfo.addressModeW = vk::SamplerAddressMode::eRepeat;
-    samplerInfo.anisotropyEnable = true;
-    samplerInfo.maxAnisotropy = 16.0f;
-    samplerInfo.borderColor = vk::BorderColor::eIntOpaqueBlack;
-    samplerInfo.unnormalizedCoordinates = false;
-    samplerInfo.compareEnable = false;
-    samplerInfo.compareOp = vk::CompareOp::eAlways;
-    samplerInfo.mipmapMode = vk::SamplerMipmapMode::eLinear;
-
-    if (logicalDevice.createSampler(&samplerInfo, nullptr, sampler) != vk::Result::eSuccess) {
-        throw std::runtime_error("failed to create texture sampler!");
-    }
 }
 
 void e172vp::GraphicsObject::createDescriptorPool(const vk::Device& logicalDevice, size_t size, vk::DescriptorPool* uniformDescriptorPool, std::vector<std::string>* m_errors)
@@ -154,7 +181,8 @@ e172vp::GraphicsObject::GraphicsObject(const GraphicsObjectCreateInfo& createInf
     m_commandPool = e172vp::CommandPool(m_logicalDevice, m_queueFamilies, m_swapChain->imageCount());
 
     createDescriptorPool(m_logicalDevice, createInfo.descriptorPoolSize, &m_descriptorPool, &m_errors);
-    createTextureSampler(m_logicalDevice, &m_sampler);
+    createSampler(m_logicalDevice, &m_sampler);
+    createShadowSampler(m_logicalDevice, &m_shadowSampler);
 
     m_isValid = m_swapChain->isValid() && m_commandPool.isValid();
 }

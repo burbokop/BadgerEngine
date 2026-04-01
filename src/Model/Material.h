@@ -14,6 +14,7 @@ struct BSDFMaterial {
     MaterialFloatChannel metallness;
     MaterialFloatChannel roughness;
     MaterialFloatChannel indexOfRefration;
+    bool castShadow;
 };
 
 /// Uses frame buffer as texture
