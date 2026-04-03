@@ -241,6 +241,7 @@ struct RendererImpl {
 
     Shared<Window> window;
     Shared<UploadedTextureCache> textureCache;
+    std::shared_ptr<UploadedTexture> defaultTexture;
 
 #ifdef BADGER_ENGINE_RENDERDOC
     RENDERDOC_API_1_1_2* renderDocApi;
@@ -292,6 +293,7 @@ Renderer::Renderer(Shared<Window> window, Shared<Camera> camera, std::span<const
 
           .window = std::move(window),
           .textureCache = std::make_shared<UploadedTextureCache>(),
+          .defaultTexture = {},
 
 #ifdef BADGER_ENGINE_RENDERDOC
           .renderDocApi = createRenderDocApi()
@@ -339,23 +341,31 @@ Renderer::Renderer(Shared<Window> window, Shared<Camera> camera, std::span<const
         m_impl->graphicsObject->descriptorPool(),
         m_impl->shadowMapGlobalDescriptorSetLayout);
 
-    //    bool useUniformBuffer = true;
-    //    std::vector<char> vertShaderCode;
-    //    if(useUniformBuffer) {
-    //        vertShaderCode = readFile("shaders/vert_uniform.vert.spv");
-    //    } else {
-    //        vertShaderCode = readFile("shaders/shader.vert.spv");
-    //    }
-    //    std::vector<char> fragShaderCode = readFile("shaders/shader.frag.spv");
-
     createSyncObjects(m_impl->graphicsObject->logicalDevice(), &m_impl->imageAvailableSemaphore, &m_impl->renderFinishedSemaphore);
 
-    m_impl->font = new e172vp::Font(m_impl->graphicsObject->logicalDevice(),
+    if (!fontBytes.empty()) {
+        m_impl->font = new e172vp::Font(
+            m_impl->graphicsObject->logicalDevice(),
+            m_impl->graphicsObject->physicalDevice(),
+            m_impl->graphicsObject->commandPool(),
+            m_impl->graphicsObject->graphicsQueue(),
+            fontBytes,
+            128);
+    }
+
+    m_impl->defaultTexture = UploadedTexture::create(
+        m_impl->graphicsObject->logicalDevice(),
         m_impl->graphicsObject->physicalDevice(),
         m_impl->graphicsObject->commandPool(),
+        // Assuming graphics queue can also do copy. If not then add some check
         m_impl->graphicsObject->graphicsQueue(),
-        fontBytes,
-        128);
+        *m_impl->textureCache,
+        PixFormat::RGBA32,
+        { 1, 1 },
+        glm::vec4(1, 0, 1, 1))
+                                 .transform_error(AsCritical())
+                                 .value()
+                                 .nullable();
 
     m_impl->normalDebugPipeline = createColorPipeline(
         Normal_vert,
@@ -886,7 +896,7 @@ VertexObject& Renderer::addObject(const BadgerEngine::Model& model, RenderingOpt
                     m_impl->vertexObjects.push_back(result);
                     return *result;
 
-                } else {
+                } else if (m_impl->font) {
                     const auto result = new ImageViewVertexObject(
                         m_impl->graphicsObject,
                         m_impl->graphicsObject->swapChain().imageCount(),
@@ -894,6 +904,19 @@ VertexObject& Renderer::addObject(const BadgerEngine::Model& model, RenderingOpt
                         m_impl->baseColorSamplerDescriptorSetLayout,
                         model.mesh(),
                         m_impl->font->character('N').imageView(),
+                        createColorPipeline(material.vert, material.frag, model.mesh()->topology(), model.polygonMode(), options.backfaceCulling),
+                        m_impl->normalDebugPipeline,
+                        options.displayNormals);
+                    m_impl->vertexObjects.push_back(result);
+                    return *result;
+                } else {
+                    const auto result = new ImageViewVertexObject(
+                        m_impl->graphicsObject,
+                        m_impl->graphicsObject->swapChain().imageCount(),
+                        m_impl->objectDescriptorSetLayout,
+                        m_impl->baseColorSamplerDescriptorSetLayout,
+                        model.mesh(),
+                        m_impl->defaultTexture,
                         createColorPipeline(material.vert, material.frag, model.mesh()->topology(), model.polygonMode(), options.backfaceCulling),
                         m_impl->normalDebugPipeline,
                         options.displayNormals);
