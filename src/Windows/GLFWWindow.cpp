@@ -35,7 +35,7 @@ public:
         };
     }
 
-    bool isPressed(Key key) const
+    bool pressed(Key key) const
     {
         const auto state = ::glfwGetKey(m_window.nullable(), static_cast<int>(key));
         return state == GLFW_PRESS || state == GLFW_REPEAT;
@@ -115,9 +115,9 @@ GLFWWindow::GLFWWindow(const std::string& title, std::size_t w, std::size_t h)
 
 GLFWWindow::~GLFWWindow() = default;
 
-bool GLFWWindow::isPressed(Key key) const
+bool GLFWWindow::pressed(Key key) const
 {
-    return m_impl->isPressed(key);
+    return m_impl->pressed(key);
 }
 
 bool GLFWWindow::shouldClose() const

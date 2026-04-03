@@ -1,18 +1,16 @@
 #pragma once
 
-#include "../Window.h"
 #include "../Utils/NoNull.h"
+#include "../Window.h"
 
 namespace BadgerEngine {
 
-class GLFWWindow : public Window {
+class GLFWWindow : public Window, public InputProvider {
 public:
     GLFWWindow(const std::string& title, std::size_t w, std::size_t h);
     ~GLFWWindow();
 
-    bool isPressed(Key key) const;
     bool shouldClose() const;
-    glm::vec2 mousePosition() const;
     void setMousePosition(const glm::vec2& pos);
     void setCursorVisible(bool v);
 
@@ -21,6 +19,11 @@ public:
     glm::vec2 size() const override;
     Expected<vk::SurfaceKHR> createVulkanSurface(vk::Instance i) override;
     std::vector<std::string> requiredVulkanExtensions() const override;
+
+    // InputProvider interface
+public:
+    bool pressed(Key key) const override;
+    glm::vec2 mousePosition() const override;
 
 private:
     class Impl;

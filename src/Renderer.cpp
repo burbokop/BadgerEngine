@@ -678,6 +678,11 @@ void DirectionalLight::setShadowCameraScale(float v)
     m_impl->directionalLightCamera.setOrbit(m_shadowFocus, m_direction);
 }
 
+void DirectionalLight::setShadowBias(float v)
+{
+    m_shadowBias = v;
+}
+
 glm::vec3 DirectionalLight::shadowCameraPosition() const
 {
     return m_impl->directionalLightCamera.position();
@@ -730,8 +735,7 @@ void Renderer::updateUniformBuffer(uint32_t currentImage)
             .intensity = 0.05f,
         };
 
-        const auto bias = 0.01;
-        auto textureSpaceTransformation = glm::translate(glm::mat4(1.), { 0.5, 0.5, -bias }) * glm::scale(glm::mat4(1.), { 0.5, 0.5, 1 });
+        const auto textureSpaceTransformation = glm::translate(glm::mat4(1.), { 0.5, 0.5, -m_directionalLight.shadowBias() }) * glm::scale(glm::mat4(1.), { 0.5, 0.5, 1 });
 
         ubo.directionalLight = DirectionalLightUniformBufferObject {
             .vector = m_directionalLight.direction(),

@@ -8,13 +8,21 @@ namespace BadgerEngine {
 
 class Window {
 public:
+    virtual ~Window() = default;
+    virtual glm::vec2 size() const = 0;
+    virtual Expected<vk::SurfaceKHR> createVulkanSurface(vk::Instance i) = 0;
+    virtual std::vector<std::string> requiredVulkanExtensions() const = 0;
+};
+
+class InputProvider {
+public:
     enum class Key {
-        SPACE = 32,
-        APOSTROPHE = 39, /* ' */
-        COMMA = 44, /* , */
-        MINUS = 45, /* - */
-        PERIOD = 46, /* . */
-        SLASH = 47, /* / */
+        Space = 32,
+        Apostrophe = 39, /* ' */
+        Comma = 44, /* , */
+        Minus = 45, /* - */
+        Period = 46, /* . */
+        Slash = 47, /* / */
         _0 = 48,
         _1 = 49,
         _2 = 50,
@@ -25,8 +33,8 @@ public:
         _7 = 55,
         _8 = 56,
         _9 = 57,
-        SEMICOLON = 59, /* ; */
-        EQUAL = 61, /* = */
+        Semicolon = 59, /* ; */
+        Equal = 61, /* = */
         A = 65,
         B = 66,
         C = 67,
@@ -53,31 +61,31 @@ public:
         X = 88,
         Y = 89,
         Z = 90,
-        LEFT_BRACKET = 91, /* [ */
-        BACKSLASH = 92, /* \ */
-        RIGHT_BRACKET = 93, /* ] */
-        GRAVE_ACCENT = 96, /* ` */
-        WORLD_1 = 161, /* non-US #1 */
-        WORLD_2 = 162, /* non-US #2 */
-        ESCAPE = 256,
-        ENTER = 257,
-        TAB = 258,
-        BACKSPACE = 259,
-        INSERT = 260,
-        DELETE = 261,
-        RIGHT = 262,
-        LEFT = 263,
-        DOWN = 264,
-        UP = 265,
-        PAGE_UP = 266,
-        PAGE_DOWN = 267,
-        HOME = 268,
-        END = 269,
-        CAPS_LOCK = 280,
-        SCROLL_LOCK = 281,
-        NUM_LOCK = 282,
-        PRINT_SCREEN = 283,
-        PAUSE = 284,
+        LeftBracket = 91, /* [ */
+        Backslash = 92, /* \ */
+        RightBracket = 93, /* ] */
+        GraveAccent = 96, /* ` */
+        World_1 = 161, /* non-US #1 */
+        World_2 = 162, /* non-US #2 */
+        Escape = 256,
+        Enter = 257,
+        Tab = 258,
+        Backspace = 259,
+        Insert = 260,
+        Delete = 261,
+        Right = 262,
+        Left = 263,
+        Down = 264,
+        Up = 265,
+        PageUp = 266,
+        PageDown = 267,
+        Home = 268,
+        End = 269,
+        CapsLock = 280,
+        ScrollLock = 281,
+        NumLock = 282,
+        PrintScreen = 283,
+        Pause = 284,
         F1 = 290,
         F2 = 291,
         F3 = 292,
@@ -103,38 +111,37 @@ public:
         F23 = 312,
         F24 = 313,
         F25 = 314,
-        KP_0 = 320,
-        KP_1 = 321,
-        KP_2 = 322,
-        KP_3 = 323,
-        KP_4 = 324,
-        KP_5 = 325,
-        KP_6 = 326,
-        KP_7 = 327,
-        KP_8 = 328,
-        KP_9 = 329,
-        KP_DECIMAL = 330,
-        KP_DIVIDE = 331,
-        KP_MULTIPLY = 332,
-        KP_SUBTRACT = 333,
-        KP_ADD = 334,
-        KP_ENTER = 335,
-        KP_EQUAL = 336,
-        LEFT_SHIFT = 340,
-        LEFT_CONTROL = 341,
-        LEFT_ALT = 342,
-        LEFT_SUPER = 343,
-        RIGHT_SHIFT = 344,
-        RIGHT_CONTROL = 345,
-        RIGHT_ALT = 346,
-        RIGHT_SUPER = 347,
-        MENU = 348,
+        KP0 = 320,
+        KP1 = 321,
+        KP2 = 322,
+        KP3 = 323,
+        KP4 = 324,
+        KP5 = 325,
+        KP6 = 326,
+        KP7 = 327,
+        KP8 = 328,
+        KP9 = 329,
+        KPDecimal = 330,
+        KPDivide = 331,
+        KPMultiply = 332,
+        KPSubtract = 333,
+        KPAdd = 334,
+        KPEnter = 335,
+        KPEqual = 336,
+        LeftShift = 340,
+        LeftControl = 341,
+        LeftAlt = 342,
+        LeftSuper = 343,
+        RightShift = 344,
+        RightControl = 345,
+        RightAlt = 346,
+        RightSuper = 347,
+        Menu = 348,
     };
 
-    virtual ~Window() = default;
-    virtual glm::vec2 size() const = 0;
-    virtual Expected<vk::SurfaceKHR> createVulkanSurface(vk::Instance i) = 0;
-    virtual std::vector<std::string> requiredVulkanExtensions() const = 0;
+    virtual ~InputProvider() = default;
+    virtual bool pressed(Key key) const = 0;
+    virtual glm::vec2 mousePosition() const = 0;
 };
 
 }

@@ -75,11 +75,17 @@ public:
         return m_shadowFocus;
     }
 
+    float shadowBias() const
+    {
+        return m_shadowBias;
+    }
+
     glm::vec3 shadowCameraPosition() const;
 
     void setShadowNear(float v);
     void setShadowFar(float v);
     void setShadowCameraScale(float v);
+    void setShadowBias(float v);
 
 private:
     Shared<RendererImpl> m_impl;
@@ -87,6 +93,7 @@ private:
     glm::vec3 m_color = glm::vec3(1.f);
     float m_intensity = 0.f;
     glm::vec3 m_shadowFocus;
+    float m_shadowBias = 0.01f;
 };
 
 class Renderer {

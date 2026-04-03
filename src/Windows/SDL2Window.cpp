@@ -12,235 +12,235 @@ namespace BadgerEngine {
 
 namespace {
 
-std::optional<Window::Key> windowKeyFromSDLScancode(SDL_Scancode scancode)
+std::optional<InputProvider::Key> inputProviderKeyFromSDLScancode(SDL_Scancode scancode)
 {
     switch (scancode) {
     case SDL_SCANCODE_UNKNOWN:
         return std::nullopt;
     case SDL_SCANCODE_A:
-        return Window::Key::A;
+        return InputProvider::Key::A;
     case SDL_SCANCODE_B:
-        return Window::Key::B;
+        return InputProvider::Key::B;
     case SDL_SCANCODE_C:
-        return Window::Key::C;
+        return InputProvider::Key::C;
     case SDL_SCANCODE_D:
-        return Window::Key::D;
+        return InputProvider::Key::D;
     case SDL_SCANCODE_E:
-        return Window::Key::E;
+        return InputProvider::Key::E;
     case SDL_SCANCODE_F:
-        return Window::Key::F;
+        return InputProvider::Key::F;
     case SDL_SCANCODE_G:
-        return Window::Key::G;
+        return InputProvider::Key::G;
     case SDL_SCANCODE_H:
-        return Window::Key::H;
+        return InputProvider::Key::H;
     case SDL_SCANCODE_I:
-        return Window::Key::I;
+        return InputProvider::Key::I;
     case SDL_SCANCODE_J:
-        return Window::Key::J;
+        return InputProvider::Key::J;
     case SDL_SCANCODE_K:
-        return Window::Key::K;
+        return InputProvider::Key::K;
     case SDL_SCANCODE_L:
-        return Window::Key::L;
+        return InputProvider::Key::L;
     case SDL_SCANCODE_M:
-        return Window::Key::M;
+        return InputProvider::Key::M;
     case SDL_SCANCODE_N:
-        return Window::Key::N;
+        return InputProvider::Key::N;
     case SDL_SCANCODE_O:
-        return Window::Key::O;
+        return InputProvider::Key::O;
     case SDL_SCANCODE_P:
-        return Window::Key::P;
+        return InputProvider::Key::P;
     case SDL_SCANCODE_Q:
-        return Window::Key::Q;
+        return InputProvider::Key::Q;
     case SDL_SCANCODE_R:
-        return Window::Key::R;
+        return InputProvider::Key::R;
     case SDL_SCANCODE_S:
-        return Window::Key::S;
+        return InputProvider::Key::S;
     case SDL_SCANCODE_T:
-        return Window::Key::T;
+        return InputProvider::Key::T;
     case SDL_SCANCODE_U:
-        return Window::Key::U;
+        return InputProvider::Key::U;
     case SDL_SCANCODE_V:
-        return Window::Key::V;
+        return InputProvider::Key::V;
     case SDL_SCANCODE_W:
-        return Window::Key::W;
+        return InputProvider::Key::W;
     case SDL_SCANCODE_X:
-        return Window::Key::X;
+        return InputProvider::Key::X;
     case SDL_SCANCODE_Y:
-        return Window::Key::Y;
+        return InputProvider::Key::Y;
     case SDL_SCANCODE_Z:
-        return Window::Key::Z;
+        return InputProvider::Key::Z;
     case SDL_SCANCODE_1:
-        return Window::Key::_1;
+        return InputProvider::Key::_1;
     case SDL_SCANCODE_2:
-        return Window::Key::_2;
+        return InputProvider::Key::_2;
     case SDL_SCANCODE_3:
-        return Window::Key::_3;
+        return InputProvider::Key::_3;
     case SDL_SCANCODE_4:
-        return Window::Key::_4;
+        return InputProvider::Key::_4;
     case SDL_SCANCODE_5:
-        return Window::Key::_5;
+        return InputProvider::Key::_5;
     case SDL_SCANCODE_6:
-        return Window::Key::_6;
+        return InputProvider::Key::_6;
     case SDL_SCANCODE_7:
-        return Window::Key::_7;
+        return InputProvider::Key::_7;
     case SDL_SCANCODE_8:
-        return Window::Key::_8;
+        return InputProvider::Key::_8;
     case SDL_SCANCODE_9:
-        return Window::Key::_9;
+        return InputProvider::Key::_9;
     case SDL_SCANCODE_0:
-        return Window::Key::_0;
+        return InputProvider::Key::_0;
     case SDL_SCANCODE_RETURN:
-        return Window::Key::ENTER;
+        return InputProvider::Key::Enter;
     case SDL_SCANCODE_ESCAPE:
-        return Window::Key::ESCAPE;
+        return InputProvider::Key::Escape;
     case SDL_SCANCODE_BACKSPACE:
-        return Window::Key::BACKSPACE;
+        return InputProvider::Key::Backspace;
     case SDL_SCANCODE_TAB:
-        return Window::Key::TAB;
+        return InputProvider::Key::Tab;
     case SDL_SCANCODE_SPACE:
-        return Window::Key::SPACE;
+        return InputProvider::Key::Space;
     case SDL_SCANCODE_MINUS:
-        return Window::Key::MINUS;
+        return InputProvider::Key::Minus;
     case SDL_SCANCODE_EQUALS:
-        return Window::Key::EQUAL;
+        return InputProvider::Key::Equal;
     case SDL_SCANCODE_LEFTBRACKET:
-        return Window::Key::LEFT_BRACKET;
+        return InputProvider::Key::LeftBracket;
     case SDL_SCANCODE_RIGHTBRACKET:
-        return Window::Key::RIGHT_BRACKET;
+        return InputProvider::Key::RightBracket;
     case SDL_SCANCODE_BACKSLASH:
-        return Window::Key::BACKSLASH;
+        return InputProvider::Key::Backslash;
     case SDL_SCANCODE_NONUSHASH:
-        return Window::Key::SLASH;
+        return InputProvider::Key::Slash;
     case SDL_SCANCODE_SEMICOLON:
-        return Window::Key::SEMICOLON;
+        return InputProvider::Key::Semicolon;
     case SDL_SCANCODE_APOSTROPHE:
-        return Window::Key::APOSTROPHE;
+        return InputProvider::Key::Apostrophe;
     case SDL_SCANCODE_GRAVE:
-        return Window::Key::GRAVE_ACCENT;
+        return InputProvider::Key::GraveAccent;
     case SDL_SCANCODE_COMMA:
-        return Window::Key::COMMA;
+        return InputProvider::Key::Comma;
     case SDL_SCANCODE_PERIOD:
-        return Window::Key::PERIOD;
+        return InputProvider::Key::Period;
     case SDL_SCANCODE_SLASH:
-        return Window::Key::SLASH;
+        return InputProvider::Key::Slash;
     case SDL_SCANCODE_CAPSLOCK:
-        return Window::Key::CAPS_LOCK;
+        return InputProvider::Key::CapsLock;
     case SDL_SCANCODE_F1:
-        return Window::Key::F1;
+        return InputProvider::Key::F1;
     case SDL_SCANCODE_F2:
-        return Window::Key::F2;
+        return InputProvider::Key::F2;
     case SDL_SCANCODE_F3:
-        return Window::Key::F3;
+        return InputProvider::Key::F3;
     case SDL_SCANCODE_F4:
-        return Window::Key::F4;
+        return InputProvider::Key::F4;
     case SDL_SCANCODE_F5:
-        return Window::Key::F5;
+        return InputProvider::Key::F5;
     case SDL_SCANCODE_F6:
-        return Window::Key::F6;
+        return InputProvider::Key::F6;
     case SDL_SCANCODE_F7:
-        return Window::Key::F7;
+        return InputProvider::Key::F7;
     case SDL_SCANCODE_F8:
-        return Window::Key::F8;
+        return InputProvider::Key::F8;
     case SDL_SCANCODE_F9:
-        return Window::Key::F9;
+        return InputProvider::Key::F9;
     case SDL_SCANCODE_F10:
-        return Window::Key::F10;
+        return InputProvider::Key::F10;
     case SDL_SCANCODE_F11:
-        return Window::Key::F11;
+        return InputProvider::Key::F11;
     case SDL_SCANCODE_F12:
-        return Window::Key::F12;
+        return InputProvider::Key::F12;
     case SDL_SCANCODE_PRINTSCREEN:
-        return Window::Key::PRINT_SCREEN;
+        return InputProvider::Key::PrintScreen;
     case SDL_SCANCODE_SCROLLLOCK:
-        return Window::Key::SCROLL_LOCK;
+        return InputProvider::Key::ScrollLock;
     case SDL_SCANCODE_PAUSE:
-        return Window::Key::PAUSE;
+        return InputProvider::Key::Pause;
     case SDL_SCANCODE_INSERT:
-        return Window::Key::INSERT;
+        return InputProvider::Key::Insert;
     case SDL_SCANCODE_HOME:
-        return Window::Key::HOME;
+        return InputProvider::Key::Home;
     case SDL_SCANCODE_PAGEUP:
-        return Window::Key::PAGE_UP;
+        return InputProvider::Key::PageUp;
     case SDL_SCANCODE_DELETE:
-        return Window::Key::DELETE;
+        return InputProvider::Key::Delete;
     case SDL_SCANCODE_END:
-        return Window::Key::END;
+        return InputProvider::Key::End;
     case SDL_SCANCODE_PAGEDOWN:
-        return Window::Key::PAGE_DOWN;
+        return InputProvider::Key::PageDown;
     case SDL_SCANCODE_RIGHT:
-        return Window::Key::RIGHT;
+        return InputProvider::Key::Right;
     case SDL_SCANCODE_LEFT:
-        return Window::Key::LEFT;
+        return InputProvider::Key::Left;
     case SDL_SCANCODE_DOWN:
-        return Window::Key::DOWN;
+        return InputProvider::Key::Down;
     case SDL_SCANCODE_UP:
-        return Window::Key::UP;
+        return InputProvider::Key::Up;
     case SDL_SCANCODE_NUMLOCKCLEAR:
-        return Window::Key::NUM_LOCK;
+        return InputProvider::Key::NumLock;
     case SDL_SCANCODE_KP_DIVIDE:
-        return Window::Key::KP_DIVIDE;
+        return InputProvider::Key::KPDivide;
     case SDL_SCANCODE_KP_MULTIPLY:
-        return Window::Key::KP_MULTIPLY;
+        return InputProvider::Key::KPMultiply;
     case SDL_SCANCODE_KP_MINUS:
-        return Window::Key::KP_SUBTRACT;
+        return InputProvider::Key::KPSubtract;
     case SDL_SCANCODE_KP_PLUS:
-        return Window::Key::KP_ADD;
+        return InputProvider::Key::KPAdd;
     case SDL_SCANCODE_KP_ENTER:
-        return Window::Key::KP_ENTER;
+        return InputProvider::Key::KPEnter;
     case SDL_SCANCODE_KP_1:
-        return Window::Key::KP_1;
+        return InputProvider::Key::KP1;
     case SDL_SCANCODE_KP_2:
-        return Window::Key::KP_2;
+        return InputProvider::Key::KP2;
     case SDL_SCANCODE_KP_3:
-        return Window::Key::KP_3;
+        return InputProvider::Key::KP3;
     case SDL_SCANCODE_KP_4:
-        return Window::Key::KP_4;
+        return InputProvider::Key::KP4;
     case SDL_SCANCODE_KP_5:
-        return Window::Key::KP_5;
+        return InputProvider::Key::KP5;
     case SDL_SCANCODE_KP_6:
-        return Window::Key::KP_6;
+        return InputProvider::Key::KP6;
     case SDL_SCANCODE_KP_7:
-        return Window::Key::KP_7;
+        return InputProvider::Key::KP7;
     case SDL_SCANCODE_KP_8:
-        return Window::Key::KP_8;
+        return InputProvider::Key::KP8;
     case SDL_SCANCODE_KP_9:
-        return Window::Key::KP_9;
+        return InputProvider::Key::KP9;
     case SDL_SCANCODE_KP_0:
-        return Window::Key::KP_0;
+        return InputProvider::Key::KP0;
     case SDL_SCANCODE_KP_PERIOD:
-        return Window::Key::KP_DIVIDE;
+        return InputProvider::Key::KPDivide;
     case SDL_SCANCODE_NONUSBACKSLASH:
-        return Window::Key::BACKSLASH;
+        return InputProvider::Key::Backslash;
     case SDL_SCANCODE_APPLICATION:
         return std::nullopt;
     case SDL_SCANCODE_POWER:
         return std::nullopt;
     case SDL_SCANCODE_KP_EQUALS:
-        return Window::Key::KP_EQUAL;
+        return InputProvider::Key::KPEqual;
     case SDL_SCANCODE_F13:
-        return Window::Key::F13;
+        return InputProvider::Key::F13;
     case SDL_SCANCODE_F14:
-        return Window::Key::F14;
+        return InputProvider::Key::F14;
     case SDL_SCANCODE_F15:
-        return Window::Key::F15;
+        return InputProvider::Key::F15;
     case SDL_SCANCODE_F16:
-        return Window::Key::F16;
+        return InputProvider::Key::F16;
     case SDL_SCANCODE_F17:
-        return Window::Key::F17;
+        return InputProvider::Key::F17;
     case SDL_SCANCODE_F18:
-        return Window::Key::F18;
+        return InputProvider::Key::F18;
     case SDL_SCANCODE_F19:
-        return Window::Key::F19;
+        return InputProvider::Key::F19;
     case SDL_SCANCODE_F20:
-        return Window::Key::F20;
+        return InputProvider::Key::F20;
     case SDL_SCANCODE_F21:
-        return Window::Key::F21;
+        return InputProvider::Key::F21;
     case SDL_SCANCODE_F22:
-        return Window::Key::F22;
+        return InputProvider::Key::F22;
     case SDL_SCANCODE_F23:
-        return Window::Key::F23;
+        return InputProvider::Key::F23;
     case SDL_SCANCODE_F24:
-        return Window::Key::F24;
+        return InputProvider::Key::F24;
     case SDL_SCANCODE_EXECUTE:
     case SDL_SCANCODE_HELP:
     case SDL_SCANCODE_MENU:
@@ -334,18 +334,18 @@ std::optional<Window::Key> windowKeyFromSDLScancode(SDL_Scancode scancode)
     case SDL_SCANCODE_KP_DECIMAL:
     case SDL_SCANCODE_KP_HEXADECIMAL:
     case SDL_SCANCODE_LCTRL:
-        return Window::Key::LEFT_CONTROL;
+        return InputProvider::Key::LeftControl;
     case SDL_SCANCODE_LSHIFT:
-        return Window::Key::LEFT_SHIFT;
+        return InputProvider::Key::LeftShift;
     case SDL_SCANCODE_LALT:
-        return Window::Key::LEFT_ALT;
+        return InputProvider::Key::LeftAlt;
     case SDL_SCANCODE_LGUI:
     case SDL_SCANCODE_RCTRL:
-        return Window::Key::RIGHT_CONTROL;
+        return InputProvider::Key::RightControl;
     case SDL_SCANCODE_RSHIFT:
-        return Window::Key::RIGHT_SHIFT;
+        return InputProvider::Key::RightShift;
     case SDL_SCANCODE_RALT:
-        return Window::Key::RIGHT_ALT;
+        return InputProvider::Key::RightAlt;
     case SDL_SCANCODE_RGUI:
     case SDL_SCANCODE_MODE:
     case SDL_SCANCODE_AUDIONEXT:
@@ -445,7 +445,7 @@ public:
         }
     }
 
-    bool isPressed(Key key) const
+    bool pressed(Key key) const
     {
         pollEvents();
         return m_pressedKeys[key];
@@ -514,14 +514,14 @@ private:
             if (event.type == SDL_QUIT) {
                 m_shouldClose = true;
             } else if (event.type == SDL_KEYDOWN) {
-                const auto key = windowKeyFromSDLScancode(event.key.keysym.scancode);
+                const auto key = inputProviderKeyFromSDLScancode(event.key.keysym.scancode);
                 if (key) {
                     m_pressedKeys[*key] = true;
                 } else {
                     std::cerr << "Unknown SDL scancode: " << event.key.keysym.scancode << std::endl;
                 }
             } else if (event.type == SDL_KEYUP) {
-                const auto key = windowKeyFromSDLScancode(event.key.keysym.scancode);
+                const auto key = inputProviderKeyFromSDLScancode(event.key.keysym.scancode);
                 if (key) {
                     m_pressedKeys[*key] = false;
                 } else {
@@ -552,9 +552,9 @@ SDL2Window::SDL2Window(const std::string& title, std::size_t w, std::size_t h)
 
 SDL2Window::~SDL2Window() = default;
 
-bool SDL2Window::isPressed(Key key) const
+bool SDL2Window::pressed(Key key) const
 {
-    return m_impl->isPressed(key);
+    return m_impl->pressed(key);
 }
 
 bool SDL2Window::shouldClose() const
