@@ -3,6 +3,7 @@
 #include "Utils/Error.h"
 #include <glm/glm.hpp>
 #include <vector>
+#include <span>
 
 namespace vk {
 class CommandBuffer;

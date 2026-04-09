@@ -2,7 +2,7 @@
 
 #include "../Utils/Error.h"
 #include "../Utils/NoNull.h"
-#include "swapchain.h"
+#include "SwapChain.h"
 #include <vulkan/vulkan.hpp>
 
 namespace BadgerEngine {
@@ -11,7 +11,7 @@ class ColorRenderPass {
     struct Private {};
 
 public:
-    static Expected<Unique<ColorRenderPass>> create(const vk::Device& logicalDevice, const e172vp::SwapChain::Settings&) noexcept;
+    static Expected<Unique<ColorRenderPass>> create(const vk::Device& logicalDevice, const SwapChain::Settings&) noexcept;
 
     ColorRenderPass(const ColorRenderPass&) = delete;
     ColorRenderPass(ColorRenderPass&&) = delete;

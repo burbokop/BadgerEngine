@@ -12,10 +12,6 @@ Expected<ObjMesh> parseFromStream(std::FILE* file)
     std::vector<glm::vec3> vertices;
     std::vector<glm::vec2> uvMap;
     std::vector<glm::vec3> normals;
-    // std::vector<std::uint32_t> vertexIndices;
-    // std::vector<std::uint32_t> uvIndices;
-    // std::vector<std::uint32_t> normalIndices;
-
     std::vector<ObjMesh::Index> indices;
 
     while (true) {
@@ -26,18 +22,24 @@ Expected<ObjMesh> parseFromStream(std::FILE* file)
             float x = 0;
             float y = 0;
             float z = 0;
-            std::fscanf(file, "%f %f %f\n", &x, &y, &z);
+            if (std::fscanf(file, "%f %f %f\n", &x, &y, &z) == EOF) {
+                return unexpected("EOF");
+            }
             vertices.push_back({ x, y, z });
         } else if (std::strcmp(line.c_str(), "vt") == 0) {
             float x = 0;
             float y = 0;
-            std::fscanf(file, "%f %f\n", &x, &y);
+            if (std::fscanf(file, "%f %f\n", &x, &y) == EOF) {
+                return unexpected("EOF");
+            }
             uvMap.push_back({ x, y });
         } else if (std::strcmp(line.c_str(), "vn") == 0) {
             float x = 0;
             float y = 0;
             float z = 0;
-            std::fscanf(file, "%f %f %f\n", &x, &y, &z);
+            if (std::fscanf(file, "%f %f %f\n", &x, &y, &z) == EOF) {
+                return unexpected("EOF");
+            }
             normals.push_back({ x, y, z });
         } else if (std::strcmp(line.c_str(), "f") == 0) {
             std::uint32_t iv1x = 0;
@@ -49,7 +51,9 @@ Expected<ObjMesh> parseFromStream(std::FILE* file)
             std::uint32_t iv3x = 0;
             std::uint32_t iv3y = 0;
             std::uint32_t iv3z = 0;
-            std::fscanf(file, "%u/%u/%u %u/%u/%u %u/%u/%u\n", &iv1x, &iv1y, &iv1z, &iv2x, &iv2y, &iv2z, &iv3x, &iv3y, &iv3z);
+            if (std::fscanf(file, "%u/%u/%u %u/%u/%u %u/%u/%u\n", &iv1x, &iv1y, &iv1z, &iv2x, &iv2y, &iv2z, &iv3x, &iv3y, &iv3z) == EOF) {
+                return unexpected("EOF");
+            }
 
             indices.push_back(ObjMesh::Index {
                 .vertex = iv1x - 1,
@@ -91,6 +95,9 @@ Expected<ObjMesh> ObjMesh::load(const std::filesystem::path& path)
 
 Expected<ObjMesh> ObjMesh::parse(std::span<const std::uint8_t> bytes)
 {
+#ifdef _MSC_VER
+    return unexpected("Not implemented");
+#else
     const auto file = ::fmemopen(const_cast<std::uint8_t*>(bytes.data()), bytes.size(), "r");
     if (file == NULL) {
         return unexpected(std::string("Failed to open file from memory: ") + ::strerror(errno));
@@ -99,6 +106,7 @@ Expected<ObjMesh> ObjMesh::parse(std::span<const std::uint8_t> bytes)
     auto result = parseFromStream(file);
     std::fclose(file);
     return result;
+#endif
 }
 
 }

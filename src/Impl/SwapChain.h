@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../Utils/Error.h"
 #include "hardware.h"
 #include <vulkan/vulkan.hpp>
 
@@ -26,9 +27,7 @@ struct Frame {
     ShadowMapRenderPassFrame shadowMap;
 };
 
-}
-
-namespace e172vp {
+Expected<vk::ImageView> createImageView(const vk::Device& logicalDevice, vk::Image image, vk::Format format) noexcept;
 
 class SwapChain {
 public:
@@ -53,13 +52,12 @@ public:
         const vk::SurfaceKHR& surface,
         const vk::RenderPass& colorRenderPass,
         const vk::RenderPass& shadowMapRenderPass,
-        const Hardware::QueueFamilies& queueFamilies,
+        const e172vp::Hardware::QueueFamilies& queueFamilies,
         const Settings& settings);
 
     ~SwapChain();
 
     static Settings createSettings(vk::PhysicalDevice physicalDevice, const e172vp::Hardware::SwapChainSupportDetails& supportDetails, const vk::Extent2D& defaultExtent = vk::Extent2D());
-    static vk::ImageView createImageView(const vk::Device& logicalDevice, vk::Image image, vk::Format format, std::vector<std::string>* error_queue = nullptr);
     std::vector<vk::ImageView> colorImageViewVector() const;
     std::vector<vk::ImageView> shadowMapImageViewVector() const;
     std::vector<vk::Framebuffer> frameBufferVector() const;
@@ -81,34 +79,6 @@ public:
     {
         return m_swapChainHandle;
     }
-
-private:
-    struct ImageInputChunk {
-        vk::Device logicalDevice;
-        vk::PhysicalDevice physicalDevice;
-        std::uint32_t width, height;
-        vk::ImageTiling tiling;
-        vk::ImageUsageFlags usage;
-        vk::MemoryPropertyFlags memoryProperties;
-        vk::Format format;
-    };
-
-private:
-    static vk::SurfaceFormatKHR chooseSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats);
-    static vk::PresentModeKHR choosePresentMode(const std::vector<vk::PresentModeKHR>& availablePresentModes);
-    static vk::Extent2D chooseExtent(const vk::SurfaceCapabilitiesKHR& capabilities, const vk::Extent2D& defaultExtent = vk::Extent2D());
-    static bool createImageViewes(const vk::Device& logicDevice, const std::vector<vk::Image>& swapChainImages, const vk::Format& swapChainImageFormat, std::vector<vk::ImageView>* swapChainImageViews, std::vector<std::string>* error_queue);
-
-    static vk::Image make_image(ImageInputChunk input);
-    static vk::DeviceMemory make_image_memory(ImageInputChunk input, vk::Image image);
-    static vk::ImageView make_image_view(
-        vk::Device logicalDevice,
-        vk::Image image,
-        vk::Format format,
-        vk::ImageAspectFlags aspect);
-
-    static uint32_t findMemoryTypeIndex(vk::PhysicalDevice physicalDevice, uint32_t supportedMemoryIndices, vk::MemoryPropertyFlags requestedProperties);
-    static vk::Format find_supported_depth_format(vk::PhysicalDevice physicalDevice, const std::vector<vk::Format>& candidates, vk::ImageTiling tiling, vk::FormatFeatureFlags features);
 
 private:
     vk::Device m_logicalDevice;

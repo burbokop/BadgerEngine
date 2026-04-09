@@ -15,28 +15,28 @@ struct Unit {};
 template<typename T = Unit>
 class [[nodiscard]] Error {
 public:
-    Error(T value, std::string message, std::optional<Error<Unit>> reason = std::nullopt, std::source_location loc = std::source_location::current())
+    Error(T value, std::string message, std::optional<Error<T>> reason = std::nullopt, std::source_location loc = std::source_location::current())
         : m_value(std::move(value))
         , m_message(std::move(message))
-        , m_reason(reason ? std::make_shared<Error<Unit>>(std::move(*reason)) : nullptr)
+        , m_reason(reason ? std::make_shared<Error<T>>(std::move(*reason)) : nullptr)
         , m_loc(std::move(loc))
     {
     }
 
-    Error(std::string message, std::optional<Error<Unit>> reason = std::nullopt, std::source_location loc = std::source_location::current())
+    Error(std::string message, std::optional<Error<T>> reason = std::nullopt, std::source_location loc = std::source_location::current())
         : Error({}, std::move(message), std::move(reason), std::move(loc))
     {
     }
 
     const auto& value() const { return m_value; }
     const auto& message() const { return m_message; }
-    std::optional<Error<Unit>> reason() const { return m_reason ? std::make_optional(*m_reason) : std::nullopt; }
+    std::optional<Error<T>> reason() const { return m_reason ? std::make_optional(*m_reason) : std::nullopt; }
     const auto& loc() const { return m_loc; }
 
 private:
     T m_value;
     std::string m_message;
-    std::shared_ptr<Error<Unit>> m_reason;
+    std::shared_ptr<Error<T>> m_reason;
     std::source_location m_loc;
 };
 

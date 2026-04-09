@@ -2,6 +2,7 @@
 #include "Texture.h"
 #include <filesystem>
 #include <map>
+#include <span>
 
 namespace BadgerEngine {
 

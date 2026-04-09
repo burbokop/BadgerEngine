@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <glm/glm.hpp>
 #include <vector>
+#include <span>
 
 namespace BadgerEngine::Geometry {
 

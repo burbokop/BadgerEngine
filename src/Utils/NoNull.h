@@ -7,9 +7,6 @@
 
 namespace BadgerEngine {
 
-// template<typename T, typename O>
-// concept Constructible = std::is_constructible_v<T, O>;
-
 /// Can only be null when moved
 template<typename T>
 class NoNull {
@@ -17,14 +14,14 @@ public:
     NoNull() = delete;
     NoNull(std::nullptr_t) = delete;
 
-    NoNull(T v) noexcept(std::is_nothrow_move_constructible_v<T>)
+    constexpr NoNull(T v) noexcept(std::is_nothrow_move_constructible_v<T>)
         : m_v(std::move(v))
     {
         assert(m_v);
     }
 
     template<std::convertible_to<T> O>
-    NoNull(O v) noexcept(std::is_nothrow_move_constructible_v<T>)
+    constexpr NoNull(O v) noexcept(std::is_nothrow_move_constructible_v<T>)
         : m_v(std::move(v))
     {
         assert(m_v);
@@ -37,68 +34,61 @@ public:
         assert(m_v);
     }
 
-    NoNull(const NoNull&) = default;
-    NoNull& operator=(const NoNull& o) = default;
+    constexpr NoNull(const NoNull&) = default;
+    constexpr NoNull& operator=(const NoNull& o) = default;
 
-    NoNull(NoNull&& o) noexcept(std::is_nothrow_move_constructible_v<T>)
+    constexpr NoNull(NoNull&& o) noexcept(std::is_nothrow_move_constructible_v<T>)
         : m_v(std::exchange(o.m_v, nullptr))
     {
         assert(m_v);
     }
 
-    NoNull& operator=(NoNull&& o)
+    constexpr NoNull& operator=(NoNull&& o)
     {
         m_v = std::exchange(o.m_v, nullptr);
         assert(m_v);
         return *this;
     }
 
-    decltype(auto) operator->()
+    constexpr decltype(auto) operator->()
         requires(std::is_pointer_v<T>)
     {
         assert(m_v);
         return m_v;
     }
 
-    decltype(auto) operator->() const
+    constexpr decltype(auto) operator->() const
         requires(std::is_pointer_v<T>)
     {
         assert(m_v);
         return m_v;
     }
 
-    decltype(auto) operator->()
+    constexpr decltype(auto) operator->()
         requires(!std::is_pointer_v<T>)
     {
         assert(m_v);
         return m_v.operator->();
     }
 
-    decltype(auto) operator->() const
+    constexpr decltype(auto) operator->() const
         requires(!std::is_pointer_v<T>)
     {
         assert(m_v);
         return m_v.operator->();
     }
 
-    auto& operator*()
+    constexpr auto& operator*()
     {
         assert(m_v);
         return *m_v;
     }
 
-    const auto& operator*() const
+    constexpr const auto& operator*() const
     {
         assert(m_v);
         return *m_v;
     }
-
-    // template<class Self>
-    // constexpr auto&& nullable(this Self&& self)
-    // {
-    //     assert(m_v);
-    //     return m_v;
-    // }
 
     constexpr T& nullable() &
     {

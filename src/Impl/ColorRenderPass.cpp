@@ -2,7 +2,7 @@
 
 namespace BadgerEngine {
 
-Expected<Unique<ColorRenderPass>> ColorRenderPass::create(const vk::Device& logicalDevice, const e172vp::SwapChain::Settings& swapchainSettings) noexcept
+Expected<Unique<ColorRenderPass>> ColorRenderPass::create(const vk::Device& logicalDevice, const SwapChain::Settings& swapchainSettings) noexcept
 {
     const vk::AttachmentDescription colorAttachment = {
         .format = swapchainSettings.surfaceFormat.format,

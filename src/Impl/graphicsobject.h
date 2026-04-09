@@ -2,9 +2,9 @@
 
 #include "ColorRenderPass.h"
 #include "ShadowMapRenderPass.h"
+#include "SwapChain.h"
 #include "commandpool.h"
 #include "hardware.h"
-#include "swapchain.h"
 #include <functional>
 #include <vulkan/vulkan.hpp>
 
@@ -31,7 +31,7 @@ class GraphicsObject {
     vk::Queue m_graphicsQueue;
     vk::Queue m_presentQueue;
 
-    std::unique_ptr<e172vp::SwapChain> m_swapChain;
+    std::unique_ptr<BadgerEngine::SwapChain> m_swapChain;
     std::unique_ptr<BadgerEngine::ColorRenderPass> m_colorRenderPass;
     std::unique_ptr<BadgerEngine::ShadowMapRenderPass> m_shadowMapRenderPass;
     e172vp::CommandPool m_commandPool;
@@ -40,7 +40,7 @@ class GraphicsObject {
     vk::Sampler m_shadowSampler;
 
     e172vp::Hardware::QueueFamilies m_queueFamilies;
-    e172vp::SwapChain::Settings m_swapChainSettings;
+    BadgerEngine::SwapChain::Settings m_swapChainSettings;
 
     std::vector<std::string> m_enabledValidationLayers;
     bool m_debugEnabled = false;
@@ -56,11 +56,11 @@ public:
     vk::Device logicalDevice() const;
     vk::SurfaceKHR surface() const;
     e172vp::Hardware::QueueFamilies queueFamilies() const;
-    e172vp::SwapChain::Settings swapChainSettings() const;
+    BadgerEngine::SwapChain::Settings swapChainSettings() const;
     std::vector<std::string> enabledValidationLayers() const;
     vk::Queue graphicsQueue() const;
     vk::Queue presentQueue() const;
-    const e172vp::SwapChain& swapChain() const { return *m_swapChain; }
+    const BadgerEngine::SwapChain& swapChain() const { return *m_swapChain; }
     e172vp::CommandPool commandPool() const;
     const auto& colorRenderPass() const { return m_colorRenderPass; }
     const auto& shadowMapRenderPass() const { return m_shadowMapRenderPass; }
