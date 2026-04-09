@@ -1,7 +1,6 @@
 #include "TinyGLTFImporter.h"
-#include <algorithm>
 
-#define GLM_ENABLE_EXPERIMENTAL
+#include <algorithm>
 #include "../Utils/NumericCast.h"
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/glm.hpp>

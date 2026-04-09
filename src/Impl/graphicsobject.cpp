@@ -63,7 +63,7 @@ vk::Queue e172vp::GraphicsObject::graphicsQueue() const { return m_graphicsQueue
 vk::Queue e172vp::GraphicsObject::presentQueue() const { return m_presentQueue; }
 e172vp::CommandPool e172vp::GraphicsObject::commandPool() const { return m_commandPool; }
 bool e172vp::GraphicsObject::debugEnabled() const { return m_debugEnabled; }
-e172vp::SwapChain::Settings e172vp::GraphicsObject::swapChainSettings() const { return m_swapChainSettings; }
+BadgerEngine::SwapChain::Settings e172vp::GraphicsObject::swapChainSettings() const { return m_swapChainSettings; }
 
 std::vector<std::string> e172vp::GraphicsObject::pullErrors()
 {
@@ -142,7 +142,7 @@ e172vp::GraphicsObject::GraphicsObject(const GraphicsObjectCreateInfo& createInf
     m_logicalDevice.getQueue(m_queueFamilies.presentFamily(), 0, &m_presentQueue);
 
     const auto swapChainSupportDetails = e172vp::Hardware::querySwapChainSupport(m_physicalDevice, m_surface);
-    m_swapChainSettings = e172vp::SwapChain::createSettings(m_physicalDevice, swapChainSupportDetails);
+    m_swapChainSettings = BadgerEngine::SwapChain::createSettings(m_physicalDevice, swapChainSupportDetails);
 
     {
         auto colorRenderPass = BadgerEngine::ColorRenderPass::create(m_logicalDevice, m_swapChainSettings);
@@ -169,7 +169,7 @@ e172vp::GraphicsObject::GraphicsObject(const GraphicsObjectCreateInfo& createInf
     assert(m_colorRenderPass);
     assert(m_shadowMapRenderPass);
 
-    m_swapChain = std::make_unique<e172vp::SwapChain>(
+    m_swapChain = std::make_unique<BadgerEngine::SwapChain>(
         m_logicalDevice,
         m_physicalDevice,
         m_surface,

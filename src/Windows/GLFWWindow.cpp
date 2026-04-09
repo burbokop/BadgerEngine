@@ -5,6 +5,7 @@
 #include "../Utils/NumericCast.h"
 #include <GLFW/glfw3.h>
 #include <iostream>
+#include <mutex>
 
 namespace BadgerEngine {
 

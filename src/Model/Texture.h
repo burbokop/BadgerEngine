@@ -6,6 +6,7 @@
 #include <glm/glm.hpp>
 #include <optional>
 #include <vector>
+#include <ostream>
 
 namespace BadgerEngine {
 

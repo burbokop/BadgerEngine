@@ -1,6 +1,7 @@
 #include "Camera.h"
 
 #include "Window.h"
+#include <utility>
 
 namespace BadgerEngine {
 

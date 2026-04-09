@@ -2,7 +2,7 @@
 
 #include "../Utils/NumericCast.h"
 #include "Buffers/BufferUtils.h"
-#include "swapchain.h"
+#include "SwapChain.h"
 
 namespace BadgerEngine {
 
@@ -394,10 +394,9 @@ Expected<Shared<UploadedTexture>> UploadedTexture::upload(
         }
     }
 
-    std::vector<std::string> errs;
-    const auto imageView = e172vp::SwapChain::createImageView(logicalDevice, image, *imageFormat, &errs);
-    if (!errs.empty()) {
-        return unexpected("Error creating image view: " + errs.front());
+    const auto imageView = createImageView(logicalDevice, image, *imageFormat);
+    if (!imageView) {
+        return unexpected("Failed to create image view", imageView.error());
     }
 
     const auto size = glm::ivec2(texture->width(), texture->height());
@@ -406,7 +405,7 @@ Expected<Shared<UploadedTexture>> UploadedTexture::upload(
         std::move(logicalDevice),
         std::move(imageMemory),
         std::move(image),
-        std::move(imageView),
+        *std::move(imageView),
         *std::move(imageFormat),
         std::move(size),
         Private {});
@@ -469,17 +468,16 @@ Expected<Shared<UploadedTexture>> UploadedTexture::create(
         }
     }
 
-    std::vector<std::string> errs;
-    const auto imageView = e172vp::SwapChain::createImageView(logicalDevice, image, *imageFormat, &errs);
-    if (!errs.empty()) {
-        return unexpected("Error creating image view: " + errs.front());
+    const auto imageView = createImageView(logicalDevice, image, *imageFormat);
+    if (!imageView) {
+        return unexpected("Failed to create image view", imageView.error());
     }
 
     const auto result = std::make_shared<UploadedTexture>(
         std::move(logicalDevice),
         std::move(imageMemory),
         std::move(image),
-        std::move(imageView),
+        *std::move(imageView),
         *std::move(imageFormat),
         std::move(size),
         Private {});

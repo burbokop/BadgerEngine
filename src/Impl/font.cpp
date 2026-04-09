@@ -2,10 +2,13 @@
 
 #include "../Utils/NumericCast.h"
 #include "Buffers/BufferUtils.h"
-#include "swapchain.h"
+#include "SwapChain.h"
+#include <iostream>
+
+#ifdef BADGER_ENGINE_FREETYPE
 #include <freetype/freetype.h>
 #include <ft2build.h>
-#include <iostream>
+#endif
 
 bool e172vp::Font::createTextureImage32(
     const vk::Device& logicalDevice,
@@ -222,11 +225,12 @@ e172vp::Font::Font(
     const vk::PhysicalDevice& physicalDevice,
     const vk::CommandPool& commandPool,
     const vk::Queue& copyQueue,
-    std::span<const std::uint8_t> fontBytes,
-    std::size_t size)
+    [[maybe_unused]] std::span<const std::uint8_t> fontBytes,
+    [[maybe_unused]] std::size_t size)
+    : m_logicalDevice(logicalDevice)
 {
-    m_logicalDevice = logicalDevice;
 
+#ifdef BADGER_ENGINE_FREETYPE
     FT_Library ft;
     if (FT_Init_FreeType(&ft)) {
         throw std::runtime_error("Failed to init FreeType Library");
@@ -276,7 +280,7 @@ e172vp::Font::Font(
             if (!createTextureImage32(logicalDevice, physicalDevice, commandPool, copyQueue, rgba_buffer.data(), face->glyph->bitmap.width, face->glyph->bitmap.rows, character.m_imageFormat, &character.m_image, &character.m_imageMemory))
                 break;
 
-            character.m_imageView = SwapChain::createImageView(logicalDevice, character.m_image, character.m_imageFormat);
+            character.m_imageView = BadgerEngine::createImageView(logicalDevice, character.m_image, character.m_imageFormat).transform_error(BadgerEngine::AsCritical()).value();
             character.m_size = glm::ivec2(face->glyph->bitmap.width, face->glyph->bitmap.rows);
             character.m_bearing = glm::ivec2(face->glyph->bitmap_left, face->glyph->bitmap_top);
             character.m_advance = BadgerEngine::numericCast<std::uint32_t>(face->glyph->advance.x).value();
@@ -287,6 +291,27 @@ e172vp::Font::Font(
     }
     FT_Done_Face(face);
     FT_Done_FreeType(ft);
+#else
+    // Dummy characters
+    for (unsigned char c = 0; c < 128; c++) {
+        Character character;
+
+        character.m_imageFormat = vk::Format::eR8G8B8A8Srgb;
+
+        std::vector<std::uint32_t> rgba_buffer = { 0xff0088ff };
+
+        if (!createTextureImage32(logicalDevice, physicalDevice, commandPool, copyQueue, rgba_buffer.data(), 1, 1, character.m_imageFormat, &character.m_image, &character.m_imageMemory))
+            break;
+
+        character.m_imageView = SwapChain::createImageView(logicalDevice, character.m_image, character.m_imageFormat);
+        character.m_size = glm::ivec2(1, 1);
+        character.m_bearing = glm::ivec2(0, 0);
+        character.m_advance = 0;
+        character.m_isValid = true;
+
+        characters.insert(std::pair<char, Character>(c, character));
+    }
+#endif
 }
 
 e172vp::Font::~Font()

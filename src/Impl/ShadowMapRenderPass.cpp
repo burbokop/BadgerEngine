@@ -2,7 +2,7 @@
 
 namespace BadgerEngine {
 
-Expected<Unique<ShadowMapRenderPass>> ShadowMapRenderPass::create(const vk::Device& logicalDevice, const e172vp::SwapChain::Settings& swapchainSettings) noexcept
+Expected<Unique<ShadowMapRenderPass>> ShadowMapRenderPass::create(const vk::Device& logicalDevice, const SwapChain::Settings& swapchainSettings) noexcept
 {
     const vk::AttachmentDescription depthStencilAttachment = {
         .format = swapchainSettings.depthFormat,

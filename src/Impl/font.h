@@ -1,10 +1,8 @@
 #ifndef FONT_H
 #define FONT_H
 
-#include <filesystem>
 #include <glm/glm.hpp>
 #include <map>
-#include <string>
 #include <vulkan/vulkan.hpp>
 
 namespace e172vp {
