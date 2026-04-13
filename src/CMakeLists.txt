@@ -11,16 +11,18 @@ set(INSTALLDIR ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME})
 
 target_sources(
     BadgerEngine
-    PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/Renderer.h>
-           $<INSTALL_INTERFACE:${INSTALLDIR}/Renderer.h>
-           $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/VertexObject.h>
-           $<INSTALL_INTERFACE:${INSTALLDIR}/VertexObject.h>
+    PUBLIC # cmake-format: sort
            $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/Camera.h>
-           $<INSTALL_INTERFACE:${INSTALLDIR}/Camera.h>
-           $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/Window.h>
-           $<INSTALL_INTERFACE:${INSTALLDIR}/Window.h>
            $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/PointLight.h>
-           $<INSTALL_INTERFACE:${INSTALLDIR}/PointLight.h>
+           $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/Renderer.h>
            $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/RenderingOptions.h>
+           $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/VertexObject.h>
+           $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/Window.h>
+           $<INSTALL_INTERFACE:${INSTALLDIR}/Camera.h>
+           $<INSTALL_INTERFACE:${INSTALLDIR}/PointLight.h>
+           $<INSTALL_INTERFACE:${INSTALLDIR}/Renderer.h>
            $<INSTALL_INTERFACE:${INSTALLDIR}/RenderingOptions.h>
-    PRIVATE Renderer.cpp VertexObject.cpp Camera.cpp)
+           $<INSTALL_INTERFACE:${INSTALLDIR}/VertexObject.h>
+           $<INSTALL_INTERFACE:${INSTALLDIR}/Window.h>
+    PRIVATE # cmake-format: sort
+            Camera.cpp Renderer.cpp VertexObject.cpp)

@@ -3,8 +3,8 @@
 #include "../RenderingOptions.h"
 #include "../VertexObject.h"
 #include "Buffers/BufferUtils.h"
-#include "Buffers/MeshBuffer.h"
-#include "UploadedModel.h"
+#include "Uploaded/UploadedModel.h"
+#include "Uploaded/UploadedTexture.h"
 #include "descriptorsetlayout.h"
 #include <glm/glm.hpp>
 #include <span>
@@ -17,7 +17,6 @@ class Pipeline;
 namespace BadgerEngine {
 
 class Renderer;
-class UploadedTexture;
 
 namespace Geometry {
 class Mesh;
@@ -34,6 +33,7 @@ public:
         const e172vp::DescriptorSetLayout& uniformBufferDescriptorSetLayout,
         const e172vp::DescriptorSetLayout& baseColorDescriptorSetLayout,
         const Shared<BadgerEngine::Geometry::Mesh>& mesh,
+        UploadedMeshCache& cache,
         const vk::ImageView& imageView,
         Shared<e172vp::Pipeline> pipeline,
         Shared<e172vp::Pipeline> nPipeline,
@@ -44,6 +44,7 @@ public:
         const e172vp::DescriptorSetLayout& uniformBufferDescriptorSetLayout,
         const e172vp::DescriptorSetLayout& baseColorDescriptorSetLayout,
         const Shared<BadgerEngine::Geometry::Mesh>& mesh,
+        UploadedMeshCache& cache,
         std::span<const vk::ImageView> imageViews,
         vk::ImageLayout imageLayout,
         Shared<e172vp::Pipeline> pipeline,
@@ -56,7 +57,8 @@ public:
         const e172vp::DescriptorSetLayout& uniformBufferDescriptorSetLayout,
         const e172vp::DescriptorSetLayout& baseColorDescriptorSetLayout,
         const Shared<BadgerEngine::Geometry::Mesh>& mesh,
-        Shared<UploadedTexture> texture,
+        UploadedMeshCache& cache,
+        UploadedTexture texture,
         Shared<e172vp::Pipeline> pipeline,
         Shared<e172vp::Pipeline> nPipeline,
         DisplayNormals displayNormals);
@@ -85,7 +87,7 @@ protected:
 private:
     Shared<e172vp::GraphicsObject> m_graphicsObject;
     std::vector<UploadedModel> m_models;
-    std::optional<Shared<UploadedTexture>> m_texture;
+    std::optional<UploadedTexture> m_texture;
 
     std::vector<BadgerEngine::BufferBundle> m_uniformBufferBundles;
     std::vector<vk::DescriptorSet> m_baseColorTextureDescriptorSets;

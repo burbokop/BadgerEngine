@@ -4,17 +4,19 @@ set(INSTALLDIR ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}/Import)
 
 target_sources(
     BadgerEngine
-    PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/Data.h>
-           $<INSTALL_INTERFACE:${INSTALLDIR}/Data.h>
-           $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/Importer.h>
-           $<INSTALL_INTERFACE:${INSTALLDIR}/Importer.h>
+    PUBLIC # cmake-format: sort
            $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/AssimpImporter.h>
-           $<INSTALL_INTERFACE:${INSTALLDIR}/AssimpImporter.h>
+           $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/Data.h>
+           $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/Importer.h>
            $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/TinyGLTFImporter.h>
+           $<INSTALL_INTERFACE:${INSTALLDIR}/AssimpImporter.h>
+           $<INSTALL_INTERFACE:${INSTALLDIR}/Data.h>
+           $<INSTALL_INTERFACE:${INSTALLDIR}/Importer.h>
            $<INSTALL_INTERFACE:${INSTALLDIR}/TinyGLTFImporter.h>
-    PRIVATE Importer.h
-            Importer.cpp
-            AssimpImporter.h
+    PRIVATE # cmake-format: sort
             AssimpImporter.cpp
-            TinyGLTFImporter.h
-            TinyGLTFImporter.cpp)
+            AssimpImporter.h
+            Importer.cpp
+            Importer.h
+            TinyGLTFImporter.cpp
+            TinyGLTFImporter.h)

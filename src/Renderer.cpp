@@ -4,7 +4,7 @@
 #include "Impl/BSDFVertexObject.h"
 #include "Impl/Buffers/BufferUtils.h"
 #include "Impl/ImageViewVertexObject.h"
-#include "Impl/UploadedTexture.h"
+#include "Impl/Uploaded/UploadedTexture.h"
 #include "Impl/font.h"
 #include "Impl/graphicsobject.h"
 #include "Impl/stringvector.h"
@@ -153,14 +153,14 @@ glm::vec2 vkExtent2DToGLMVec2(vk::Extent2D ex)
     return { ex.width, ex.height };
 }
 
-Expected<Shared<UploadedTexture>> uploadMaterialColorChannel(
+Expected<UploadedTexture> uploadMaterialColorChannel(
     const MaterialColorChannel& channel,
     const e172vp::GraphicsObject& graphicsObject,
     UploadedTextureCache& cache)
 {
     return std::visit(
         Overloaded {
-            [&graphicsObject, &cache](const SharedTexture& texture) -> Expected<Shared<UploadedTexture>> {
+            [&graphicsObject, &cache](const SharedTexture& texture) -> Expected<UploadedTexture> {
                 return UploadedTexture::upload(
                     graphicsObject.logicalDevice(),
                     graphicsObject.physicalDevice(),
@@ -171,7 +171,7 @@ Expected<Shared<UploadedTexture>> uploadMaterialColorChannel(
                     texture)
                     .transform_error(AsReason("Failed to upload a texture"));
             },
-            [&graphicsObject, &cache](const RGBAColor& color) -> Expected<Shared<UploadedTexture>> {
+            [&graphicsObject, &cache](const RGBAColor& color) -> Expected<UploadedTexture> {
                 return UploadedTexture::create(
                     graphicsObject.logicalDevice(),
                     graphicsObject.physicalDevice(),
@@ -241,7 +241,9 @@ struct RendererImpl {
 
     Shared<Window> window;
     Shared<UploadedTextureCache> textureCache;
-    std::shared_ptr<UploadedTexture> defaultTexture;
+    Shared<UploadedMeshCache> meshCache;
+
+    std::optional<UploadedTexture> defaultTexture;
 
 #ifdef BADGER_ENGINE_RENDERDOC
     RENDERDOC_API_1_1_2* renderDocApi;
@@ -293,6 +295,7 @@ Renderer::Renderer(Shared<Window> window, Shared<Camera> camera, std::span<const
 
           .window = std::move(window),
           .textureCache = std::make_shared<UploadedTextureCache>(),
+          .meshCache = std::make_shared<UploadedMeshCache>(),
           .defaultTexture = {},
 
 #ifdef BADGER_ENGINE_RENDERDOC
@@ -364,8 +367,7 @@ Renderer::Renderer(Shared<Window> window, Shared<Camera> camera, std::span<const
         { 1, 1 },
         glm::vec4(1, 0, 1, 1))
                                  .transform_error(AsCritical())
-                                 .value()
-                                 .nullable();
+                                 .value();
 
     m_impl->normalDebugPipeline = createColorPipeline(
         Normal_vert,
@@ -799,6 +801,7 @@ VertexObject& Renderer::addCharacter(char c, std::shared_ptr<e172vp::Pipeline> p
         m_impl->objectDescriptorSetLayout,
         m_impl->baseColorSamplerDescriptorSetLayout,
         Geometry::Mesh::create(Geometry::Topology::TriangleList, v, i),
+        *m_impl->meshCache,
         m_impl->font->character(c).imageView(),
         pipeline,
         m_impl->normalDebugPipeline,
@@ -827,6 +830,7 @@ VertexObject& Renderer::addObject(const BadgerEngine::Model& model, RenderingOpt
                     m_impl->normalMapDescriptorSetLayout,
                     m_impl->shadowMapSamplerDescriptorSetLayout,
                     model.mesh(),
+                    *m_impl->meshCache,
                     std::move(baseColor),
                     std::move(ambientOclusion),
                     std::move(normalMap),
@@ -848,6 +852,7 @@ VertexObject& Renderer::addObject(const BadgerEngine::Model& model, RenderingOpt
                     m_impl->objectDescriptorSetLayout,
                     m_impl->baseColorSamplerDescriptorSetLayout,
                     model.mesh(),
+                    *m_impl->meshCache,
                     frames[i].color.imageView,
                     createColorPipeline(material.vert, material.frag, model.mesh()->topology(), model.polygonMode(), options.backfaceCulling),
                     m_impl->normalDebugPipeline,
@@ -861,6 +866,7 @@ VertexObject& Renderer::addObject(const BadgerEngine::Model& model, RenderingOpt
                     m_impl->objectDescriptorSetLayout,
                     m_impl->shadowMapSamplerDescriptorSetLayout,
                     model.mesh(),
+                    *m_impl->meshCache,
                     m_impl->graphicsObject->swapChain().shadowMapImageViewVector(),
                     vk::ImageLayout::eDepthStencilReadOnlyOptimal,
                     createShadowMapAsColorPipeline(material.vert, material.frag, model.mesh()->topology(), model.polygonMode(), options.backfaceCulling),
@@ -889,6 +895,7 @@ VertexObject& Renderer::addObject(const BadgerEngine::Model& model, RenderingOpt
                         m_impl->objectDescriptorSetLayout,
                         m_impl->baseColorSamplerDescriptorSetLayout,
                         model.mesh(),
+                        *m_impl->meshCache,
                         texture,
                         createColorPipeline(material.vert, material.frag, model.mesh()->topology(), model.polygonMode(), options.backfaceCulling),
                         m_impl->normalDebugPipeline,
@@ -903,6 +910,7 @@ VertexObject& Renderer::addObject(const BadgerEngine::Model& model, RenderingOpt
                         m_impl->objectDescriptorSetLayout,
                         m_impl->baseColorSamplerDescriptorSetLayout,
                         model.mesh(),
+                        *m_impl->meshCache,
                         m_impl->font->character('N').imageView(),
                         createColorPipeline(material.vert, material.frag, model.mesh()->topology(), model.polygonMode(), options.backfaceCulling),
                         m_impl->normalDebugPipeline,
@@ -916,7 +924,8 @@ VertexObject& Renderer::addObject(const BadgerEngine::Model& model, RenderingOpt
                         m_impl->objectDescriptorSetLayout,
                         m_impl->baseColorSamplerDescriptorSetLayout,
                         model.mesh(),
-                        m_impl->defaultTexture,
+                        *m_impl->meshCache,
+                        m_impl->defaultTexture.value(),
                         createColorPipeline(material.vert, material.frag, model.mesh()->topology(), model.polygonMode(), options.backfaceCulling),
                         m_impl->normalDebugPipeline,
                         options.displayNormals);
