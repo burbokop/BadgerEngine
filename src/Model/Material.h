@@ -29,13 +29,19 @@ struct ShadowMapMaterial {
     std::vector<std::uint8_t> frag;
 };
 
+struct TextMaterial {
+    std::string text;
+    std::vector<std::uint8_t> vert;
+    std::vector<std::uint8_t> frag;
+};
+
 struct CustomMaterial {
     std::vector<SharedTexture> textures;
     std::vector<std::uint8_t> vert;
     std::vector<std::uint8_t> frag;
 };
 
-using Material = std::variant<BSDFMaterial, RecursiveMaterial, ShadowMapMaterial, CustomMaterial>;
+using Material = std::variant<BSDFMaterial, RecursiveMaterial, ShadowMapMaterial, TextMaterial, CustomMaterial>;
 
 using SharedMaterial = Shared<Material>;
 

@@ -739,8 +739,8 @@ Expected<glm::vec4> parseVec4(const std::vector<double>& vec) noexcept
         return unexpected("Failed to parse emissive color", emissiveColor.error());
     }
 
-    const auto metallness = material.pbrMetallicRoughness.metallicFactor;
-    const auto roughness = material.pbrMetallicRoughness.roughnessFactor;
+    const float metallness = numericCast<float>(material.pbrMetallicRoughness.metallicFactor).value();
+    const float roughness = numericCast<float>(material.pbrMetallicRoughness.roughnessFactor).value();
 
     std::vector<SharedTexture> normalsMaps;
     if (material.normalTexture.index >= 0) {

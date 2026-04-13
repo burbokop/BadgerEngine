@@ -1,7 +1,5 @@
 #include "GLFWWindow.h"
 
-#define GLFW_INCLUDE_VULKAN
-#define GLM_FORCE_RADIANS
 #include "../Utils/NumericCast.h"
 #include <GLFW/glfw3.h>
 #include <iostream>
@@ -45,7 +43,7 @@ public:
     bool shouldClose() const
     {
         ::glfwPollEvents();
-        return ::glfwWindowShouldClose(m_window.nullable());
+        return ::glfwWindowShouldClose(m_window.nullable()) != 0;
     }
 
     void setCursorVisible(bool v)
@@ -55,7 +53,7 @@ public:
 
     void setMousePosition(const glm::vec2& pos)
     {
-        ::glfwSetCursorPos(m_window.nullable(), pos.x, pos.y);
+        ::glfwSetCursorPos(m_window.nullable(), numericCast<double>(pos.x).value(), numericCast<double>(pos.y).value());
     }
 
     Expected<vk::SurfaceKHR> createVulkanSurface(vk::Instance i)

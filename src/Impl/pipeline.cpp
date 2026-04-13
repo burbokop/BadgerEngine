@@ -121,9 +121,10 @@ e172vp::Pipeline::Pipeline(
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 
-    vk::Rect2D scissor;
-    scissor.offset = vk::Offset2D(0, 0);
-    scissor.extent = extent;
+    const vk::Rect2D scissor = {
+        .offset = { .x = 0, .y = 0 },
+        .extent = extent,
+    };
 
     vk::PipelineViewportStateCreateInfo viewportState;
     viewportState.viewportCount = 1;
@@ -246,7 +247,7 @@ e172vp::Pipeline::Pipeline(
     };
 
     const vk::Rect2D scissor = {
-        .offset = vk::Offset2D(0, 0),
+        .offset = { .x = 0, .y = 0 },
         .extent = extent,
     };
 
@@ -300,7 +301,7 @@ e172vp::Pipeline::Pipeline(
     }
 
     const vk::GraphicsPipelineCreateInfo pipelineInfo = {
-        .stageCount = shaderStages.size(),
+        .stageCount = BadgerEngine::numericCast<std::uint32_t>(shaderStages.size()).value(),
         .pStages = shaderStages.data(),
         .pVertexInputState = &vertexInputInfo,
         .pInputAssemblyState = &inputAssembly,

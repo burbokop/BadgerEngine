@@ -25,6 +25,11 @@ class Mesh;
 class ImageViewVertexObject : public VertexObject {
 
 public:
+    ImageViewVertexObject(const ImageViewVertexObject &) = delete;
+    ImageViewVertexObject(ImageViewVertexObject &&) = delete;
+    ImageViewVertexObject &operator=(const ImageViewVertexObject &) = delete;
+    ImageViewVertexObject &operator=(ImageViewVertexObject &&) = delete;
+
     ~ImageViewVertexObject();
 
     ImageViewVertexObject(

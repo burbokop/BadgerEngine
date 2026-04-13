@@ -2,7 +2,7 @@
 
 namespace BadgerEngine::Geometry::Primitives {
 
-const Shared<Mesh> plane = Mesh::create(
+const Shared<Mesh> Plane = Mesh::create(
     Topology::TriangleList,
     {
         { .position = { -0.5f, -0.5f, 0 }, .normal = { 0, 0, 1 }, .tangent = { 1, 0, 0 }, .bitangent = { 0, 1, 0 }, .color = { 1.0f, 0.0f, 0.0f }, .uv = { 0.0f, 0.0f } },
@@ -13,7 +13,7 @@ const Shared<Mesh> plane = Mesh::create(
     { 0, 1, 2,
         2, 3, 0 });
 
-const Shared<Mesh> ufo = Mesh::create(
+const Shared<Mesh> UFO = Mesh::create(
     Topology::TriangleList,
     {
         { .position = { 4.5f, -0.5f, 0 }, .normal = { 0, 0, 1 }, .tangent = { 1, 0, 0 }, .bitangent = { 0, 1, 0 }, .color = { 1.0f, 0.0f, 0.0f }, .uv = {} },

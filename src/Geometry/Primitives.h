@@ -4,7 +4,7 @@
 
 namespace BadgerEngine::Geometry::Primitives {
 
-extern const Shared<Mesh> plane;
-extern const Shared<Mesh> ufo;
+extern const Shared<Mesh> Plane;
+extern const Shared<Mesh> UFO;
 
 };

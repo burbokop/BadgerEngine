@@ -48,8 +48,13 @@ class GraphicsObject {
     std::vector<std::string> m_errors;
 
 public:
-    static void createDescriptorPool(const vk::Device& logicalDevice, size_t size, vk::DescriptorPool* uniformDescriptorPool, std::vector<std::string>* m_errors);
-    GraphicsObject(const GraphicsObjectCreateInfo& createInfo);
+    GraphicsObject(const GraphicsObject &) = delete;
+    GraphicsObject(GraphicsObject &&) = delete;
+    GraphicsObject &operator=(const GraphicsObject &) = delete;
+    GraphicsObject &operator=(GraphicsObject &&) = delete;
+
+    GraphicsObject(const GraphicsObjectCreateInfo &createInfo);
+    static void createDescriptorPool(const vk::Device& logicalDevice, size_t size, vk::DescriptorPool* uniformDescriptorPool, std::vector<std::string>* m_errors);   
 
     vk::Instance vulkanInstance() const;
     vk::PhysicalDevice physicalDevice() const;

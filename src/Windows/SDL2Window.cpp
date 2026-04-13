@@ -1,6 +1,5 @@
 #include "SDL2Window.h"
 
-#define GLM_FORCE_RADIANS
 #include "../Utils/NumericCast.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_vulkan.h>

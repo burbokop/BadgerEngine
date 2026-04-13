@@ -1,6 +1,7 @@
 #include "SwapChain.h"
 
 #include "../Utils/Collections.h"
+#include "../Utils/NumericCast.h"
 #include <cstdint>
 #include <limits>
 #include <ranges>
@@ -104,39 +105,23 @@ std::uint32_t findMemoryTypeIndex(vk::PhysicalDevice physicalDevice, std::uint32
 
 vk::Image make_image(ImageInputChunk input)
 {
-
-    /*
-    typedef struct VkImageCreateInfo {
-            VkStructureType          sType;
-            const void* pNext;
-            VkImageCreateFlags       flags;
-            VkImageType              imageType;
-            VkFormat                 format;
-            VkExtent3D               extent;
-            uint32_t                 mipLevels;
-            uint32_t                 arrayLayers;
-            VkSampleCountFlagBits    samples;
-            VkImageTiling            tiling;
-            VkImageUsageFlags        usage;
-            VkSharingMode            sharingMode;
-            uint32_t                 queueFamilyIndexCount;
-            const uint32_t* pQueueFamilyIndices;
-            VkImageLayout            initialLayout;
-    } VkImageCreateInfo;
-    */
-
-    vk::ImageCreateInfo imageInfo;
-    imageInfo.flags = vk::ImageCreateFlagBits();
-    imageInfo.imageType = vk::ImageType::e2D;
-    imageInfo.extent = vk::Extent3D(input.width, input.height, 1);
-    imageInfo.mipLevels = 1;
-    imageInfo.arrayLayers = 1;
-    imageInfo.format = input.format;
-    imageInfo.tiling = input.tiling;
-    imageInfo.initialLayout = vk::ImageLayout::eUndefined;
-    imageInfo.usage = input.usage;
-    imageInfo.sharingMode = vk::SharingMode::eExclusive;
-    imageInfo.samples = vk::SampleCountFlagBits::e1;
+    const vk::ImageCreateInfo imageInfo = {
+        .flags = vk::ImageCreateFlagBits(),
+        .imageType = vk::ImageType::e2D,
+        .format = input.format,
+        .extent = {
+            .width = input.width,
+            .height = input.height,
+            .depth = 1,
+        },
+        .mipLevels = 1,
+        .arrayLayers = 1,
+        .samples = vk::SampleCountFlagBits::e1,
+        .tiling = input.tiling,
+        .usage = input.usage,
+        .sharingMode = vk::SharingMode::eExclusive,
+        .initialLayout = vk::ImageLayout::eUndefined,
+    };
 
     try {
         return input.logicalDevice.createImage(imageInfo);
@@ -147,7 +132,6 @@ vk::Image make_image(ImageInputChunk input)
 
 vk::DeviceMemory make_image_memory(ImageInputChunk input, vk::Image image)
 {
-
     vk::MemoryRequirements requirements = input.logicalDevice.getImageMemoryRequirements(image);
 
     vk::MemoryAllocateInfo allocation;
@@ -248,7 +232,7 @@ Expected<Frame> createFrame(
 
             const vk::FramebufferCreateInfo colorFramebufferInfo = {
                 .renderPass = colorRenderPass,
-                .attachmentCount = colorFramebufferAttachments.size(),
+                .attachmentCount = numericCast<std::uint32_t>(colorFramebufferAttachments.size()).value(),
                 .pAttachments = colorFramebufferAttachments.data(),
                 .width = settings.extent.width,
                 .height = settings.extent.height,
@@ -304,7 +288,7 @@ Expected<Frame> createFrame(
 
             const vk::FramebufferCreateInfo shadowMapFramebufferInfo = {
                 .renderPass = shadowMapRenderPass,
-                .attachmentCount = shadowMapFramebufferAttachments.size(),
+                .attachmentCount = numericCast<std::uint32_t>(shadowMapFramebufferAttachments.size()).value(),
                 .pAttachments = shadowMapFramebufferAttachments.data(),
                 .width = settings.shadowMapExtent.width,
                 .height = settings.shadowMapExtent.height,
@@ -503,7 +487,7 @@ SwapChain::SwapChain(
     swapchainCreateInfo.clipped = true;
 
     m_swapChainHandle = logicalDevice.createSwapchainKHR(swapchainCreateInfo);
-    m_isValid = m_swapChainHandle;
+    m_isValid = m_swapChainHandle != nullptr;
     if (m_isValid) {
         m_settings = settings;
 

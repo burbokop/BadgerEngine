@@ -25,6 +25,11 @@ enum class DisplayNormals : std::uint8_t;
 
 class BSDFVertexObject : public VertexObject {
 public:
+    BSDFVertexObject(const BSDFVertexObject&) = delete;
+    BSDFVertexObject(BSDFVertexObject&&) = delete;
+    BSDFVertexObject& operator=(const BSDFVertexObject&) = delete;
+    BSDFVertexObject& operator=(BSDFVertexObject&&) = delete;
+
     ~BSDFVertexObject();
     BSDFVertexObject(
         Shared<e172vp::GraphicsObject> graphicsObject,

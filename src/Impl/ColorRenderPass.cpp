@@ -1,5 +1,7 @@
 #include "ColorRenderPass.h"
 
+#include "../Utils/NumericCast.h"
+
 namespace BadgerEngine {
 
 Expected<Unique<ColorRenderPass>> ColorRenderPass::create(const vk::Device& logicalDevice, const SwapChain::Settings& swapchainSettings) noexcept
@@ -49,7 +51,7 @@ Expected<Unique<ColorRenderPass>> ColorRenderPass::create(const vk::Device& logi
     };
 
     const vk::RenderPassCreateInfo renderPassCreateInfo = {
-        .attachmentCount = attachments.size(),
+        .attachmentCount = numericCast<std::uint32_t>( attachments.size()).value(),
         .pAttachments = attachments.data(),
         .subpassCount = 1,
         .pSubpasses = &subpass,

@@ -5,8 +5,8 @@
 #include <cstdint>
 #include <glm/glm.hpp>
 #include <optional>
-#include <vector>
 #include <ostream>
+#include <vector>
 
 namespace BadgerEngine {
 
@@ -36,10 +36,10 @@ inline std::ostream& operator<<(std::ostream& stream, const PixFormat& fmt)
 
 /**
  * @brief pixFormatDepth
- * @param fmt
- * @return bits per pixel fr given format. 0 means `fmt` not recognized
+ * @param fmt - pixel format
+ * @return bits per pixel fr given format.
  */
-constexpr std::size_t pixFormatDepth(PixFormat fmt)
+constexpr std::size_t pixFormatDepth(PixFormat fmt) noexcept
 {
     switch (fmt) {
     case PixFormat::GS:
@@ -49,15 +49,15 @@ constexpr std::size_t pixFormatDepth(PixFormat fmt)
     case PixFormat::RGBA32:
         return 32;
     }
-    return 0;
+    std::unreachable();
 }
 
 /**
  * @brief pixFormatBytesPerPixel
- * @param fmt
- * @return bytes per pixel fr given format. 0 means `fmt` not recognized
+ * @param fmt - pixel format
+ * @return bytes per pixel fr given format.
  */
-constexpr std::size_t pixFormatBytesPerPixel(PixFormat fmt)
+constexpr std::size_t pixFormatBytesPerPixel(PixFormat fmt) noexcept
 {
     switch (fmt) {
     case PixFormat::GS:
@@ -67,7 +67,7 @@ constexpr std::size_t pixFormatBytesPerPixel(PixFormat fmt)
     case PixFormat::RGBA32:
         return 4;
     }
-    return 0;
+    std::unreachable();
 }
 
 struct TextureMetaData {

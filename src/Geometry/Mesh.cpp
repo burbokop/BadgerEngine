@@ -4,6 +4,7 @@
 #include "../Utils/NumericCast.h"
 #include "ObjMesh.h"
 #include <ranges>
+#include <array>
 
 namespace BadgerEngine::Geometry {
 
@@ -32,7 +33,6 @@ Shared<Mesh> Mesh::fromObjMesh(const ObjMesh& mesh, glm::vec3 color)
 
 std::optional<Shared<Mesh>> Mesh::polygonNormalsMesh(float len) const
 {
-
     switch (m_topology) {
     case Topology::LineList:
         return std::nullopt;
@@ -41,16 +41,16 @@ std::optional<Shared<Mesh>> Mesh::polygonNormalsMesh(float len) const
         vertices.reserve((m_indices.size() + 1) * 2 / 3);
 
         for (std::size_t i = 0; i < m_indices.size() - 2; i += 3) {
-            const std::array v = {
+            const auto v = std::array {
                 m_vertices[m_indices[i + 0]],
                 m_vertices[m_indices[i + 1]],
-                m_vertices[m_indices[i + 2]]
+                m_vertices[m_indices[i + 2]],
             };
 
-            const auto center = (v[0].position + v[1].position + v[2].position) / 3.f;
-            const auto averageNormal = (v[0].normal + v[1].normal + v[2].normal) / 3.f;
-            const auto averageColor = (v[0].color + v[1].color + v[2].color) / 3.f;
-            const auto averageUV = (v[0].uv + v[1].uv + v[2].uv) / 3.f;
+            const glm::vec3 center = (v[0].position + v[1].position + v[2].position) / 3.f;
+            const glm::vec3 averageNormal = (v[0].normal + v[1].normal + v[2].normal) / 3.f;
+            const glm::vec3 averageColor = (v[0].color + v[1].color + v[2].color) / 3.f;
+            const glm::vec2 averageUV = (v[0].uv + v[1].uv + v[2].uv) / 3.f;
 
             vertices.push_back(Vertex { .position = center, .normal = averageNormal, .color = averageColor, .uv = averageUV });
             vertices.push_back(Vertex { .position = center + averageNormal * len, .normal = averageNormal, .color = averageColor, .uv = averageUV });

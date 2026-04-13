@@ -1,5 +1,7 @@
 #include "ShadowMapRenderPass.h"
 
+#include "../Utils/NumericCast.h"
+
 namespace BadgerEngine {
 
 Expected<Unique<ShadowMapRenderPass>> ShadowMapRenderPass::create(const vk::Device& logicalDevice, const SwapChain::Settings& swapchainSettings) noexcept
@@ -53,11 +55,11 @@ Expected<Unique<ShadowMapRenderPass>> ShadowMapRenderPass::create(const vk::Devi
     };
 
     const vk::RenderPassCreateInfo renderPassCreateInfo = {
-        .attachmentCount = attachments.size(),
+        .attachmentCount = numericCast<std::uint32_t>(attachments.size()).value(),
         .pAttachments = attachments.data(),
         .subpassCount = 1,
         .pSubpasses = &subpass,
-        .dependencyCount = dependencies.size(),
+        .dependencyCount = numericCast<std::uint32_t>(dependencies.size()).value(),
         .pDependencies = dependencies.data(),
     };
 

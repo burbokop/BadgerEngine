@@ -11,6 +11,13 @@ class InputProvider;
 
 class Camera {
 public:
+    Camera() = default;
+    Camera(const Camera&) = default;
+    Camera(Camera&&) = default;
+    Camera& operator=(const Camera&) = default;
+    Camera& operator=(Camera&&) = default;
+    virtual ~Camera() = default;
+
     virtual glm::mat4 transformation(glm::vec2 extent) const = 0;
     virtual glm::vec3 position() const = 0;
     virtual float near() const = 0;
@@ -158,8 +165,8 @@ public:
 
     /**
      * @brief setOrbit - set position and direction in the way that camera looks at `center` from `direction` and the center is in the middle of its view range
-     * @param center
-     * @param direction
+     * @param center - the center of the orbit
+     * @param direction - direction from camera position to the center
      */
     void setOrbit(const glm::vec3& center, const glm::vec3& direction)
     {
