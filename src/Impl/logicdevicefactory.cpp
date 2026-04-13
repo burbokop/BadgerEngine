@@ -30,14 +30,14 @@ vk::Device e172vp::LogicDeviceFactory::create(const vk::PhysicalDevice& physical
 
     vk::PhysicalDeviceFeatures deviceFeatures;
 
-    std::vector<const char*> __rme;
-    StringVector::fillCStrContainer(m_requiredDeviceExtensions, __rme);
+    std::vector<const char*> requiredDeviceExtensions;
+    StringVector::fillCStrContainer(m_requiredDeviceExtensions, requiredDeviceExtensions);
 
     vk::DeviceCreateInfo createInfo;
     createInfo.setQueueCreateInfoCount(1);
     createInfo.setPQueueCreateInfos(&queueCreateInfo);
     createInfo.setPEnabledFeatures(&deviceFeatures);
-    createInfo.setPEnabledExtensionNames(__rme);
+    createInfo.setPEnabledExtensionNames(requiredDeviceExtensions);
 
     if (m_validationLayersEnabled) {
         m_enabledValidationLayers = Validation::presentLayers();

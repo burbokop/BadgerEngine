@@ -1,5 +1,6 @@
 #include "BufferUtils.h"
 
+#include "../Utils/NumericCast.h"
 #include "../graphicsobject.h"
 #include <iostream>
 
@@ -180,7 +181,7 @@ void BufferUtils::createIndexBuffer(
 
     void* data;
     vkMapMemory(logicalDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, indices.data(), (size_t)bufferSize);
+    std::memcpy(data, indices.data(), numericCast<std::size_t>(bufferSize).value());
     vkUnmapMemory(logicalDevice, stagingBufferMemory);
 
     createAbstractBuffer(logicalDevice, physicalDevice, bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal, indexBuffer, indexBufferMemory);
@@ -294,7 +295,7 @@ void BufferUtils::createSamplerDescriptorSets(
         imageInfo.sampler = sampler;
 
         vk::WriteDescriptorSet descriptorWrite;
-        descriptorWrite.sType = vk::StructureType::eWriteDescriptorSet,
+        descriptorWrite.sType = vk::StructureType::eWriteDescriptorSet;
         descriptorWrite.dstSet = descriptorSets->at(i);
         descriptorWrite.dstBinding = descriptorSetLayout.binding();
         descriptorWrite.dstArrayElement = 0;

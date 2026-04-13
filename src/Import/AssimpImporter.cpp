@@ -97,7 +97,7 @@ const char* textureTypeToString(aiTextureType type) noexcept
         return "Buffer";
     case _aiPTI_Force32Bit:
         return "_aiPTI_Force32Bit";
-    };
+    }
     std::unreachable();
 }
 
@@ -112,7 +112,7 @@ const char* aiReturnToString(aiReturn type) noexcept
         return "OutOfMemory";
     case _AI_ENFORCE_ENUM_SIZE:
         return "_AI_ENFORCE_ENUM_SIZE";
-    };
+    }
     std::unreachable();
 }
 
@@ -612,9 +612,9 @@ std::string aiVector3DToString(const aiVector3D& vec) noexcept
         }
 
         if (mesh->mColors[0]) {
-            vertex.color.r = (float)mesh->mColors[0][i].r;
-            vertex.color.g = (float)mesh->mColors[0][i].g;
-            vertex.color.b = (float)mesh->mColors[0][i].b;
+            vertex.color.r = mesh->mColors[0][i].r;
+            vertex.color.g = mesh->mColors[0][i].g;
+            vertex.color.b = mesh->mColors[0][i].b;
             // vertex.color.a = (float)mesh->mColors[0][i].a;
         }
 

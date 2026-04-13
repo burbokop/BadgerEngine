@@ -1,16 +1,19 @@
 #include "commandpool.h"
 
+#include "../Utils/NumericCast.h"
 
-
-vk::CommandPool e172vp::CommandPool::commandPullHandle() const {
+vk::CommandPool e172vp::CommandPool::commandPullHandle() const
+{
     return m_commandPoolHandle;
 }
 
-bool e172vp::CommandPool::isValid() const {
+bool e172vp::CommandPool::isValid() const
+{
     return m_isValid;
 }
 
-e172vp::CommandPool::CommandPool(const vk::Device &logicalDevice, const Hardware::QueueFamilies &queueFamilies, size_t buffersCount) {
+e172vp::CommandPool::CommandPool(const vk::Device& logicalDevice, const Hardware::QueueFamilies& queueFamilies, size_t buffersCount)
+{
     vk::CommandPoolCreateInfo poolInfo;
     poolInfo.queueFamilyIndex = queueFamilies.graphicsFamily();
 
@@ -24,7 +27,7 @@ e172vp::CommandPool::CommandPool(const vk::Device &logicalDevice, const Hardware
     vk::CommandBufferAllocateInfo allocInfo;
     allocInfo.commandPool = m_commandPoolHandle;
     allocInfo.level = vk::CommandBufferLevel::ePrimary;
-    allocInfo.commandBufferCount = (uint32_t) m_commandBuffers.size();
+    allocInfo.commandBufferCount = BadgerEngine::numericCast<std::uint32_t>(m_commandBuffers.size()).value();
 
     code = logicalDevice.allocateCommandBuffers(&allocInfo, m_commandBuffers.data());
     if (code != vk::Result::eSuccess) {
@@ -35,26 +38,31 @@ e172vp::CommandPool::CommandPool(const vk::Device &logicalDevice, const Hardware
     m_isValid = true;
 }
 
-std::vector<std::string> e172vp::CommandPool::pullErrors() {
+std::vector<std::string> e172vp::CommandPool::pullErrors()
+{
     const auto r = m_errors;
     m_errors.clear();
     return r;
 }
 
-vk::CommandBuffer e172vp::CommandPool::commandBuffer(size_t index) const {
-    if(index < m_commandBuffers.size())
+vk::CommandBuffer e172vp::CommandPool::commandBuffer(size_t index) const
+{
+    if (index < m_commandBuffers.size())
         return m_commandBuffers[index];
     return vk::CommandBuffer();
 }
 
-size_t e172vp::CommandPool::commandBufferCount() const {
+size_t e172vp::CommandPool::commandBufferCount() const
+{
     return m_commandBuffers.size();
 }
 
-std::vector<vk::CommandBuffer> e172vp::CommandPool::commandBufferVector() const {
+std::vector<vk::CommandBuffer> e172vp::CommandPool::commandBufferVector() const
+{
     return m_commandBuffers;
 }
 
-e172vp::CommandPool::operator vk::CommandPool() const {
+e172vp::CommandPool::operator vk::CommandPool() const
+{
     return m_commandPoolHandle;
 }

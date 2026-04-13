@@ -11,8 +11,8 @@ public:
 
     /**
      * @brief load
-     * @param path
-     * @return
+     * @param path - path to load from
+     * @return model imported from `path`
      */
     virtual Expected<Model> load(
         const TextureLoader&,
@@ -21,9 +21,9 @@ public:
 
     /**
      * @brief parse
-     * @param data
-     * @param hint
-     * @return
+     * @param data - bytes to import from
+     * @param hint - could be used by some implementations to infer the type of the bytes passed (like an extension of file)
+     * @return model imported from `data`
      */
     virtual Expected<Model> parse(
         const TextureLoader&,

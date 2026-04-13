@@ -94,33 +94,12 @@ jobs:
       if: ${{ matrix.os == 'windows-2022' }}
       shell: bash
       run: |
-        vcpkg install freetype
-        vcpkg install sdl2
-        vcpkg install glfw3
-        vcpkg install glm
-
-    # - name: Install gcc
-    #   if: ${{ matrix.os == 'ubuntu-24.04' && matrix.c_compiler == 'gcc' }}
-    #   shell: bash
-    #   run: |
-    #     sudo apt update
-    #     sudo apt install -y gcc-14
-    #     sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100
-    #     sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 100
-
-    # - name: Install clang
-    #   if: ${{ matrix.c_compiler == 'clang' }}
-    #   uses: egor-tensin/setup-clang@v2
-    #   with:
-    #     version: 20
-    #     platform: x64
-
-    - name: Install Vulkan SDK (Windows)
-      if: ${{ matrix.os == 'windows-2022' }}
-      uses: humbletim/install-vulkan-sdk@v1.2
-      with:
-        version: 1.4.309.0
-        cache: true
+        vcpkg install \
+          vulkan-sdk-components \
+          freetype \
+          sdl2 \
+          glfw3 \
+          glm
 
     - name: Set reusable strings
       id: strings
@@ -128,11 +107,10 @@ jobs:
       run: |
         echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
         if [ "${{ matrix.os }}" == "windows-2022" ]; then
-          echo "toolchain-file=C:\vcpkg\scripts\buildsystems\vcpkg.cmake" >> "$GITHUB_OUTPUT"
+          echo "toolchain-file=${VCPKG_INSTALLATION_ROOT}\scripts\buildsystems\vcpkg.cmake" >> "$GITHUB_OUTPUT"
         else
           echo "toolchain-file=" >> "$GITHUB_OUTPUT"
         fi
-
         echo "GITHUB_OUTPUT: $GITHUB_OUTPUT"
 
     - name: Configure CMake

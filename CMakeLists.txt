@@ -68,8 +68,8 @@ endif ()
 
 target_compile_definitions(
     BadgerEngine
-    PUBLIC GLM_ENABLE_EXPERIMENTAL
-    PRIVATE VULKAN_HPP_NO_STRUCT_CONSTRUCTORS)
+    PUBLIC GLM_ENABLE_EXPERIMENTAL GLM_FORCE_RADIANS
+    PRIVATE VULKAN_HPP_NO_STRUCT_CONSTRUCTORS GLFW_INCLUDE_VULKAN)
 
 badger_engine_target_pedantic_diagnostic(BadgerEngine)
 

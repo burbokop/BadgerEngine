@@ -64,7 +64,7 @@ public:
     void setIntensity(float i)
     {
         m_intensity = i;
-    };
+    }
 
     float intensity() const { return m_intensity; }
 

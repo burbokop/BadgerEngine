@@ -26,9 +26,9 @@ void e172vp::VulkanInstanceFactory::initDebugReportCallback(const vk::Instance& 
     createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT;
     createInfo.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT;
     createInfo.pfnCallback = VulkanInstanceFactory::debugReportCallback;
-    PFN_vkCreateDebugReportCallbackEXT e = (PFN_vkCreateDebugReportCallbackEXT)vkGetInstanceProcAddr(
+    PFN_vkCreateDebugReportCallbackEXT e = reinterpret_cast<PFN_vkCreateDebugReportCallbackEXT>(vkGetInstanceProcAddr(
         instance,
-        "vkCreateDebugReportCallbackEXT");
+        "vkCreateDebugReportCallbackEXT"));
 
     if (e(instance, &createInfo, nullptr, callbackObject) != VK_SUCCESS) {
         error_queue->push_back("[warning] VulkanInstanceFactory: debug report callback setup failed.");
@@ -75,12 +75,12 @@ vk::Instance e172vp::VulkanInstanceFactory::create()
         return vk::Instance();
     }
 
-    std::vector<const char*> __rme;
-    StringVector::fillCStrContainer(requiredMergedExtensions, __rme);
+    std::vector<const char*> requiredMergedExtensionsCStrVec;
+    StringVector::fillCStrContainer(requiredMergedExtensions, requiredMergedExtensionsCStrVec);
 
     vk::InstanceCreateInfo instanceCreateInfo;
     instanceCreateInfo.setPApplicationInfo(&applicationInfo);
-    instanceCreateInfo.setPEnabledExtensionNames(__rme);
+    instanceCreateInfo.setPEnabledExtensionNames(requiredMergedExtensionsCStrVec);
     instanceCreateInfo.setEnabledLayerCount(0);
 
     vk::Instance result_instance;

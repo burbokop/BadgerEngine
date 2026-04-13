@@ -93,7 +93,7 @@ Expected<ObjMesh> ObjMesh::load(const std::filesystem::path& path)
     return result;
 }
 
-Expected<ObjMesh> ObjMesh::parse(std::span<const std::uint8_t> bytes)
+Expected<ObjMesh> ObjMesh::parse([[maybe_unused]] std::span<const std::uint8_t> bytes)
 {
 #ifdef _MSC_VER
     return unexpected("Not implemented");

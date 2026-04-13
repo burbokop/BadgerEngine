@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.27.2)
 
 add_subdirectory(Buffers)
 add_subdirectory(Uploaded)
+add_subdirectory(Text)
 
 set(INSTALLDIR ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}/Impl)
 
@@ -18,8 +19,6 @@ target_sources(
             descriptorsetlayout.h
             extensiontools.cpp
             extensiontools.h
-            font.cpp
-            font.h
             graphicsobject.cpp
             graphicsobject.h
             hardware.cpp

@@ -62,12 +62,12 @@ public:
     }
 
     template<typename T>
-    static void createUniformBuffers(const e172vp::GraphicsObject* graphicsObject, size_t count, std::vector<vk::Buffer>* uniformBuffers, std::vector<vk::DeviceMemory>* uniformBuffersMemory)
+    static void createUniformBuffers(const e172vp::GraphicsObject* graphicsObject, std::size_t count, std::vector<vk::Buffer>* uniformBuffers, std::vector<vk::DeviceMemory>* uniformBuffersMemory)
     {
         uniformBuffers->resize(count);
         uniformBuffersMemory->resize(count);
 
-        for (size_t i = 0; i < count; ++i) {
+        for (std::size_t i = 0; i < count; ++i) {
             createUniformBuffer<T>(
                 logicalDevice(graphicsObject),
                 physicalDevice(graphicsObject),

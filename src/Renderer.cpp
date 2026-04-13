@@ -4,8 +4,8 @@
 #include "Impl/BSDFVertexObject.h"
 #include "Impl/Buffers/BufferUtils.h"
 #include "Impl/ImageViewVertexObject.h"
+#include "Impl/Text/Typeface.h"
 #include "Impl/Uploaded/UploadedTexture.h"
-#include "Impl/font.h"
 #include "Impl/graphicsobject.h"
 #include "Impl/stringvector.h"
 #include "Model/Model.h"
@@ -232,7 +232,11 @@ struct RendererImpl {
     std::vector<BufferBundle> lightingUniformBufferBundles;
     std::vector<BufferBundle> shadowMapGlobalUniformBufferBundles;
 
-    e172vp::Font* font = nullptr;
+    std::optional<Typeface> typeface;
+    std::optional<Font> defaultFont;
+    std::map<char, SharedTexture> glyphsCache;
+    std::map<std::string, SharedTexture> textCache;
+
     std::list<VertexObject*> vertexObjects;
     std::shared_ptr<e172vp::Pipeline> normalDebugPipeline;
     std::shared_ptr<e172vp::Pipeline> shadowMapPipeline;
@@ -248,6 +252,52 @@ struct RendererImpl {
 #ifdef BADGER_ENGINE_RENDERDOC
     RENDERDOC_API_1_1_2* renderDocApi;
 #endif
+
+    Expected<UploadedTexture> characterTexture(char c)
+    {
+        if (!defaultFont) {
+            return unexpected("No default font");
+        }
+
+        auto it = glyphsCache.find(c);
+        if (it == glyphsCache.end()) {
+            it = glyphsCache.insert(it, { c, defaultFont->glyph(c).transform_error(AsCritical()).value() });
+        }
+
+        return UploadedTexture::upload(
+            graphicsObject->logicalDevice(),
+            graphicsObject->physicalDevice(),
+            graphicsObject->commandPool(),
+            // Assuming graphics queue can also do copy. If not then add some check
+            graphicsObject->graphicsQueue(),
+            *textureCache,
+            it->second)
+            .transform_error(AsCritical())
+            .value();
+    }
+
+    Expected<UploadedTexture> textTexture(const std::string& str)
+    {
+        if (!defaultFont) {
+            return unexpected("No default font");
+        }
+
+        auto it = textCache.find(str);
+        if (it == textCache.end()) {
+            it = textCache.insert(it, { str, defaultFont->text(str).transform_error(AsCritical()).value() });
+        }
+
+        return UploadedTexture::upload(
+            graphicsObject->logicalDevice(),
+            graphicsObject->physicalDevice(),
+            graphicsObject->commandPool(),
+            // Assuming graphics queue can also do copy. If not then add some check
+            graphicsObject->graphicsQueue(),
+            *textureCache,
+            it->second)
+            .transform_error(AsCritical())
+            .value();
+    }
 };
 
 Renderer::Renderer(Shared<Window> window, Shared<Camera> camera, std::span<const std::uint8_t> fontBytes)
@@ -286,7 +336,12 @@ Renderer::Renderer(Shared<Window> window, Shared<Camera> camera, std::span<const
           .colorGlobalUniformBufferBundles = {},
           .lightingUniformBufferBundles = {},
           .shadowMapGlobalUniformBufferBundles = {},
-          .font = nullptr,
+
+          .typeface = {},
+          .defaultFont = {},
+          .glyphsCache = {},
+          .textCache = {},
+
           .vertexObjects = {},
           .normalDebugPipeline = {},
           .shadowMapPipeline = {},
@@ -347,13 +402,14 @@ Renderer::Renderer(Shared<Window> window, Shared<Camera> camera, std::span<const
     createSyncObjects(m_impl->graphicsObject->logicalDevice(), &m_impl->imageAvailableSemaphore, &m_impl->renderFinishedSemaphore);
 
     if (!fontBytes.empty()) {
-        m_impl->font = new e172vp::Font(
-            m_impl->graphicsObject->logicalDevice(),
-            m_impl->graphicsObject->physicalDevice(),
-            m_impl->graphicsObject->commandPool(),
-            m_impl->graphicsObject->graphicsQueue(),
-            fontBytes,
-            128);
+        m_impl->typeface = Typeface::parse(fontBytes)
+                               .transform_error(AsCritical())
+                               .value();
+        m_impl->defaultFont = m_impl
+                                  ->typeface
+                                  ->font(128)
+                                  .transform_error(AsCritical())
+                                  .value();
     }
 
     m_impl->defaultTexture = UploadedTexture::create(
@@ -521,7 +577,7 @@ Expected<void> Renderer::fillCommandBuffers()
                 m_impl->graphicsObject->shadowMapRenderPass()->handle(),
                 m_impl->graphicsObject->swapChainSettings().shadowMapExtent,
                 m_impl->directionalLightCamera,
-                std::array<vk::ClearValue, 1> { vk::ClearDepthStencilValue(1.0f, 0.f) },
+                std::array<vk::ClearValue, 1> { vk::ClearDepthStencilValue { .depth = 1.0f, .stencil = 0 } },
                 m_impl->graphicsObject->swapChain().shadowMapFrameBufferVector(),
                 commandBuffers,
                 m_impl->shadowMapGlobalUniformBufferBundles,
@@ -548,7 +604,7 @@ Expected<void> Renderer::fillCommandBuffers()
                         0x33 / 256.,
                         0.4f,
                     }),
-                    vk::ClearDepthStencilValue(1.0f, 0.f),
+                    vk::ClearDepthStencilValue { .depth = 1.0f, .stencil = 0 },
                 },
                 m_impl->graphicsObject->swapChain().frameBufferVector(),
                 commandBuffers,
@@ -795,6 +851,22 @@ VertexObject& Renderer::addCharacter(char c, std::shared_ptr<e172vp::Pipeline> p
         2, 3, 0
     };
 
+    auto it = m_impl->glyphsCache.find(c);
+    if (it == m_impl->glyphsCache.end()) {
+        m_impl->glyphsCache.insert(it, { c, m_impl->defaultFont->glyph(c).transform_error(AsCritical()).value() });
+    }
+
+    const auto uploadedTexture = UploadedTexture::upload(
+        m_impl->graphicsObject->logicalDevice(),
+        m_impl->graphicsObject->physicalDevice(),
+        m_impl->graphicsObject->commandPool(),
+        // Assuming graphics queue can also do copy. If not then add some check
+        m_impl->graphicsObject->graphicsQueue(),
+        *m_impl->textureCache,
+        it->second)
+                                     .transform_error(AsCritical())
+                                     .value();
+
     const auto r = new ImageViewVertexObject(
         m_impl->graphicsObject,
         m_impl->graphicsObject->swapChain().imageCount(),
@@ -802,7 +874,7 @@ VertexObject& Renderer::addCharacter(char c, std::shared_ptr<e172vp::Pipeline> p
         m_impl->baseColorSamplerDescriptorSetLayout,
         Geometry::Mesh::create(Geometry::Topology::TriangleList, v, i),
         *m_impl->meshCache,
-        m_impl->font->character(c).imageView(),
+        uploadedTexture,
         pipeline,
         m_impl->normalDebugPipeline,
         DisplayNormals::NoNormals);
@@ -875,9 +947,39 @@ VertexObject& Renderer::addObject(const BadgerEngine::Model& model, RenderingOpt
                 m_impl->vertexObjects.push_back(result);
                 return *result;
             },
+            [this, &model, &options](const TextMaterial& material) -> VertexObject& {
+                if (m_impl->defaultFont) {
+                    const auto result = new ImageViewVertexObject(
+                        m_impl->graphicsObject,
+                        m_impl->graphicsObject->swapChain().imageCount(),
+                        m_impl->objectDescriptorSetLayout,
+                        m_impl->baseColorSamplerDescriptorSetLayout,
+                        model.mesh(),
+                        *m_impl->meshCache,
+                        m_impl->textTexture(material.text).transform_error(AsCritical()).value(),
+                        createColorPipeline(material.vert, material.frag, model.mesh()->topology(), model.polygonMode(), options.backfaceCulling),
+                        m_impl->normalDebugPipeline,
+                        options.displayNormals);
+                    m_impl->vertexObjects.push_back(result);
+                    return *result;
+                } else {
+                    const auto result = new ImageViewVertexObject(
+                        m_impl->graphicsObject,
+                        m_impl->graphicsObject->swapChain().imageCount(),
+                        m_impl->objectDescriptorSetLayout,
+                        m_impl->baseColorSamplerDescriptorSetLayout,
+                        model.mesh(),
+                        *m_impl->meshCache,
+                        m_impl->defaultTexture.value(),
+                        createColorPipeline(material.vert, material.frag, model.mesh()->topology(), model.polygonMode(), options.backfaceCulling),
+                        m_impl->normalDebugPipeline,
+                        options.displayNormals);
+                    m_impl->vertexObjects.push_back(result);
+                    return *result;
+                }
+            },
             [this, &model, &options](const CustomMaterial& material) -> VertexObject& {
                 if (material.textures.size() > 0) {
-
                     const auto texture = UploadedTexture::upload(
                         m_impl->graphicsObject->logicalDevice(),
                         m_impl->graphicsObject->physicalDevice(),
@@ -902,8 +1004,7 @@ VertexObject& Renderer::addObject(const BadgerEngine::Model& model, RenderingOpt
                         options.displayNormals);
                     m_impl->vertexObjects.push_back(result);
                     return *result;
-
-                } else if (m_impl->font) {
+                } else if (m_impl->defaultFont) {
                     const auto result = new ImageViewVertexObject(
                         m_impl->graphicsObject,
                         m_impl->graphicsObject->swapChain().imageCount(),
@@ -911,7 +1012,7 @@ VertexObject& Renderer::addObject(const BadgerEngine::Model& model, RenderingOpt
                         m_impl->baseColorSamplerDescriptorSetLayout,
                         model.mesh(),
                         *m_impl->meshCache,
-                        m_impl->font->character('N').imageView(),
+                        m_impl->characterTexture('N').transform_error(AsCritical()).value(),
                         createColorPipeline(material.vert, material.frag, model.mesh()->topology(), model.polygonMode(), options.backfaceCulling),
                         m_impl->normalDebugPipeline,
                         options.displayNormals);
