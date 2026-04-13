@@ -2,8 +2,8 @@
 
 #include "Utils/Error.h"
 #include <glm/glm.hpp>
-#include <vector>
 #include <span>
+#include <vector>
 
 namespace vk {
 class CommandBuffer;
@@ -41,6 +41,10 @@ public:
     VertexObject& setScale(const glm::mat4& scale);
     VertexObject& setScale(const glm::vec3& scale);
 
+    /// Additional custom transformation
+    VertexObject& setTransformation(const glm::mat4& mat);
+    glm::mat4 transformation() const;
+
 protected:
     enum class RenderTarget {
         Color,
@@ -64,6 +68,7 @@ private:
     glm::mat4 m_rotation = glm::mat4(1.);
     glm::mat4 m_translation = glm::mat4(1.);
     glm::mat4 m_scale = glm::mat4(1.);
+    glm::mat4 m_additionalTransformation = glm::mat4(1.);
 };
 
 }

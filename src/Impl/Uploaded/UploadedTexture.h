@@ -12,17 +12,12 @@ namespace BadgerEngine {
 class UploadedTextureCache;
 
 class UploadedTexture {
-    struct Private {};
+    friend UploadedTextureCache;
 
 public:
     using Size = glm::vec<2, std::size_t, glm::defaultp>;
 
-    UploadedTexture& operator=(UploadedTexture&&) = delete;
-    UploadedTexture& operator=(const UploadedTexture&) = delete;
-    UploadedTexture(UploadedTexture&&) = delete;
-    UploadedTexture(const UploadedTexture&) = delete;
-
-    static Expected<Shared<UploadedTexture>> upload(
+    static Expected<UploadedTexture> upload(
         const vk::Device& logicalDevice,
         const vk::PhysicalDevice& physicalDevice,
         const vk::CommandPool& commandPool,
@@ -30,7 +25,7 @@ public:
         UploadedTextureCache& cache,
         SharedTexture texture) noexcept;
 
-    static Expected<Shared<UploadedTexture>> create(
+    static Expected<UploadedTexture> create(
         const vk::Device& logicalDevice,
         const vk::PhysicalDevice& physicalDevice,
         const vk::CommandPool& commandPool,
@@ -40,37 +35,22 @@ public:
         Size size,
         RGBAColor fillColor) noexcept;
 
-    UploadedTexture(
-        vk::Device logicalDevice,
-        vk::DeviceMemory imageMemory,
-        vk::Image image,
-        vk::ImageView imageView,
-        vk::Format imageFormat,
-        Size size,
-        Private)
-        : m_logicalDevice(std::move(logicalDevice))
-        , m_imageMemory(std::move(imageMemory))
-        , m_image(std::move(image))
-        , m_imageView(std::move(imageView))
-        , m_imageFormat(std::move(imageFormat))
-        , m_size(std::move(size))
+    const vk::Image& image() const;
+    const vk::ImageView& view() const;
+    const vk::Format& format() const;
+    const Size& size() const;
+
+private:
+    struct Impl;
+
+private:
+    UploadedTexture(Shared<Impl>&& impl)
+        : m_impl(std::move(impl))
     {
     }
 
-    ~UploadedTexture();
-
-    vk::Image image() const { return m_image; }
-    vk::ImageView imageView() const { return m_imageView; }
-    vk::Format imageFormat() const { return m_imageFormat; }
-    Size size() const { return m_size; }
-
 private:
-    vk::Device m_logicalDevice;
-    vk::DeviceMemory m_imageMemory;
-    vk::Image m_image;
-    vk::ImageView m_imageView;
-    vk::Format m_imageFormat;
-    Size m_size;
+    Shared<Impl> m_impl;
 };
 
 class UploadedTextureCache {
@@ -114,8 +94,8 @@ private:
     };
 
 private:
-    std::map<std::weak_ptr<Texture>, std::weak_ptr<UploadedTexture>, TextureCmpLess> m_loadedCache;
-    std::map<CreateKey, std::weak_ptr<UploadedTexture>> m_createdCache;
+    std::map<std::weak_ptr<Texture>, std::weak_ptr<UploadedTexture::Impl>, TextureCmpLess> m_loadedCache;
+    std::map<CreateKey, std::weak_ptr<UploadedTexture::Impl>> m_createdCache;
 };
 
 }

@@ -5,7 +5,7 @@
 #include "../Utils/Collections.h"
 #include "../Utils/NumericCast.h"
 #include "Buffers/BufferUtils.h"
-#include "UploadedTexture.h"
+#include "Uploaded/UploadedTexture.h"
 #include "graphicsobject.h"
 #include "pipeline.h"
 #include <list>
@@ -23,35 +23,37 @@ static_assert(offsetof(UniformBufferObject, model) == 0, "Offset must comply wit
 std::vector<UploadedModel> createModels(
     Shared<e172vp::GraphicsObject> graphicsObject,
     const Shared<Geometry::Mesh>& mesh,
+    UploadedMeshCache& cache,
     Shared<e172vp::Pipeline> pipeline,
     Shared<e172vp::Pipeline> nPipeline,
     DisplayNormals displayNormals)
 {
     std::list<UploadedModel> result = {
         UploadedModel(
-            UploadedMesh::upload(graphicsObject, *mesh).transform_error(AsCritical()).value(),
+            UploadedMesh::upload(graphicsObject, cache, mesh).transform_error(AsCritical()).value(),
             std::move(pipeline))
     };
 
     const float len = 0.02f;
 
+    UploadedMeshCache nopCache;
     switch (displayNormals) {
     case DisplayNormals::NoNormals:
         break;
     case DisplayNormals::VertexNormals:
         result.push_back(UploadedModel(
-            UploadedMesh::upload(graphicsObject, *mesh->vertexNormalsMesh(len, glm::vec3(0, 0, 1)).value()).transform_error(AsCritical()).value(),
+            UploadedMesh::upload(graphicsObject, nopCache, mesh->vertexNormalsMesh(len, glm::vec3(0, 0, 1)).value()).transform_error(AsCritical()).value(),
             nPipeline));
         result.push_back(UploadedModel(
-            UploadedMesh::upload(graphicsObject, *mesh->vertexTangentsMesh(len, glm::vec3(1, 0, 0)).value()).transform_error(AsCritical()).value(),
+            UploadedMesh::upload(graphicsObject, nopCache, mesh->vertexTangentsMesh(len, glm::vec3(1, 0, 0)).value()).transform_error(AsCritical()).value(),
             nPipeline));
         result.push_back(UploadedModel(
-            UploadedMesh::upload(graphicsObject, *mesh->vertexBitangentsMesh(len, glm::vec3(0, 1, 0)).value()).transform_error(AsCritical()).value(),
+            UploadedMesh::upload(graphicsObject, nopCache, mesh->vertexBitangentsMesh(len, glm::vec3(0, 1, 0)).value()).transform_error(AsCritical()).value(),
             std::move(nPipeline)));
         break;
     case DisplayNormals::PolygonNormals:
         result.push_back(UploadedModel(
-            UploadedMesh::upload(graphicsObject, *mesh->polygonNormalsMesh(len).value()).transform_error(AsCritical()).value(),
+            UploadedMesh::upload(graphicsObject, nopCache, mesh->polygonNormalsMesh(len).value()).transform_error(AsCritical()).value(),
             std::move(nPipeline)));
         break;
     }
@@ -67,12 +69,13 @@ ImageViewVertexObject::ImageViewVertexObject(
     const e172vp::DescriptorSetLayout& uniformBufferDescriptorSetLayout,
     const e172vp::DescriptorSetLayout& baseColorDescriptorSetLayout,
     const Shared<Geometry::Mesh>& mesh,
+    UploadedMeshCache& cache,
     const vk::ImageView& imageView,
     Shared<e172vp::Pipeline> pipeline,
     Shared<e172vp::Pipeline> nPipeline,
     DisplayNormals displayNormals)
     : m_graphicsObject(std::move(graphicsObject))
-    , m_models(createModels(m_graphicsObject, mesh, std::move(pipeline), std::move(nPipeline), displayNormals))
+    , m_models(createModels(m_graphicsObject, mesh, cache, std::move(pipeline), std::move(nPipeline), displayNormals))
 {
     m_uniformBufferBundles = BufferUtils::createUniformBufferBundle<UniformBufferObject>(
         *m_graphicsObject,
@@ -96,13 +99,14 @@ ImageViewVertexObject::ImageViewVertexObject(
     const e172vp::DescriptorSetLayout& uniformBufferDescriptorSetLayout,
     const e172vp::DescriptorSetLayout& baseColorDescriptorSetLayout,
     const Shared<Geometry::Mesh>& mesh,
+    UploadedMeshCache& cache,
     std::span<const vk::ImageView> imageViews,
     vk::ImageLayout imageLayout,
     Shared<e172vp::Pipeline> pipeline,
     Shared<e172vp::Pipeline> nPipeline,
     DisplayNormals displayNormals)
     : m_graphicsObject(std::move(graphicsObject))
-    , m_models(createModels(m_graphicsObject, mesh, std::move(pipeline), std::move(nPipeline), displayNormals))
+    , m_models(createModels(m_graphicsObject, mesh, cache, std::move(pipeline), std::move(nPipeline), displayNormals))
 {
     m_uniformBufferBundles = BufferUtils::createUniformBufferBundle<UniformBufferObject>(
         *m_graphicsObject,
@@ -126,12 +130,13 @@ ImageViewVertexObject::ImageViewVertexObject(
     const e172vp::DescriptorSetLayout& uniformBufferDescriptorSetLayout,
     const e172vp::DescriptorSetLayout& baseColorDescriptorSetLayout,
     const Shared<Geometry::Mesh>& mesh,
-    Shared<UploadedTexture> texture,
+    UploadedMeshCache& cache,
+    UploadedTexture texture,
     Shared<e172vp::Pipeline> pipeline,
     Shared<e172vp::Pipeline> nPipeline,
     DisplayNormals displayNormals)
     : m_graphicsObject(std::move(graphicsObject))
-    , m_models(createModels(m_graphicsObject, mesh, std::move(pipeline), std::move(nPipeline), displayNormals))
+    , m_models(createModels(m_graphicsObject, mesh, cache, std::move(pipeline), std::move(nPipeline), displayNormals))
     , m_texture(std::move(texture))
 {
     m_uniformBufferBundles = BufferUtils::createUniformBufferBundle<UniformBufferObject>(
@@ -143,7 +148,7 @@ ImageViewVertexObject::ImageViewVertexObject(
     BufferUtils::createSamplerDescriptorSets(
         m_graphicsObject->logicalDevice(),
         m_graphicsObject->descriptorPool(),
-        (*m_texture)->imageView(),
+        (*m_texture).view(),
         imageCount,
         m_graphicsObject->sampler(),
         baseColorDescriptorSetLayout,
@@ -187,7 +192,7 @@ Expected<void> ImageViewVertexObject::draw(
 Expected<void> ImageViewVertexObject::updateUniformBuffer(std::size_t imageIndex) noexcept
 {
     const auto ubo = UniformBufferObject {
-        .model = translation() * rotation() * scale(),
+        .model = transformation() * translation() * rotation() * scale(),
     };
 
     void* data = nullptr;

@@ -1,7 +1,7 @@
-#include "MeshBuffer.h"
+#include "UploadedMesh.h"
 
+#include "../Buffers/BufferUtils.h"
 #include "../graphicsobject.h"
-#include "BufferUtils.h"
 #include <vulkan/vulkan.hpp>
 
 namespace BadgerEngine {
@@ -87,13 +87,30 @@ private:
     Shared<e172vp::GraphicsObject> m_device;
 };
 
-Expected<UploadedMesh> UploadedMesh::upload(Shared<e172vp::GraphicsObject> device, const Geometry::Mesh& mesh)
+Expected<UploadedMesh> UploadedMesh::upload(Shared<e172vp::GraphicsObject> device, UploadedMeshCache& cache, const Shared<Geometry::Mesh>& mesh)
 {
-    auto r = Impl::upload(device, mesh);
-    if (!r) {
-        return unexpected(r.error());
+    {
+        const auto it = cache.m_cache.find(mesh.nullable());
+        if (it != cache.m_cache.end()) {
+            const auto key = it->first.lock();
+            const auto value = it->second.lock();
+            if (key && value) {
+                return UploadedMesh(value);
+            } else {
+                cache.m_cache.erase(it);
+            }
+        }
     }
-    return UploadedMesh(std::move(*r));
+
+    auto result = Impl::upload(device, *mesh);
+    if (!result) {
+        return unexpected(result.error());
+    }
+
+    [[maybe_unused]] const auto ok = cache.m_cache.insert({ mesh.nullable(), result->nullable() }).second;
+    assert(ok);
+
+    return UploadedMesh(std::move(*result));
 }
 
 Geometry::Topology UploadedMesh::topology() const

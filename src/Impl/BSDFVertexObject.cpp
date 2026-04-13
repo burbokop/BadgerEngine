@@ -5,7 +5,7 @@
 #include "../Utils/Collections.h"
 #include "../Utils/NumericCast.h"
 #include "Buffers/BufferUtils.h"
-#include "UploadedTexture.h"
+#include "Uploaded/UploadedTexture.h"
 #include "graphicsobject.h"
 #include "pipeline.h"
 #include <list>
@@ -29,20 +29,22 @@ std::vector<UploadedMesh> createDebugMeshes(
 
     const float len = 0.02f;
 
+    UploadedMeshCache nopCache;
+
     switch (displayNormals) {
     case DisplayNormals::NoNormals:
         break;
     case DisplayNormals::VertexNormals:
         result.push_back(
-            UploadedMesh::upload(graphicsObject, *mesh.vertexNormalsMesh(len, glm::vec3(0, 0, 1)).value()).transform_error(AsCritical()).value());
+            UploadedMesh::upload(graphicsObject, nopCache, mesh.vertexNormalsMesh(len, glm::vec3(0, 0, 1)).value()).transform_error(AsCritical()).value());
         result.push_back(
-            UploadedMesh::upload(graphicsObject, *mesh.vertexTangentsMesh(len, glm::vec3(1, 0, 0)).value()).transform_error(AsCritical()).value());
+            UploadedMesh::upload(graphicsObject, nopCache, mesh.vertexTangentsMesh(len, glm::vec3(1, 0, 0)).value()).transform_error(AsCritical()).value());
         result.push_back(
-            UploadedMesh::upload(graphicsObject, *mesh.vertexBitangentsMesh(len, glm::vec3(0, 1, 0)).value()).transform_error(AsCritical()).value());
+            UploadedMesh::upload(graphicsObject, nopCache, mesh.vertexBitangentsMesh(len, glm::vec3(0, 1, 0)).value()).transform_error(AsCritical()).value());
         break;
     case DisplayNormals::PolygonNormals:
         result.push_back(
-            UploadedMesh::upload(graphicsObject, *mesh.polygonNormalsMesh(len).value()).transform_error(AsCritical()).value());
+            UploadedMesh::upload(graphicsObject, nopCache, mesh.polygonNormalsMesh(len).value()).transform_error(AsCritical()).value());
         break;
     }
 
@@ -59,9 +61,10 @@ BSDFVertexObject::BSDFVertexObject(
     const e172vp::DescriptorSetLayout& normalMapDescriptorSetLayout,
     const e172vp::DescriptorSetLayout& shadowMapSamplerDescriptorSetLayout,
     const Shared<Geometry::Mesh>& mesh,
-    Shared<UploadedTexture> baseColorTexture,
-    Shared<UploadedTexture> ambientOclussionMap,
-    Shared<UploadedTexture> normalMap,
+    UploadedMeshCache& cache,
+    UploadedTexture baseColorTexture,
+    UploadedTexture ambientOclussionMap,
+    UploadedTexture normalMap,
     Shared<e172vp::Pipeline> pipeline,
     Shared<e172vp::Pipeline> normalesPipeline,
     Shared<e172vp::Pipeline> shadowMapPipeline,
@@ -71,7 +74,7 @@ BSDFVertexObject::BSDFVertexObject(
     , m_pipeline(std::move(pipeline))
     , m_normalesPipeline(std::move(normalesPipeline))
     , m_shadowMapPipeline(std::move(shadowMapPipeline))
-    , m_mesh(UploadedMesh::upload(m_graphicsObject, *mesh).transform_error(AsCritical()).value())
+    , m_mesh(UploadedMesh::upload(m_graphicsObject, cache, mesh).transform_error(AsCritical()).value())
     , m_debugMeshes(createDebugMeshes(m_graphicsObject, *mesh, displayNormals))
     , m_baseColorTexture(std::move(baseColorTexture))
     , m_ambientOclussionMap(std::move(ambientOclussionMap))
@@ -87,7 +90,7 @@ BSDFVertexObject::BSDFVertexObject(
     BufferUtils::createSamplerDescriptorSets(
         m_graphicsObject->logicalDevice(),
         m_graphicsObject->descriptorPool(),
-        m_baseColorTexture->imageView(),
+        m_baseColorTexture.view(),
         imageCount,
         m_graphicsObject->sampler(),
         baseColorDescriptorSetLayout,
@@ -97,7 +100,7 @@ BSDFVertexObject::BSDFVertexObject(
     BufferUtils::createSamplerDescriptorSets(
         m_graphicsObject->logicalDevice(),
         m_graphicsObject->descriptorPool(),
-        m_ambientOclussionMap->imageView(),
+        m_ambientOclussionMap.view(),
         imageCount,
         m_graphicsObject->sampler(),
         ambientOclussionDescriptorSetLayout,
@@ -107,7 +110,7 @@ BSDFVertexObject::BSDFVertexObject(
     BufferUtils::createSamplerDescriptorSets(
         m_graphicsObject->logicalDevice(),
         m_graphicsObject->descriptorPool(),
-        m_normalMap->imageView(),
+        m_normalMap.view(),
         imageCount,
         m_graphicsObject->sampler(),
         normalMapDescriptorSetLayout,
@@ -220,7 +223,7 @@ Expected<void> BSDFVertexObject::drawShadowMapTarget(
 Expected<void> BSDFVertexObject::updateUniformBuffer(std::size_t imageIndex) noexcept
 {
     const auto ubo = UniformBufferObject {
-        .model = translation() * rotation() * scale(),
+        .model = transformation() * translation() * rotation() * scale(),
     };
 
     void* data = nullptr;

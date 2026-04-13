@@ -46,4 +46,15 @@ VertexObject& VertexObject::setScale(const glm::vec3& scale)
     return setScale(glm::scale(glm::mat4(1.f), scale));
 }
 
+VertexObject& VertexObject::setTransformation(const glm::mat4& mat)
+{
+    m_additionalTransformation = mat;
+    return *this;
+}
+
+glm::mat4 VertexObject::transformation() const
+{
+    return m_additionalTransformation;
+}
+
 }

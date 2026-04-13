@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.27.2)
 
 add_subdirectory(Buffers)
+add_subdirectory(Uploaded)
 
 set(INSTALLDIR ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}/Impl)
 
@@ -35,10 +36,6 @@ target_sources(
             stringvector.h
             SwapChain.cpp
             SwapChain.h
-            UploadedModel.cpp
-            UploadedModel.h
-            UploadedTexture.cpp
-            UploadedTexture.h
             validation.cpp
             validation.h
             vulkaninstancefactory.cpp
